@@ -26,20 +26,22 @@
             android:alwaysRetainTaskState="true"
             android:configChanges="orientation|uiMode|density|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
             android:launchMode="singleInstance"
-            android:exported="true"
+            android:exported="false"
             android:preferMinimalPostProcessing="true"
             android:resizeableActivity="true"
             android:screenOrientation="sensorLandscape"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".DirectorySelectionActivity"
+            android:exported="true"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
+            android:theme="@style/Theme.AppCompat.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".DirectorySelectionActivity"
-            android:exported="false"
-            android:theme="@style/Theme.AppCompat.Light.DarkActionBar" />
 
         <!-- Support for Samsung DeX -->
         <meta-data

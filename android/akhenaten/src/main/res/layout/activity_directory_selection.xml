@@ -3,25 +3,177 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#120E09"
+    android:fillViewport="true"
     tools:context=".DirectorySelectionActivity">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="20dp">
 
-        <TextView
+        <!-- Header -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/directory_selector_instructions"
-            android:textSize="16sp" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <Button
-            android:id="@+id/directory_selector_button"
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.12"
+                    android:text="AKHENATEN"
+                    android:textColor="#D4AF37"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Pharaoh + Cleopatra • Native ARM64 Engine"
+                    android:textColor="#B8A37E"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/status_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="#261D12"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:text="NEEDS GAME DATA"
+                android:textColor="#D4AF37"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Main Two-Column Content for Landscape -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="@string/directory_selector_button" />
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <!-- Left Card: Pharaoh Data & Launch -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1.15"
+                android:background="#1E1710"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Pharaoh Game Data (SAF)"
+                    android:textColor="#F3E5AB"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/folder_status_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/directory_selector_instructions"
+                    android:textColor="#C9B99A"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/directory_selector_button"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1"
+                        android:backgroundTint="#332719"
+                        android:text="Select Folder"
+                        android:textColor="#E8D5B5"
+                        android:textSize="13sp" />
+
+                    <Button
+                        android:id="@+id/play_game_button"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:backgroundTint="#D4AF37"
+                        android:text="PLAY PHARAOH"
+                        android:textColor="#120E09"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Right Card: Native Settings -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="0.85"
+                android:background="#1E1710"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Display &amp; Runtime Settings"
+                    android:textColor="#F3E5AB"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switch_immersive"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="Immersive Fullscreen (Hide Bars)"
+                    android:textColor="#E8D5B5"
+                    android:textSize="13sp" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switch_show_log"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Show Debug Log Overlay"
+                    android:textColor="#E8D5B5"
+                    android:textSize="13sp" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switch_auto_launch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Auto-Launch Game on Start"
+                    android:textColor="#E8D5B5"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="Landscape locked • Edge-to-edge display enabled"
+                    android:textColor="#8D7B5E"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

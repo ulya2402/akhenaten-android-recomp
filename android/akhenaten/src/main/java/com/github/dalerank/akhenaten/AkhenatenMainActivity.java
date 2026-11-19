@@ -7,7 +7,10 @@ import android.os.Bundle;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.os.Build;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ScrollView;
@@ -24,13 +27,13 @@ public class AkhenatenMainActivity extends SDLActivity {
     private TextView startupLogView;
     private ScrollView startupLogScroll;
     private Button startupLogToggleButton;
-    private boolean startupLogVisible = true;
+    private boolean startupLogVisible = false;
+    private boolean startupLogFeatureEnabled = false;
 
     @Override
     public void onStop() {
         super.onStop();
-        //releaseAssetManager();
-        FileManager.clearCache();
+        // Keep FileManager cache intact across background switches
     }
 
     @Override
@@ -63,6 +66,9 @@ public class AkhenatenMainActivity extends SDLActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        startupLogFeatureEnabled = LauncherPrefs.isShowLog(this);
+        startupLogVisible = startupLogFeatureEnabled;
+        applyImmersiveMode();
         installStartupLogOverlay();
         clearStartupLog();
         appendStartupLog("App started");
@@ -74,6 +80,32 @@ public class AkhenatenMainActivity extends SDLActivity {
         } else {
             appendStartupLog("No remembered folder");
             shouldLaunchInitialDirectorySelection = true;
+        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            applyImmersiveMode();
+        }
+    }
+
+    private void applyImmersiveMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            lp.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().setAttributes(lp);
+        }
+        if (LauncherPrefs.isImmersiveFullscreen(this)) {
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN);
         }
     }
 
@@ -171,11 +203,13 @@ public class AkhenatenMainActivity extends SDLActivity {
     }
 
     private void updateStartupLogVisibility() {
+        boolean show = startupLogFeatureEnabled && startupLogVisible;
         if (startupLogScroll != null) {
-            startupLogScroll.setVisibility(startupLogVisible ? ScrollView.VISIBLE : ScrollView.GONE);
+            startupLogScroll.setVisibility(show ? ScrollView.VISIBLE : ScrollView.GONE);
         }
         if (startupLogToggleButton != null) {
-            startupLogToggleButton.setText(startupLogVisible ? "Hide log" : "Log");
+            startupLogToggleButton.setVisibility(startupLogFeatureEnabled ? Button.VISIBLE : Button.GONE);
+            startupLogToggleButton.setText(show ? "Hide log" : "Log");
         }
     }
 
