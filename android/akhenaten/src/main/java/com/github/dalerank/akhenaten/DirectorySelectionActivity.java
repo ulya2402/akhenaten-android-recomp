@@ -109,10 +109,14 @@ public class DirectorySelectionActivity extends AppCompatActivity {
         SwitchCompat switchImmersive = findViewById(R.id.switch_immersive);
         SwitchCompat switchShowLog = findViewById(R.id.switch_show_log);
         SwitchCompat switchAutoLaunch = findViewById(R.id.switch_auto_launch);
+        SwitchCompat switchSideBar = findViewById(R.id.switch_side_bar);
+        Button btnTouchMode = findViewById(R.id.btn_touch_mode);
 
         switchImmersive.setChecked(LauncherPrefs.isImmersiveFullscreen(this));
         switchShowLog.setChecked(LauncherPrefs.isShowLog(this));
         switchAutoLaunch.setChecked(LauncherPrefs.isAutoLaunch(this));
+        switchSideBar.setChecked(LauncherPrefs.isSideBarEnabled(this));
+        updateTouchModeButton(btnTouchMode);
 
         switchImmersive.setOnCheckedChangeListener((b, checked) -> {
             LauncherPrefs.setImmersiveFullscreen(this, checked);
@@ -122,6 +126,13 @@ public class DirectorySelectionActivity extends AppCompatActivity {
                 LauncherPrefs.setShowLog(this, checked));
         switchAutoLaunch.setOnCheckedChangeListener((b, checked) ->
                 LauncherPrefs.setAutoLaunch(this, checked));
+        switchSideBar.setOnCheckedChangeListener((b, checked) ->
+                LauncherPrefs.setSideBarEnabled(this, checked));
+        btnTouchMode.setOnClickListener(v -> {
+            int next = (LauncherPrefs.getTouchMode(this) + 1) % 3;
+            LauncherPrefs.setTouchMode(this, next);
+            updateTouchModeButton(btnTouchMode);
+        });
 
         selectFolderBtn.setOnClickListener(v -> launchDirectoryPicker());
         playGameBtn.setOnClickListener(v -> {
@@ -164,6 +175,16 @@ public class DirectorySelectionActivity extends AppCompatActivity {
             playGameBtn.setEnabled(false);
             playGameBtn.setAlpha(0.45f);
         }
+    }
+
+    private void updateTouchModeButton(Button btn) {
+        int mode = LauncherPrefs.getTouchMode(this);
+        String label = switch (mode) {
+            case 1 -> "Touch: Trackpad Mode";
+            case 2 -> "Touch: Direct Cursor";
+            default -> "Touch: City-Builder (Original)";
+        };
+        btn.setText(label);
     }
 
     private void launchDirectoryPicker() {

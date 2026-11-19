@@ -6,6 +6,7 @@
 #include "platform/android/asset_handler.h"
 #include "platform/android/jni.h"
 #include "content/content.h"
+#include "input/touch.h"
 
 #include <SDL.h>
 #include <string.h>
@@ -272,5 +273,37 @@ int android_remove_directory(const char *path)
 extern "C" JNIEXPORT void JNICALL Java_com_github_dalerank_akhenaten_AkhenatenMainActivity_gotDirectory(JNIEnv *env, jobject thiz)
 {
     has_directory = 1;
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_github_dalerank_akhenaten_AkhenatenMainActivity_nativeInjectScroll(JNIEnv *, jobject, jint delta)
+{
+    SDL_Event ev{};
+    ev.type = SDL_MOUSEWHEEL;
+    ev.wheel.y = static_cast<Sint32>(delta);
+    SDL_PushEvent(&ev);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_github_dalerank_akhenaten_AkhenatenMainActivity_nativeInjectRightClick(JNIEnv *, jobject)
+{
+    SDL_Event down{};
+    down.type = SDL_MOUSEBUTTONDOWN;
+    down.button.button = SDL_BUTTON_RIGHT;
+    down.button.state = SDL_PRESSED;
+    down.button.clicks = 1;
+    SDL_PushEvent(&down);
+
+    SDL_Event up{};
+    up.type = SDL_MOUSEBUTTONUP;
+    up.button.button = SDL_BUTTON_RIGHT;
+    up.button.state = SDL_RELEASED;
+    up.button.clicks = 1;
+    SDL_PushEvent(&up);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_github_dalerank_akhenaten_AkhenatenMainActivity_nativeSetTouchMode(JNIEnv *, jobject, jint modeIndex)
+{
+    int clamped = modeIndex % static_cast<int>(e_touch_mode::count);
+    if (clamped < 0) clamped = 0;
+    g_touch.set_mode(static_cast<e_touch_mode>(clamped));
 }
 

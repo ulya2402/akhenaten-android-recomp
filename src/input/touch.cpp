@@ -4,8 +4,8 @@
 
 #include <cstdlib>
 
-constexpr time_millis CLICK_TIME = 300;
-constexpr int NOT_MOVING_RANGE = 5;
+constexpr time_millis CLICK_TIME = 200;
+constexpr int NOT_MOVING_RANGE = 10;
 constexpr int SCROLL_FINGER_RADIUS = 25;
 constexpr time_millis MILLIS_TOLERANCE_BETWEEN_LAST_MOVE_AND_TOUCH_END = 60;
 constexpr time_millis STALE_TOUCH_TIME = 3000;

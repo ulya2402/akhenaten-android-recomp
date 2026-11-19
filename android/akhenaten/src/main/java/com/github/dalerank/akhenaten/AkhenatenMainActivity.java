@@ -2,6 +2,7 @@ package com.github.dalerank.akhenaten;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -13,6 +14,7 @@ import android.view.WindowManager;
 import android.os.Build;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -70,6 +72,13 @@ public class AkhenatenMainActivity extends SDLActivity {
         startupLogVisible = startupLogFeatureEnabled;
         applyImmersiveMode();
         installStartupLogOverlay();
+        if (LauncherPrefs.isSideBarEnabled(this)) {
+            installPharaohSideControls();
+        }
+        try {
+            nativeSetTouchMode(LauncherPrefs.getTouchMode(this));
+        } catch (UnsatisfiedLinkError ignored) {
+        }
         clearStartupLog();
         appendStartupLog("App started");
         FileManager.restoreBaseUri(this);
@@ -255,10 +264,60 @@ public class AkhenatenMainActivity extends SDLActivity {
         addContentView(startupLogToggleButton, buttonParams);
     }
 
+    private void installPharaohSideControls() {
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.VERTICAL);
+        bar.setGravity(Gravity.CENTER_HORIZONTAL);
+        bar.setPadding(dp(4), dp(6), dp(4), dp(6));
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(0xBB16110B);
+        bg.setCornerRadius(dp(14));
+        bg.setStroke(dp(1), 0xAA8C6D2E);
+        bar.setBackground(bg);
+
+        bar.addView(createSideButton("▲", v -> nativeInjectScroll(1)));
+        bar.addView(createSideButton("▼", v -> nativeInjectScroll(-1)));
+        bar.addView(createSideButton("✕", v -> nativeInjectRightClick()));
+
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.END | Gravity.CENTER_VERTICAL
+        );
+        lp.rightMargin = dp(8);
+        addContentView(bar, lp);
+    }
+
+    private Button createSideButton(String symbol, View.OnClickListener listener) {
+        Button btn = new Button(this);
+        btn.setText(symbol);
+        btn.setTextColor(0xFFD4AF37);
+        btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        btn.setAllCaps(false);
+        btn.setPadding(0, 0, 0, 0);
+
+        GradientDrawable pill = new GradientDrawable();
+        pill.setColor(0x99261D12);
+        pill.setCornerRadius(dp(10));
+        pill.setStroke(dp(1), 0x66D4AF37);
+        btn.setBackground(pill);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(36), dp(36));
+        lp.topMargin = dp(4);
+        lp.bottomMargin = dp(4);
+        btn.setLayoutParams(lp);
+        btn.setOnClickListener(listener);
+        return btn;
+    }
+
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private native void gotDirectory();
+    private native void nativeInjectScroll(int delta);
+    private native void nativeInjectRightClick();
+    private native void nativeSetTouchMode(int modeIndex);
     //private native void releaseAssetManager();
 }

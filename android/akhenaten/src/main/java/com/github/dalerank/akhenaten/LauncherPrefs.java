@@ -8,6 +8,8 @@ public final class LauncherPrefs {
     private static final String KEY_IMMERSIVE = "immersive_fullscreen";
     private static final String KEY_SHOW_LOG = "show_debug_log";
     private static final String KEY_AUTO_LAUNCH = "auto_launch";
+    private static final String KEY_SIDE_BAR = "side_scroll_bar";
+    private static final String KEY_TOUCH_MODE = "touch_mode";
 
     private LauncherPrefs() {}
 
@@ -37,5 +39,21 @@ public final class LauncherPrefs {
 
     public static void setAutoLaunch(Context ctx, boolean enabled) {
         prefs(ctx).edit().putBoolean(KEY_AUTO_LAUNCH, enabled).apply();
+    }
+
+    public static boolean isSideBarEnabled(Context ctx) {
+        return prefs(ctx).getBoolean(KEY_SIDE_BAR, true);
+    }
+
+    public static void setSideBarEnabled(Context ctx, boolean enabled) {
+        prefs(ctx).edit().putBoolean(KEY_SIDE_BAR, enabled).apply();
+    }
+
+    public static int getTouchMode(Context ctx) {
+        return prefs(ctx).getInt(KEY_TOUCH_MODE, 0);
+    }
+
+    public static void setTouchMode(Context ctx, int mode) {
+        prefs(ctx).edit().putInt(KEY_TOUCH_MODE, mode).apply();
     }
 }
