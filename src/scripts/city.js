@@ -1,0 +1,587 @@
+log_info("akhenaten: city.js started")
+
+city {
+    @population { get: __city_population }
+    @health_rating { get: __city_health_rating }
+    @workers_diff { get: __city_workers_diff }
+    @player_rank { get: __city_player_rank }
+    @rating_kingdom { get: __city_rating_kingdom }
+    @num_forts { get: __formation_get_num_forts }
+    @max_forts { get: __formation_get_max_forts }
+    @num_enemy_formations { get: __enemy_army_total_enemy_formations }
+    @current_overlay { get: __city_get_current_overlay, set: __city_set_current_overlay }
+
+    object_info: __object_info
+
+    enemy_army_achieved_destroy_goal : __enemy_army_achieved_destroy_goal
+
+    figures {
+        __property_getter: __city_get_figures_property
+        @enemies { }
+        @kingdome_soldiers { }
+        @rioters { }
+        @soldiers { }
+
+        remove_figures: __city_remove_figures
+    }
+
+    entertainment {
+        __property_getter: __city_get_entertainment_property
+        @booth_shows { }
+        @bandstand_shows { }
+        @pavilion_shows { }
+        @senet_house_plays { }
+        @venue_needing_shows { }
+    }
+
+    population_stats {
+        __property_getter: __city_get_population_property
+        @current { }
+        @people_in_shanties { }
+        @people_in_manors { }
+        @highest_ever { }
+        monthly_count: __city_population_monthly_count
+        at_month: __city_population_at_month
+        at_age: __city_population_at_age
+        set_at_age: __city_population_set_at_age
+        at_level: __city_population_at_level
+        average_age: __city_population_average_age
+        yearly_births: __city_population_yearly_births
+        yearly_deaths: __city_population_yearly_deaths
+    }
+
+    avg_coverage {
+        __property_getter: __city_get_avg_coverage_property
+        @average_entertainment {}
+        @average_religion {}
+        @average_education {}
+        @average_health {}
+    }
+
+    coverage {
+        __property_getter: __city_get_coverage_property
+        @booth {}
+        @bandstand {}
+        @pavilion {}
+        @senet_house {}
+        @zoo {}
+        @physician {}
+        @dentist {}
+        @apothecary {}
+        @mortuary {}
+        @school {}
+        @academy {}
+        @library {}
+        @oracle {}
+    }
+
+    houses {
+        __property_getter: __city_get_house_demands_property
+        @health {}
+        @religion {}
+        @education {}
+        @entertainment {}
+
+        requiring {
+            __property_getter: __city_get_house_demands_requiring_property
+            @school {}
+            @library {}
+            @dentist {}
+            @courthouse {}
+            @more_courthouse {}
+            @health {}
+            @religion {}
+        }
+
+        missing {
+            __property_getter: __city_get_house_demands_missing_property
+            @entertainment {}
+            @more_entertainment {}
+            @dentist {}
+            @courthouse {}
+            @any_courthouse {}
+            @health {}
+            @more_health {}
+            @second_luxury {}
+        }
+    }
+
+    taxes {
+        __property_getter: __city_get_taxes_property
+        @percentage_taxed_people { }
+        @estimated_uncollected { }
+        @estimated_income { }
+        @house_tax_bonus_percentage { }
+    }
+
+    military {
+        __property_getter: __city_get_military_property
+        @total_soldiers { }
+        @total_batalions { }
+    }
+
+    sentiment {
+        __property_getter: __city_get_sentiment_property
+        @value { }
+        @criminals { }
+        @low_mood_cause { }
+    }
+
+    migration {
+        __property_getter: __city_get_migration_property
+        @newcomers { }
+        @percentage { }
+        @no_immigration_cause { }
+    }
+
+    warnings {
+        show : __city_show_warning
+        show_if_not : function (condition, id) { if (!condition) { __city_show_warning(id) } }
+    }
+
+    resources {
+        @available { get: __city_resources_available }
+        @available_market { get: __city_resources_available_market_goods }
+        @available_foods { get: __city_resources_available_foods }
+        @food_produced_last_month { get: __city_resource_food_produced_last_month }
+        @food_consumed_last_month { get: __city_resource_food_consumed_last_month }
+        @luxury_goods_kinds { get: __city_resource_luxury_goods_kinds }
+        @food_percentage_produced {
+            get: function () {
+                return Math.calc_percentage(__city_resource_food_produced_last_month(), __city_resource_food_consumed_last_month())
+            }
+        }
+
+        can_produce : __city_resource_can_produce
+        can_import : __city_resource_can_import
+        trade_status : __city_resource_trade_status
+        count : __city_resources_count
+        type : __city_resource_at
+
+        get_name : __city_resource_name
+        id_by_name : __city_resource_id_by_name
+        set_produce : __city_resource_set_produce
+        cycle_trade_import : __city_resource_cycle_trade_import
+        cycle_trade_export : __city_resource_cycle_trade_export
+        change_trading_amount : __city_resource_change_trading_amount
+        toggle_stockpiled : __city_resource_toggle_stockpiled
+        note_consumed : __city_resource_note_consumed
+    }
+
+    gods {
+        get_name : __city_god_name
+        is_known : __city_god_is_known
+        set_known : __city_god_set_known
+
+        at: function(index) {
+            return {
+                __property_getter: function(property) { return __city_get_god_property(index, property) }
+                @is_known {}
+                @mood {}
+                @wrath_bolts {}
+                @happy_ankhs {}
+                @months_since_festival {}
+            }
+        }
+
+        least_happy: __city_religion_least_happy_god
+    }
+
+    @overlay_tooltip: { set: __city_overlay_set_tooltip }
+    @overlay_column_height: { set: __city_overlay_set_column_height }
+    @overlay_column_color: { set: __city_overlay_set_column_color }
+    @overlay_show_figure: { set: __city_overlay_set_show_figure }
+    @overlay_show_building: { set: __city_overlay_set_show_building }
+    @overlay_color_mask: { set: __city_overlay_set_color_mask }
+
+    remove_animals : __city_remove_animals
+    add_animals_point : __city_add_animals_point
+    set_animals_area : __city_set_animals_area
+    yards_stored : __city_yards_stored
+    yards_stored_staffed : __city_yards_stored_staffed
+    building_is_temple : __city_building_is_temple
+    building_is_tax_collector : __city_building_is_tax_collector
+    count_active_buildings : __city_count_active_buildings
+    count_total_buildings : __city_count_total_buildings
+    total_housing_buildings : __city_total_housing_buildings
+    housing_type_count_at : __city_housing_type_count_at
+    count_houses_at_least : __city_count_houses_at_least
+    houses_demanding_goods_at : __city_houses_demanding_goods_at
+    open_housing_capacity : __city_open_housing_capacity
+    total_housing_capacity : __city_total_housing_capacity
+    count_active_industry : __city_count_industry_active
+    count_total_industry : __city_count_industry_total
+    set_advisor_available : __city_set_advisor_available
+    is_advisor_available : __city_is_advisor_available
+    set_empire_available : __city_set_empire_available
+    is_empire_available : __city_is_empire_available
+    set_scenario_enemy_id : __city_set_scenario_enemy_id
+    rank_title : function(rank) { return __loc(52, rank + 4) }
+    rank_salary : function(rank) {
+        var r = kingdome_relation.salary_ranks
+        if (!r || rank < 0 || rank >= r.length) {
+            return 0
+        }
+        return r[rank]
+    }
+
+    apply_salary_rank : function(rank) {
+        city.kingdome.salary_rank = rank
+        city.kingdome.salary_amount = city.rank_salary(rank)
+    }
+    start_foreign_army_invasion : function(obj) { return __city_start_foreign_army_invasion(obj) }
+    invasion_history_count : __city_invasion_history_count
+    invasion_history_at : function(index) {
+        return {
+            seq: __city_invasion_history_seq(index)
+            year: __city_invasion_history_year(index)
+            month: __city_invasion_history_month(index)
+            invasion_id: __city_invasion_history_invasion_id(index)
+            size: __city_invasion_history_size(index)
+            outcome: __city_invasion_history_outcome(index)
+        }
+    }
+    camera_go_to : __city_camera_go_to
+    allowed_foods : __city_allowed_foods
+
+    bookmarks {
+        set : __city_bookmark_set
+        get : __city_bookmark_get
+    }
+}
+
+function city_resource_view(resource_id) {
+    return {
+        type: resource_id
+        name: __city_resource_name(resource_id)
+        @can_produce { get: function() { return __city_resource_can_produce(resource_id) } }
+        @can_import { get: function() { return __city_resource_can_import(resource_id, true) } }
+        @can_export { get: function() { return __city_resource_can_export(resource_id, true) } }
+        @could_import { get: function() { return __city_resource_can_import(resource_id, false) } }
+        @could_export { get: function() { return __city_resource_can_export(resource_id, false) } }
+        @trading_amount { get: function() { return __city_resource_trading_amount(resource_id) } }
+        @trade_status { get: function() { return __city_resource_trade_status(resource_id) } }
+        @yards_stored { get: function() { return __city_yards_stored(resource_id) } }
+        @city_stored { get: function() { return __city_resource_stored(resource_id) } }
+        @count_active_industry { get: function() { return __city_count_industry_active(resource_id) } }
+        @count_total_industry { get: function() { return __city_count_industry_total(resource_id) } }
+        @mothballed { get: function() { return __city_resource_is_mothballed(resource_id) } }
+        @is_stockpiled { get: function() { return __city_resource_is_stockpiled(resource_id) } }
+        @ready_for_using { get: function() { return __city_resource_ready_for_using(resource_id) } }
+        @price_buy { get: function() { return __trade_price_buy(resource_id) } }
+        @price_sell { get: function() { return __trade_price_sell(resource_id) } }
+        stack_proper_quantity: function(value) { return __city_resource_stack_proper_quantity(resource_id, value) }
+    }
+}
+
+city.resources.grain = city_resource_view(RESOURCE_GRAIN)
+city.resources.meat = city_resource_view(RESOURCE_MEAT)
+city.resources.lettuce = city_resource_view(RESOURCE_LETTUCE)
+city.resources.chickpeas = city_resource_view(RESOURCE_CHICKPEAS)
+city.resources.pomegranates = city_resource_view(RESOURCE_POMEGRANATES)
+city.resources.figs = city_resource_view(RESOURCE_FIGS)
+city.resources.fish = city_resource_view(RESOURCE_FISH)
+city.resources.gamemeat = city_resource_view(RESOURCE_GAMEMEAT)
+city.resources.straw = city_resource_view(RESOURCE_STRAW)
+city.resources.weapons = city_resource_view(RESOURCE_WEAPONS)
+city.resources.clay = city_resource_view(RESOURCE_CLAY)
+city.resources.bricks = city_resource_view(RESOURCE_BRICKS)
+city.resources.pottery = city_resource_view(RESOURCE_POTTERY)
+city.resources.barley = city_resource_view(RESOURCE_BARLEY)
+city.resources.beer = city_resource_view(RESOURCE_BEER)
+city.resources.flax = city_resource_view(RESOURCE_FLAX)
+city.resources.linen = city_resource_view(RESOURCE_LINEN)
+city.resources.gems = city_resource_view(RESOURCE_GEMS)
+city.resources.luxury_goods = city_resource_view(RESOURCE_LUXURY_GOODS)
+city.resources.timber = city_resource_view(RESOURCE_TIMBER)
+city.resources.gold = city_resource_view(RESOURCE_GOLD)
+city.resources.reeds = city_resource_view(RESOURCE_REEDS)
+city.resources.papyrus = city_resource_view(RESOURCE_PAPYRUS)
+city.resources.stone = city_resource_view(RESOURCE_STONE)
+city.resources.limestone = city_resource_view(RESOURCE_LIMESTONE)
+city.resources.granite = city_resource_view(RESOURCE_GRANITE)
+city.resources.chariots = city_resource_view(RESOURCE_CHARIOTS)
+city.resources.copper = city_resource_view(RESOURCE_COPPER)
+city.resources.sandstone = city_resource_view(RESOURCE_SANDSTONE)
+city.resources.oil = city_resource_view(RESOURCE_OIL)
+city.resources.henna = city_resource_view(RESOURCE_HENNA)
+city.resources.paint = city_resource_view(RESOURCE_PAINT)
+city.resources.lamps = city_resource_view(RESOURCE_LAMPS)
+city.resources.marble = city_resource_view(RESOURCE_MARBLE)
+
+city.winning = extend(__win_criteria, {
+    // => culture [goal, enabled]
+    // => prosperity [goal, enabled]
+    // => monument [goal, enabled]
+    // => kingdom [goal, enabled]
+    // => population [goal, enabled]
+    // => housing_count [goal, enabled]
+    // => housing_level [goal, enabled]
+})
+
+city.mission = extend(__city_mission, {
+    // fired_message_shown
+    // victory_message_shown
+})
+
+city.use_building = function(type, en) {
+    emit event_use_building{ type: type, en: en }
+}
+
+city.get_battalion_by_index = function(index) {
+    return {
+        index: index
+        __property_getter: function(property) { return __city_get_battalion_property(this.index, property) }
+        @batalion_id { }
+        @figure_type { }
+        @num_figures { }
+        @morale      { }
+        @experience  { }
+        @is_at_fort  { }
+        @in_distant_battle {}
+        @empire_service { }
+
+        return_home: function() { __formation_batalion_idx_return_to_fort(this.index) }
+        set_empire_service: function(v) { __formation_batalion_idx_set_empire_service(this.index, v) }
+    }
+}
+
+city.get_formation = function(formation_id) {
+    if (!formation_id) {
+        return null
+    }
+    return {
+        id: formation_id
+        __property_getter: function(property) { return __formation_get_property(this.id, property) }
+        @in_use { }
+        @batalion_id { }
+        @figure_type { }
+        @num_figures { }
+        @morale { }
+        @experience { }
+        @total_damage { }
+        @max_total_damage { }
+        @cursed_by_seth { }
+        @is_at_fort { }
+        @in_distant_battle { }
+        @empire_service { }
+        @ship_figure_id { }
+    }
+}
+
+
+
+city.get_random_house = function() {
+    var building_id = __city_get_random_house_id()
+    return city.get_house(building_id)
+}
+
+city.get_house_model = function(level) {
+    return {
+        __property_getter: function(property) { return __house_model_property(this.level, property) }
+
+        level: level
+        @devolve_desirability { }
+        @evolve_desirability { }
+        @entertainment { }
+        @water { }
+        @food_types { }
+        @food_consumption_percentage { }
+        @pottery { }
+        @linen { }
+        @jewelry { }
+        @beer { }
+        @religion { }
+        @education { }
+        @health { }
+        @dentist { }
+        @courthouse { }
+        @fancy_bazaar { }
+    }
+}
+
+city.get_grid_area = function(tile, size, radius) {
+    return __map_grid_get_area(tile, size, radius)
+}
+
+city.get_house = function(building_id) {
+    return new House(building_id)
+}
+
+city.get_entertainment_building = function(building_id) {
+    if (!__building_is_entertainment(building_id)) {
+        return null
+    }
+    return new EntertainmentBuilding(building_id)
+}
+
+city.get_storage_yard = function(building_id) {
+    return new StorageYard(building_id)
+}
+
+city.get_temple_complex = function(type) {
+    var id = __city_temple_complex_id(type != null ? type : 0)
+    return id > 0 ? new TempleComplex(id) : null
+}
+
+city.get_roadblock = function(building_id) {
+    if (!__building_is_roadblock(building_id)) {
+        return null
+    }
+    return new Roadblock(building_id)
+}
+
+city.create_good_request = function(obj) {
+    __city_create_good_request(obj)
+    return {
+        tag_id: obj.tag_id
+        set_completed_action_tag: function(slave_tag) { __city_request_set_completed_action(this.tag_id, slave_tag) }
+        set_refusal_action_tag: function(slave_tag) { __city_request_set_refusal_action(this.tag_id, slave_tag) }
+        set_too_late_action_tag: function(slave_tag) { __city_request_set_too_late_action(this.tag_id, slave_tag) }
+        set_defeat_action_tag: function(slave_tag) { __city_request_set_defeat_action(this.tag_id, slave_tag) }
+        set_sender_faction: function(sender_faction) { __city_request_set_sender_faction(this.tag_id, sender_faction) }
+        set_param: function(param, value) { __city_request_set_param(this.tag_id, param, value) }
+        execute: function() { __city_request_execute(this.tag_id) }
+    }
+}
+
+city.has_active_request = function(resource) {
+    return __city_has_active_request(resource)
+}
+
+city.create_chain_event = function(obj) {
+    __city_create_chain_event(obj)
+    return {
+        tag_id: obj.tag_id
+        set_completed_action_tag: function(slave_tag) { __city_request_set_completed_action(this.tag_id, slave_tag) }
+        set_refusal_action_tag: function(slave_tag) { __city_request_set_refusal_action(this.tag_id, slave_tag) }
+        set_too_late_action_tag: function(slave_tag) { __city_request_set_too_late_action(this.tag_id, slave_tag) }
+        set_defeat_action_tag: function(slave_tag) { __city_request_set_defeat_action(this.tag_id, slave_tag) }
+        set_sender_faction: function(sender_faction) { __city_request_set_sender_faction(this.tag_id, sender_faction) }
+        set_param: function(param, value) { __city_request_set_param(this.tag_id, param, value) }
+        execute: function() { __city_request_execute(this.tag_id) }
+    }
+}
+
+// OG invasion event: { tag_id, invader, amount, months_initial, route, empire_route, attack_target,
+// year+month | delay, trigger }. Only a favour invasion (trigger EVENT_TRIGGER_BY_FAVOUR, sent at Kingdom rating 0)
+// and the events chained from it run the OG warnings, attack and chains; any other one stays inert.
+city.create_invasion = function(obj) {
+    var event_id = __city_create_invasion(obj)
+    return {
+        tag_id: obj.tag_id
+        event_id: event_id
+        set_completed_action_tag: function(slave_tag) { __city_request_set_completed_action(this.tag_id, slave_tag) }
+    }
+}
+
+city.create_pharaoh_gift = function(obj) {
+    __city_create_pharaoh_gift(obj)
+    return {
+        tag_id: obj.tag_id
+        set_sender_faction: function(sender_faction) { __city_request_set_sender_faction(this.tag_id, sender_faction) }
+        set_param: function(param, value) { __city_request_set_param(this.tag_id, param, value) }
+        execute: function() { __city_request_execute(this.tag_id) }
+    }
+}
+
+city.create_foreign_army_attack_warning = function(obj) {
+    __city_event_create_foreign_army_attack_warning(obj)
+    return {
+        tag_id: obj.tag_id
+        set_location_fields: function(l1, l2, l3, l4) { __city_request_set_location_fields(this.tag_id, l1, l2, l3, l4) }
+        set_reasons: function(r1, r2, r3, r4) { __city_request_set_reasons(this.tag_id, r1, r2, r3, r4) }
+        set_sender_faction: function(sender_faction) { __city_request_set_sender_faction(this.tag_id, sender_faction) }
+        set_image: function(image) { __city_request_set_image(this.tag_id, image) }
+        execute: function() { __city_request_execute(this.tag_id) }
+    }
+}
+
+city.get_random_building = function() {
+    var building_id = __city_get_random_building_id()
+    return city.get_building(building_id)
+}
+
+city.get_figure = function(figure_id) {
+    return new Figure(figure_id)
+}
+
+city.get_figure_trade = function(figure_id) {
+    return new FigureTrade(figure_id)
+}
+
+city.get_transport_ship = function(figure_id) {
+    return new FigureTransportShip(figure_id)
+}
+
+city.get_warship = function(figure_id) {
+    return new FigureWarship(figure_id)
+}
+
+city.get_random_building_by_type = function(type) {
+    var building_id = __city_get_random_building_id_by_type(type)
+    return city.get_building(building_id)
+}
+
+city.get_building_at = function(x, y) {
+    return city.get_building(__building_at(x, y))
+}
+
+city.get_farm = function(building_id) {
+    if (!__building_is_farm(building_id)) {
+        return null
+    }
+    return new Farm(building_id)
+}
+
+city.get_monument = function(building_id) {
+    return new Monument(building_id)
+}
+
+city.find_farms = function(tile, radius) {
+    return __city_find_farms(tile, radius)
+}
+
+city.find_monuments = function(tile, radius) {
+    return __city_find_monuments(tile, radius)
+}
+
+city.find_buildings = function(type, tile, radius) {
+    return __city_find_buildings(type, tile, radius)
+}
+
+city.get_building_params = function(building_id) {
+    return BuildingParams.for_type(__building_type(building_id))
+}
+
+city.get_building_params_by_type = function(type) {
+    return BuildingParams.for_type(type)
+}
+
+city.get_figure_params = function(figure_id) {
+    return FigureParams.for_type(__figure_get_type(figure_id))
+}
+
+city.get_figure_params_by_type = function(type) {
+    return FigureParams.for_type(type)
+}
+
+city.get_building = function(building_id) {
+    return new Building(building_id)
+}
+
+city.create_distant_battle = function(obj) {
+    __city_event_create_distant_battle(obj)
+    return {
+        tag_id: obj.tag_id
+        set_location_fields: function(l1, l2, l3, l4) { __city_request_set_location_fields(this.tag_id, l1, l2, l3, l4) }
+        set_reasons: function(r1, r2, r3, r4) { __city_request_set_reasons(this.tag_id, r1, r2, r3, r4) }
+        set_image: function(image) { __city_request_set_image(this.tag_id, image) }
+        set_param: function(param, value) { __city_request_set_param(this.tag_id, param, value) }
+        execute: function() { __city_request_execute(this.tag_id) }
+    }
+}
+
+crime {
+
+}

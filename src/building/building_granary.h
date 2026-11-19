@@ -1,0 +1,93 @@
+#pragma once
+
+#include "building/building_storage.h"
+#include "core/vec2i.h"
+#include "core/svector.h"
+#include "grid/point.h"
+#include "graphics/color.h"
+
+enum e_granary_task {
+    GRANARY_TASK_NONE = 0,
+    GRANARY_TASK_GETTING = 1,
+    GRANARY_TASK_EMPTYING = 2,
+    GRANARY_TASK_GETTING_MOAR = 3,
+};
+
+struct granary_task_status {
+    e_granary_task status;
+    e_resource resource;
+    int amount = 0;
+};
+
+struct granary_getting_result {
+    int building_id;
+    tile2i tile;
+};
+
+struct event_granary_resource_added { building_id bid; e_resource r; int amount; };
+struct event_granary_resource_removed { building_id bid; e_resource r;  int amount; };
+
+class building_granary : public building_storage {
+public:
+    BUILDING_METAINFO(BUILDING_GRANARY, building_granary, building_storage)
+
+    virtual building_granary *dcast_granary() override { return this; }
+
+    struct static_params : building_static_params {
+        vec2i begin_spot_pos;
+        svector<vec2i, 8> res_image_offsets;
+        uint8_t min_workers_percent_for_tasks;
+        uint8_t min_workers_percent_for_accepting;
+        uint8_t min_workers_percent_for_getting;
+        uint16_t max_capacty_stored;
+        uint8_t allow_food_types;
+        int16_t fancy_treshold_desirability = 30;
+    } BUILDING_STATIC_DATA_T;
+
+    struct runtime_data_t {
+        int reserved;
+        short resource_stored[16];
+    } BUILDING_RUNTIME_DATA_T;
+
+    virtual void on_create(int orientation) override;
+    virtual void on_post_load() override;
+    virtual void spawn_figure() override;
+    virtual void update_graphic() override;
+    virtual bool draw_ornaments_and_animations_height(painter &ctx, vec2i point, tile2i tile, color mask) override;
+    virtual void update_sprite_anims() override;
+    virtual void update_day() override;
+    virtual void bind_dynamic(io_buffer *iob, size_t version) override;
+
+    virtual int amount(e_resource resource) const override;
+    virtual bool is_getting(e_resource resource) override;
+    virtual int remove_resource(e_resource resource, int amount) override;
+    virtual int add_resource(e_resource resource, int amount, bool force) override;
+    virtual int freespace() const override;
+    bool is_accepting(e_resource resource);
+    bool is_not_accepting(e_resource resource);
+    granary_getting_result find_storage_for_getting();
+    int total_stored() const override;
+
+    void bless();
+    granary_task_status determine_worker_task();
+    void draw_stores(vec2i point, color color_mask, painter &ctx);
+
+    template<e_building_type T>
+    int better_getting_storage();
+};
+
+ANK_CONFIG_PROPERTY(building_granary::runtime_data_t, reserved)
+ANK_CONFIG_STRUCT(building_granary::static_params, begin_spot_pos, res_image_offsets,
+    min_workers_percent_for_tasks, min_workers_percent_for_accepting, min_workers_percent_for_getting,
+    max_capacty_stored, allow_food_types, fancy_treshold_desirability);
+
+// Nearest adjacent road on road_network_id (granary is impassable; primary road_access is only one side).
+tile2i building_granary_access_on_network(const building &granary, int road_network_id,
+                                          tile2i prefer_near = tile2i::invalid);
+
+inline bool building_granary_touches_network(const building &granary, int road_network_id) {
+    return building_granary_access_on_network(granary, road_network_id).valid();
+}
+
+int building_granary_for_storing(tile2i tile, e_resource resource, int distance_from_entry, int road_network_id, int force_on_stockpile, int* understaffed, tile2i* dst);
+int building_getting_granary_for_storing(tile2i tile, e_resource resource, int distance_from_entry, int road_network_id, tile2i* dst);

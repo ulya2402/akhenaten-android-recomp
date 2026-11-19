@@ -1,0 +1,316 @@
+#include "io/io_buffer.h"
+#include "io/gamestate/chunks.h"
+
+#include "boilerplate.h"
+#include "city/city.h"
+#include "io/chunk_serializer.h"
+#include "platform/platform.h"
+
+#include <algorithm>
+#include <cstring>
+#include <iterator>
+
+static int file_version;
+void file_version_chunk::bind_data(io_buffer* iob, size_t version) {
+    file_version = save_data_version();
+    iob->bind(BIND_SIGNATURE_INT32, &file_version);
+}
+
+struct chunks_data_t {
+    struct chunks_t {
+        uint32_t compressed = 0; // 0, 1
+
+        uint8_t unk01 = 0;
+        uint16_t unk02 = 0;
+        uint8_t unk03 = 0; // 0
+        uint32_t unk123 = 0;
+
+        uint32_t fields_size = 0; // 1, 4, 24, ...
+        uint32_t fields_num = 0;  // 1, 10, 15, 56, 51984 (???!?!!)
+        uint16_t unk06 = 0;       // 0
+        uint16_t unk07 = 0;       // 0
+    } chunks[6000];
+    int chunks_in_used = 0;
+};
+
+chunks_data_t g_chunks_data;
+
+void chunks_schema_chunk::bind_data(io_buffer* iob, size_t version) {
+    FILE* debug_file = NULL;
+#if defined(GAME_PLATFORM_WIN)
+// const char *fs_fpath = dir_get_file("DEV_TESTING/CHUNKS_SCHEMA.txt", 0);
+// debug_file = fopen(fs_fpath, "wb+");
+#endif
+    char temp_string[200] = "";
+    iob->bind(BIND_SIGNATURE_UINT32, &g_chunks_data.chunks_in_used);
+    if (debug_file) {
+        sprintf(temp_string, "NUMBER OF CHUNKS: %i\n", g_chunks_data.chunks_in_used);
+        fwrite(temp_string, strlen(temp_string), 1, debug_file);
+    }
+    for (int i = 0; i < g_chunks_data.chunks_in_used; ++i) {
+        // schema chunk nums found so far:
+        //    MAP: 24
+        //    SAV: 175
+        //    SAV (v.160+): 181
+        auto chunk = &g_chunks_data.chunks[i];
+        iob->bind(BIND_SIGNATURE_UINT32, &chunk->compressed);
+
+        iob->bind(BIND_SIGNATURE_UINT8, &chunk->unk01);
+        iob->bind(BIND_SIGNATURE_UINT16, &chunk->unk02);
+        iob->bind(BIND_SIGNATURE_UINT8, &chunk->unk03);
+        //        iob->bind(BIND_SIGNATURE_UINT32, &field->unk123);
+
+        iob->bind(BIND_SIGNATURE_UINT32, &chunk->fields_size);
+        iob->bind(BIND_SIGNATURE_UINT32, &chunk->fields_num);
+        iob->bind(BIND_SIGNATURE_UINT16, &chunk->unk06);
+        iob->bind(BIND_SIGNATURE_UINT16, &chunk->unk07);
+
+        if (debug_file) {
+            sprintf(temp_string, "%03i: %s %6i %4i : %-5i %-6i %2i : %6i * %5i\n", i, chunk->compressed ? "(C)" : "---",
+              chunk->unk06, chunk->unk07, chunk->unk01, chunk->unk02, chunk->unk03, chunk->fields_num,
+              chunk->fields_size);
+            //            sprintf(temp_string, "%03i: %-6i %-8i %-6i %-6i %-6i\n", i,
+            //                    field->unk00, field->unk123, field->unk04,
+            //                    field->unk05, field->unk06);
+            fwrite(temp_string, strlen(temp_string), 1, debug_file);
+        }
+    }
+    if (debug_file) {
+        fclose(debug_file);
+    }
+}
+
+// OG: saved_reserved_1, empire locked, 4 figure name counters, city_frogs_countdown, pyramid_speedup_countdown.
+void junk7a_chunk::bind_data(io_buffer* iob, size_t version) {
+    iob->bind____skip(24);
+    iob->bind(BIND_SIGNATURE_INT32, &g_city.plagues.frogs_countdown);
+    iob->bind____skip(4);
+}
+
+#define MAX_JUNK10_FIELDS 50
+struct junk10_t {
+    struct {
+        bool in_use = false;
+        int large_data[56] = {0}; // 55 for versions < 149
+        int small_data[11] = {0};
+    } fields[MAX_JUNK10_FIELDS];
+};
+
+junk10_t g_junk10;
+void junk10a_chunk::bind_data(io_buffer* iob, size_t version) {
+    const int r_version = g_chunk_io.get_file_version();
+    FILE* debug_file = nullptr;
+#if defined(GAME_PLATFORM_WIN)
+// const char *fs_fpath = dir_get_file("DEV_TESTING/JUNK10.txt", 0);
+// debug_file = fopen(fs_fpath, "wb+");
+#endif
+    char temp_string[200] = "";
+
+    for (int i = 0; i < MAX_JUNK10_FIELDS; ++i) {
+        auto field = &g_junk10.fields[i];
+        sprintf(temp_string, "%03i: ", i);
+        if (debug_file) {
+            fwrite(temp_string, strlen(temp_string), 1, debug_file);
+        }
+        // fill ints / print debug file
+        for (int j = 0; j < (version < 149 ? 55 : 56); ++j) {
+            iob->bind(BIND_SIGNATURE_UINT32, &field->large_data[j]);
+            switch (j) {
+            case 0:
+                sprintf(temp_string, "%i ", field->large_data[j]);
+                break;
+            case 1:
+            case 2:
+            case 3:
+                sprintf(temp_string, "%2i ", field->large_data[j]);
+                break;
+            default:
+                sprintf(temp_string, "%4i ", field->large_data[j]);
+                break;
+            }
+            if (debug_file) {
+                fwrite(temp_string, strlen(temp_string), 1, debug_file);
+            }
+        }
+        // first byte is the in_use flag
+        if (field->large_data[0] == 1)
+            field->in_use = true;
+        if (debug_file) {
+            fwrite("\n", 1, 1, debug_file);
+        }
+    }
+
+    if (debug_file) {
+        fclose(debug_file);
+    }
+}
+
+void junk10b_chunk::bind_data(io_buffer* iob, size_t version) {
+    for (int i = 0; i < MAX_JUNK10_FIELDS; ++i) {
+        auto field = &g_junk10.fields[i];
+        // fill ints
+        for (int j = 0; j < 11; ++j)
+            iob->bind(BIND_SIGNATURE_UINT32, &field->small_data[j]);
+    }
+}
+
+#define MAX_JUNK11_FIELDS 40
+struct junk11_t {
+    struct {
+        int data[32] = {0};
+    } fields[MAX_JUNK11_FIELDS];
+};
+junk11_t g_junk11;
+
+void junk11_chunk::bind_data(io_buffer* iob, size_t version) {
+    // the first two fields are the Map Editor's cached empire map coordinates....
+    // I have absolutely no idea about the need for this, or any of the rest.
+    // the third field is set to "1" when "Edit objects" is active in the editor.
+    FILE* debug_file = nullptr;
+#if defined(GAME_PLATFORM_WIN)
+// const char *fs_fpath = dir_get_file("DEV_TESTING/JUNK11.txt", 0);
+// debug_file = fopen(fs_fpath, "wb+");
+#endif
+    char temp_string[200] = "";
+
+    for (int i = 0; i < MAX_JUNK11_FIELDS; ++i) {
+        auto field = &g_junk11.fields[i];
+        sprintf(temp_string, "%03i: ", i);
+        if (debug_file) {
+            fwrite(temp_string, strlen(temp_string), 1, debug_file);
+        }
+
+        // fill ints
+        for (int j = 0; j < 16; ++j) {
+            iob->bind(BIND_SIGNATURE_UINT16, &field->data[j]);
+            sprintf(temp_string, "%4i ", field->data[j]);
+            if (debug_file) {
+                fwrite(temp_string, strlen(temp_string), 1, debug_file);
+            }
+        }
+
+        if (debug_file) {
+            fwrite("\n", 1, 1, debug_file);
+        }
+    }
+
+    if (debug_file) {
+        fclose(debug_file);
+    }
+}
+
+// OG: mummies_max, difficulty.
+void junk18_chunk::bind_data(io_buffer* iob, size_t version) {
+    iob->bind(BIND_SIGNATURE_INT32, &g_city.plagues.mummies_max);
+    iob->bind____skip(4);
+}
+
+struct {
+    int current_chunk = 0;
+    FILE* debug_file = nullptr;
+    struct {
+        struct {
+            int unk00;
+            int unk01;
+            int unk02;
+            int unk03;
+            int unk04;
+            //            int unk04a;
+            //            int unk04b;
+            //            int unk04c;
+            int unk05;
+        } fields[74];
+    } chunks[10];
+} bizarre;
+
+static void record_bizarre_fields(io_buffer* iob, int i) {
+    auto chunk = &bizarre.chunks[i];
+    char temp_string[200] = "";
+    sprintf(temp_string, "CHUNK %i\n", i);
+    if (bizarre.debug_file) {
+        fwrite(temp_string, strlen(temp_string), 1, bizarre.debug_file);
+    }
+
+    int fields_num = std::min<int>(iob->get_size() / 24, (int)std::size(chunk->fields));
+    for (int j = 0; j < fields_num; ++j) {
+        auto& field = chunk->fields[j];
+
+        iob->bind(BIND_SIGNATURE_UINT32, &field.unk00);
+        iob->bind(BIND_SIGNATURE_UINT32, &field.unk01);
+        iob->bind(BIND_SIGNATURE_UINT32, &field.unk02);
+        iob->bind(BIND_SIGNATURE_UINT32, &field.unk03);
+
+        iob->bind(BIND_SIGNATURE_UINT32, &field.unk04);
+        //        iob->bind(BIND_SIGNATURE_UINT16, &field.unk04a);
+        //        iob->bind(BIND_SIGNATURE_INT8, &field.unk04b);
+        //        iob->bind(BIND_SIGNATURE_UINT8, &field.unk04c);
+
+        iob->bind(BIND_SIGNATURE_UINT32, &field.unk05);
+
+#if defined(GAME_PLATFORM_WIN)
+        sprintf(temp_string,
+                "%02i-%02i:     %4i %4i %4i %4i  %4i  %4i\n",
+                i,
+                j,
+                field.unk00,
+                field.unk01,
+                field.unk02,
+                field.unk03,
+                field.unk04,
+                //                field.unk04a, field.unk04b, field.unk04c,
+                field.unk05);
+        if (bizarre.debug_file) {
+            fwrite(temp_string, strlen(temp_string), 1, bizarre.debug_file);
+        }
+#endif
+    }
+}
+static void bizarre_ordered_fields_bind(io_buffer* iob, size_t version) {
+    if (iob == &io_chunk_of<bizarre_ordered_fields_1_chunk>::registered) {
+        bizarre.current_chunk = 0;
+#if defined(GAME_PLATFORM_WIN)
+        //bstrin256 fs_fpath = dir_get_file("DEV_TESTING/BIZARRE.txt", 0);
+        //bizarre.debug_file = fopen(fs_fpath, "wb+");
+#endif
+    } else {
+        bizarre.current_chunk++;
+#if defined(GAME_PLATFORM_WIN)
+        //bstring256 fs_fpath = dir_get_file("DEV_TESTING/BIZARRE.txt", 0);
+        //bizarre.debug_file = fopen(fs_fpath, "ab+");
+#endif
+    }
+    record_bizarre_fields(iob, bizarre.current_chunk);
+
+    if (bizarre.debug_file) {
+        fclose(bizarre.debug_file);
+    }
+}
+
+void bizarre_ordered_fields_1_chunk::bind_data(io_buffer* iob, size_t version) {
+    bizarre_ordered_fields_bind(iob, version);
+}
+void bizarre_ordered_fields_2_chunk::bind_data(io_buffer* iob, size_t version) {
+    bizarre_ordered_fields_bind(iob, version);
+}
+void bizarre_ordered_fields_3_chunk::bind_data(io_buffer* iob, size_t version) {
+    bizarre_ordered_fields_bind(iob, version);
+}
+void bizarre_ordered_fields_4_chunk::bind_data(io_buffer* iob, size_t version) {
+    bizarre_ordered_fields_bind(iob, version);
+}
+
+void bizarre_ordered_fields_5_chunk::bind_data(io_buffer* iob, size_t version) {
+    bizarre_ordered_fields_bind(iob, version);
+}
+void bizarre_ordered_fields_6_chunk::bind_data(io_buffer* iob, size_t version) {
+    bizarre_ordered_fields_bind(iob, version);
+}
+void bizarre_ordered_fields_7_chunk::bind_data(io_buffer* iob, size_t version) {
+    bizarre_ordered_fields_bind(iob, version);
+}
+void bizarre_ordered_fields_8_chunk::bind_data(io_buffer* iob, size_t version) {
+    bizarre_ordered_fields_bind(iob, version);
+}
+void bizarre_ordered_fields_9_chunk::bind_data(io_buffer* iob, size_t version) {
+    bizarre_ordered_fields_bind(iob, version);
+}

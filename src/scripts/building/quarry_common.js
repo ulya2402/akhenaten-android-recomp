@@ -1,0 +1,14 @@
+log_info("akhenaten: building quarry_common started")
+
+function industry_quarry_produce_uptick(b, get_deposit) {
+    if (b.num_workers <= 0) {
+        b.produce_uptick = 0
+        return
+    }
+
+    b.produce_uptick = industry_raw_site_uptick(b, 2)
+    industry_mine_require_ore_for_uptick(b, get_deposit)
+    if (b.produce_uptick > 0) {
+        b.produce_uptick += industry_ptah_altar_bonus(b)
+    }
+}

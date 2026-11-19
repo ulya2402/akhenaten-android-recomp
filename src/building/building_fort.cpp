@@ -1,0 +1,235 @@
+#include "building/building_fort.h"
+
+#include "building/rotation.h"
+#include "city/campaign_carry.h"
+#include "figure/formation.h"
+#include "figuretype/figure_soldier.h"
+#include "figure/formation_batalion.h"
+#include "widget/city/ornaments.h"
+#include "window/building/common.h"
+#include "city/city.h"
+#include "city/city_buildings.h"
+#include "city/city_warnings.h"
+#include "graphics/view/view.h"
+#include "graphics/view/lookup.h"
+#include "graphics/image.h"
+#include "graphics/graphics.h"
+#include "graphics/elements/ui.h"
+#include "grid/grid.h"
+#include "grid/terrain.h"
+#include "grid/property.h"
+#include "grid/building_tiles.h"
+#include "grid/building.h"
+#include "widget/widget_city.h"
+
+#include "graphics/animation.h"
+#include "city/city_labor.h"
+#include "game/undo.h"
+#include "game/game_config.h"
+
+#include "js/js_register.h"
+#include "dev/debug.h"
+
+BUILDING_RUNTIME_DATA_IMPL(building_fort)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(building_fort_charioteers);
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(building_fort_archers);
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(building_fort_infantry);
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(building_fort_ground);
+
+declare_console_command_p(force_fill_fort) {
+    hvector<building_fort *, 4> forts;
+    for (auto &bldg : city_buildings()) {
+        building_fort *fort = bldg.dcast_fort();
+        if (fort) {
+            forts.push_back(fort);
+        }
+    }
+
+    for (auto fort : forts) {
+        formation *m = formation_get(fort->runtime_data().fid + 1);
+        bool created_soldiers = false;
+        for (int i = m->num_figures; i < m->max_figures; ++i) {
+            figure *f = figure_create(m->figure_type, fort->base.tile.shifted(-1, -1), DIR_0_TOP_RIGHT);
+            m->figures[i] = f->id;
+            f->formation_id = m->id;
+            f->formation_at_rest = 1;
+            f->advance_action(ACTION_1_SOLDIER_GOING_TO_FORT);
+            created_soldiers = true;
+            m->num_figures++;
+        }
+
+        if (created_soldiers) {
+            break;
+        }
+    }
+}
+
+// OG formation_create_legion: the lowest legion index no other own legion uses (1-based here).
+static uint8_t free_batalion_index() {
+    bool used[MAX_FORMATIONS] = {};
+    for (int i = 1; i < MAX_FORMATIONS; i++) {
+        const formation &f = g_formations.formations[i];
+        if (f.in_use && f.own_batalion && f.batalion_id < MAX_FORMATIONS) {
+            used[f.batalion_id] = true;
+        }
+    }
+    const int max_index = std::min<int>(formation_get_max_forts(), 9);
+    for (int index = 1; index <= max_index; index++) {
+        if (!used[index]) {
+            return index;
+        }
+    }
+    return 1;
+}
+
+int building_fort::placement_rotation() {
+    return game_features::gameplay_change_fort_rotation.to_bool() ? building_rotation_global_rotation() : 0;
+}
+
+formation_id building_fort::create_batalion() {
+    g_formations.calculate_batalion_totals();
+
+    formation *m = formation_get_free(1);
+    if (!m->id) {
+        return 0;
+    }
+
+    // The free slot may still hold stale data from a previous occupant: a dead
+    // herd is never memset (only enemy formations get cleared on death), so
+    // is_herd / prev.layout (-> "Unknown formation 9") / morale counters can leak
+    // into the new legion and corrupt it. Reset the slot before populating it.
+    g_formations.clear(m->id);
+
+    m->faction_id = 1;
+    m->in_use = 1;
+    m->own_batalion = true;
+    m->figure_type = runtime_data().figure_type;
+    m->building_id = id();
+    m->layout = FORMATION_DOUBLE_LINE_1;
+    m->morale = 50;
+    m->is_at_fort = 1;
+    m->batalion_id = free_batalion_index();
+    m->max_figures = 16;
+    verify_no_crash(m->batalion_id <= 9);
+
+    building_fort_ground *fort_ground = ground();
+    m->home = fort_ground->tile();
+    m->tile = fort_ground->tile();
+    m->standard_tile = fort_ground->tile();
+
+    figure *standard = figure_create(FIGURE_STANDARD_BEARER, tile2i(0, 0), DIR_0_TOP_RIGHT);
+    m->standard_figure_id = standard->id;
+    standard->formation_id = m->id;
+    standard->set_home(id());
+
+    return m->id;
+}
+
+void building_fort::on_place_update_tiles(int orientation, int variant) {
+    base.prev_part_building_id = 0;
+    int image_id = base_img();
+    map_building_tiles_add(id(), tile(), base.size, image_id, TERRAIN_BUILDING);
+
+    auto &d = runtime_data();
+    if (type() == BUILDING_FORT_CHARIOTEERS) {
+        d.figure_type = FIGURE_FCHARIOTEER;
+    } else if (type() == BUILDING_FORT_ARCHERS) {
+        d.figure_type = FIGURE_ARCHER;
+    } else if (type() == BUILDING_FORT_INFANTRY) {
+        d.figure_type = FIGURE_INFANTRY;
+    }
+
+    // create parade ground
+    const int offsets_x[] = {3, -1, -4, 0};
+    const int offsets_y[] = {-1, -4, 0, 3};
+    int global_rotation = placement_rotation();
+    building* ground = building_create(BUILDING_FORT_GROUND, tile().shifted(offsets_x[global_rotation], offsets_y[global_rotation]), 0);
+    game_undo_add_building(ground);
+    ground->prev_part_building_id = id();
+    base.next_part_building_id = ground->id;
+    ground->next_part_building_id = 0;
+    runtime_data().ground = ground->id;
+    tile2i fort_tile_add = tile().shifted(offsets_x[global_rotation], offsets_y[global_rotation]);
+
+    int ground_id = current_params().first_img(animkeys().ground);
+    map_building_tiles_add(ground->id, fort_tile_add, 4, ground_id, TERRAIN_BUILDING);
+
+    base.formation_id = create_batalion();
+    ground->formation_id = base.formation_id;
+    g_campaign_carry.try_apply_to_fort(type(), base.formation_id);
+}
+
+void building_fort::remove_batalion() {
+    if (base.formation_id <= 0) {
+        return;
+    }
+
+    formation *m = formation_get(base.formation_id);
+    if (!m->in_use) {
+        return;
+    }
+
+    if (m->standard_figure_id) {
+        figure_get(m->standard_figure_id)->poof();
+    }
+
+    g_formations.clear(base.formation_id);
+    g_formations.calculate_batalion_totals();
+}
+
+void building_fort::on_destroy() {
+    if (game_features::gameplay_change_fort_refund_carry_troops.to_bool()) {
+        g_campaign_carry.refund_fort_if_applied(type());
+    }
+    remove_batalion();
+}
+
+void building_fort::draw_postrender_effects(painter &ctx, vec2i point, tile2i tile, color color_mask) {
+    // 
+}
+
+bool building_fort::draw_ornaments_and_animations_height(painter &ctx, vec2i point, tile2i tile, color color_mask) {
+    if (map_property_is_draw_tile(tile.grid_offset())) {
+        int mask = drawing_building_as_deleted(&base) ? COLOR_MASK_RED : 0;
+        const auto &ranim = anim(animkeys().picture);
+
+        auto& command = ImageDraw::create_command(ctx, render_command_t::ert_generic);
+        command.image_id = ranim.first_img();
+        command.pixel = point + ranim.pos;
+        command.mask = color_mask;
+        command.use_sort_pixel = true;
+        command.sort_pixel = point + vec2i{ 0, 1 };
+        command.location = SOURCE_LOCATION;
+
+        tile2i ftile = tile.shifted(3, 0);
+        vec2i offset = g_camera.lookup_tile_to_pixel(ftile);
+        g_screen_city.draw_figures(offset, ftile, ctx, true);
+
+        ftile = tile.shifted(3, -1);
+        offset = g_camera.lookup_tile_to_pixel(ftile);
+        g_screen_city.draw_figures(offset, ftile, ctx, true);
+
+        ftile = tile.shifted(3, -2);
+        offset = g_camera.lookup_tile_to_pixel(ftile);
+        g_screen_city.draw_figures(offset, ftile, ctx, true);
+    }
+
+    return true;
+}
+
+void building_fort::bind_dynamic(io_buffer *iob, size_t verrsion) {
+    auto &d = runtime_data();
+    iob->bind(BIND_SIGNATURE_UINT16, &d.figure_type);
+}
+
+void building_fort::highlight_waypoints() {
+    map_clear_highlights();
+}
+
+void building_fort::spawn_figure() {
+    formation_batalion_update_recruit_status(&base);
+}
+
+bool building_fort_ground::target_route_tile_blocked(int grid_offset) const {
+    return false;
+}

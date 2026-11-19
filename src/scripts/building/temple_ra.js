@@ -1,0 +1,47 @@
+log_info("akhenaten: building_temple_ra started")
+
+[es=building]
+building_temple_ra {
+    type: BUILDING_TEMPLE_RA
+    animations {
+      preview { pack:PACK_GENERAL, id:19 }
+      base { pack:PACK_GENERAL, id:19 }
+      work { pos[75, -116], pack:PACK_GENERAL, id:19, offset:1, max_frames:12 }
+    }
+
+    min_houses_coverage : 50
+    spawn_delays : [3, 7, 10, 15, 20]
+    labor_category : LABOR_CATEGORY_RELIGION
+    overlay : OVERLAY_RELIGION_RA
+    sound_channel : SOUND_CHANNEL_CITY_TEMPLE_RA
+    building_size : 3
+    meta { text_id: 93, help_link:"message_building_shrine_and_temple" }
+    info_sound : "Wavs/tem_RA_L.wav"
+    cost [ 30, 120, 150, 180, 225 ]
+    desirability { value[6], step[2], step_size[-2], range[6] }
+    laborers[8]
+    fire_risk[0]
+    damage_risk[10]
+
+    flags {
+      is_temple: true
+      is_religion: true
+      keeps_visitor_paths: true
+      draw_normal_anim: true
+      work_anim: true
+    }
+}
+
+[es=(building_temple_ra, spawn_figure)]
+function building_temple_ra_spawn_figure(ev) {
+    var b = city.get_building(ev.bid)
+    if (!b.is_main) {
+        return
+    }
+    b.spawn_service_walker(building_temple_ra, FIGURE_PRIEST, ACTION_125_ROAMER_ROAMING)
+}
+
+[es=(building_temple_ra, draw_usable_paths)]
+function building_temple_ra_draw_usable_paths(ev) {
+    city.get_building(ev.bid).draw_usable_paths()
+}

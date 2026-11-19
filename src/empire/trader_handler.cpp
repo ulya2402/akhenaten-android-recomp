@@ -1,0 +1,214 @@
+#include "empire/trader_handler.h"
+
+#include "empire/empire.h"
+#include "empire/empire_traders.h"
+#include "empire/trade_prices.h"
+#include "building/building_storage_yard.h"
+#include "building/building_storage_room.h"
+#include "city/city.h"
+#include "game/game_config.h"
+#include "game/game_events.h"
+#include "io/io_buffer.h"
+#include "empire/empire_map.h"
+#include "figure/figure.h"
+
+namespace {
+    constexpr int PER_GOOD_CAP_NEW_ERA = 1600;
+}
+
+int empire_trader_per_good_cap() {
+    return game_features::gameplay_change_trader_per_good_1600.to_bool() ? PER_GOOD_CAP_NEW_ERA : 0;
+}
+
+bool empire_trader_ignore_total_bag() {
+    return game_features::gameplay_change_trader_per_good_1600.to_bool();
+}
+
+int empire_trader_handle::record_bought_resource(e_resource resource) {
+    auto& traders = g_empire_traders.traders;
+    constexpr int amount = 100;
+    traders[handle].bought_amount += amount;
+    traders[handle].bought_resources[resource] += amount;
+    traders[handle].bought_value += trade_price_sell(resource);
+
+    return amount;
+}
+int empire_trader_handle::record_sold_resource(e_resource resource) { 
+    auto& traders = g_empire_traders.traders;
+    constexpr int amount = 100;
+    traders[handle].sold_amount += amount;
+    traders[handle].sold_resources[resource] += amount;
+    traders[handle].sold_value += trade_price_buy(resource);
+
+    return amount;
+}
+
+int empire_trader_handle::bought_resources(e_resource resource) { 
+    auto& traders = g_empire_traders.traders;
+    return traders[handle].bought_resources[resource];
+}
+
+int empire_trader_handle::sold_resources(e_resource resource) { 
+    auto& traders = g_empire_traders.traders;
+    return traders[handle].sold_resources[resource];
+}
+
+bool empire_trader_handle::buy_full(e_resource resource) const {
+    const int cap = empire_trader_per_good_cap();
+    if (!valid() || cap <= 0 || resource == RESOURCE_NONE) {
+        return false;
+    }
+    return g_empire_traders.traders[handle].bought_resources[resource] >= cap;
+}
+
+bool empire_trader_handle::sell_full(e_resource resource) const {
+    const int cap = empire_trader_per_good_cap();
+    if (!valid() || cap <= 0 || resource == RESOURCE_NONE) {
+        return false;
+    }
+    return g_empire_traders.traders[handle].sold_resources[resource] >= cap;
+}
+
+int empire_trader_handle::buy_room(e_resource resource) const {
+    const int cap = empire_trader_per_good_cap();
+    if (!valid() || cap <= 0 || resource == RESOURCE_NONE) {
+        return 100000;
+    }
+    const int bought = g_empire_traders.traders[handle].bought_resources[resource];
+    return std::max(0, cap - bought);
+}
+
+int empire_trader_handle::sell_room(e_resource resource) const {
+    const int cap = empire_trader_per_good_cap();
+    if (!valid() || cap <= 0 || resource == RESOURCE_NONE) {
+        return 100000;
+    }
+    const int sold = g_empire_traders.traders[handle].sold_resources[resource];
+    return std::max(0, cap - sold);
+}
+
+bool empire_trader_handle::has_traded() {
+    auto& traders = g_empire_traders.traders;
+    return traders[handle].bought_amount || traders[handle].sold_amount;
+}
+
+bool empire_trader_handle::has_traded_max(int capacity) {
+    // Per-good mode: no total-bag "full" signal — leave via idle / no work.
+    if (empire_trader_ignore_total_bag()) {
+        return false;
+    }
+    if (capacity <= 0) {
+        return false;
+    }
+    auto& traders = g_empire_traders.traders;
+    return traders[handle].bought_amount >= capacity || traders[handle].sold_amount >= capacity;
+}
+
+empire_trader_handle empire_create_trader() {
+    auto& traders = g_empire_traders.traders;
+    auto it = std::find_if(traders.begin() + 1, traders.end(), [] (auto& t) { return t.is_active == false; });
+
+    if (it == traders.end()) {
+        return {};
+    }
+
+    auto& trader = *it;
+    trader = empire_trader{};
+    trader.is_active = true;
+    return empire_trader_handle{ (uint8_t)std::distance(traders.begin(), it) };
+}
+
+void empire_trader_handle::back_to_city() {
+    auto &traders = g_empire_traders.traders;
+    traders[handle].state = empire_trader::estate_returning_home;
+    traders[handle].current_route_point = 0;
+    traders[handle].movement_delay = traders[handle].movement_delay_max;
+}
+
+e_resource empire_trader_handle::get_buy_resource(building* b, empire_city_handle city, int amount) {
+    building_storage_yard *warehouse = b->dcast_storage_yard();
+    if (!warehouse) {
+        return RESOURCE_NONE;
+    }
+
+    building_storage_room* space = warehouse->room();
+    while (space) {
+        e_resource resource = space->resource();
+        if (space->stored_amount(resource) >= amount
+            && buy_room(resource) >= amount
+            && g_empire.can_export_resource_to_city(city.handle, resource)) {
+            // update stocks
+            events::emit(event_stats_remove_resource{ resource, amount });
+            space->take_resource(amount);
+
+            // update finances
+            int price = trade_price_sell(resource);
+            events::emit(event_finance_request{ efinance_request_export, price });
+
+            // update graphics
+            space->set_image(resource);
+            return resource;
+        }
+        space = space->next_room();
+    }
+
+    return RESOURCE_NONE;
+}
+
+e_resource empire_trader_handle::get_sell_resource(building* b, empire_city_handle city) {
+    building_storage_yard *warehouse = b->dcast_storage_yard();
+    if (!warehouse) {
+        return RESOURCE_NONE;
+    }
+
+    e_resource resource_to_import = city_trade_current_caravan_import_resource();
+    int imp = RESOURCES_MIN;
+    while (imp < RESOURCES_MAX
+           && (!g_empire.can_import_resource_from_city(city.handle, resource_to_import)
+               || sell_full(resource_to_import))) {
+        imp++;
+        resource_to_import = city_trade_next_caravan_import_resource();
+    }
+
+    if (imp >= RESOURCES_MAX) {
+        return RESOURCE_NONE;
+    }
+
+    // add to existing bay with room
+    building_storage_room* space = warehouse->room();
+    while (space) {
+        if (space->stored_amount(resource_to_import) > 0 && space->stored_amount(resource_to_import) < 400) {
+            space->add_import(resource_to_import);
+            city_trade_next_caravan_import_resource();
+            return resource_to_import;
+        }
+        space = space->next_room();
+    }
+
+    // add to empty bay
+    space = warehouse->room();
+    while (space) {
+        if (!space->base.stored_first().type) {
+            space->add_import(resource_to_import);
+            city_trade_next_caravan_import_resource();
+            return resource_to_import;
+        }
+        space = space->next_room();
+    }
+    // find another importable resource that can be added to this warehouse
+    for (int r = RESOURCES_MIN; r < RESOURCES_MAX; r++) {
+        resource_to_import = city_trade_next_caravan_backup_import_resource();
+        if (g_empire.can_import_resource_from_city(city.handle, resource_to_import)
+            && !sell_full(resource_to_import)) {
+            space = warehouse->room();
+            while (space) {
+                if (space->stored_amount(resource_to_import) < 400) {
+                    space->add_import(resource_to_import);
+                    return resource_to_import;
+                }
+                space = space->next_room();
+            }
+        }
+    }
+    return RESOURCE_NONE;
+}

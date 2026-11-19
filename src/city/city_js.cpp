@@ -1,0 +1,502 @@
+﻿#include "js/js_game.h"
+
+#include "graphics/view/view.h"
+#include "building/building_type.h"
+#include "io/gamefiles/lang.h"
+#include "core/profiler.h"
+#include "city/city.h"
+#include "city/city_floods.h"
+#include "city/entertainment.h"
+#include "city/city_labor.h"
+#include "city/city_message.h"
+#include "io/gamefiles/lang.h"
+#include "scenario/criteria.h"
+#include "scenario/scenario.h"
+#include "scenario/scenario_invasion.h"
+#include "scenario/distant_battle.h"
+#include "scenario/request.h"
+#include "figure/enemy_army.h"
+#include "figure/formation.h"
+
+#include "city/city_population.h"
+#include "city/city_victory.h"
+#include "overlays/city_overlay.h"
+
+void __city_ratings_set_monument(int new_value) { g_city.ratings.monument = new_value; }
+ANK_FUNCTION_1(__city_ratings_set_monument)
+
+void __city_set_scenario_enemy_id(int enemy_id) {
+    g_scenario.enemy_id = (e_enemy_type)enemy_id;
+}
+ANK_FUNCTION_1(__city_set_scenario_enemy_id)
+
+int __city_rating_kingdom() { return g_city.kingdome.rating; }
+ANK_FUNCTION(__city_rating_kingdom)
+
+int __city_get_current_overlay() { return g_city.current_overlay; }
+ANK_FUNCTION(__city_get_current_overlay)
+
+void __city_set_current_overlay(int overlay) { g_city.set_overlay((e_overlay)overlay); }
+ANK_FUNCTION_1(__city_set_current_overlay)
+
+pcstr __city_get_overlay_title(int overlay) {
+    static xstring storage;
+    const city_overlay *o = city_overlay::get((e_overlay)overlay);
+    storage = o ? o->title() : xstring("unknown");
+    return storage.c_str();
+}
+ANK_FUNCTION_1(__city_get_overlay_title)
+
+int __city_population() { return g_city.population.current; }
+ANK_FUNCTION(__city_population)
+
+int __city_health_rating() { return g_city.health.value; }
+ANK_FUNCTION(__city_health_rating)
+
+int __city_player_rank() { return g_city.kingdome.player_rank; }
+ANK_FUNCTION(__city_player_rank)
+
+pcstr __city_player_name() { return city_player_name(); }
+ANK_FUNCTION(__city_player_name)
+
+int __formation_get_num_forts() { return formation_get_num_forts(); }
+ANK_FUNCTION(__formation_get_num_forts)
+
+int __formation_get_max_forts() { return formation_get_max_forts(); }
+ANK_FUNCTION(__formation_get_max_forts)
+
+int __enemy_army_total_enemy_formations() { return enemy_army_total_enemy_formations(); }
+ANK_FUNCTION(__enemy_army_total_enemy_formations)
+
+// 1 if this invasion met buildings_to_destroy and left; used for pak invasion refuse chains.
+int __enemy_army_achieved_destroy_goal(int invasion_id) {
+    enemy_army *army = enemy_army_get_editable((uint8_t)invasion_id);
+    if (!army || army->buildings_to_destroy == 0) {
+        return 0;
+    }
+    return army->buildings_destroyed >= army->buildings_to_destroy ? 1 : 0;
+}
+ANK_FUNCTION_1(__enemy_army_achieved_destroy_goal)
+
+std::optional<bvariant> __city_get_battalion_property(int fid, pcstr property) {
+    const auto form = formation_get(g_formations.get_battalion_id_from_index(fid + 1));
+    if (!form) {
+        return {};
+    }
+
+    return archive_helper::get(*form, property, true);
+}
+ANK_FUNCTION_2(__city_get_battalion_property)
+
+std::optional<bvariant> __city_get_rating_property(pcstr property) {
+    return archive_helper::get(g_city.ratings, property, true);
+}
+ANK_FUNCTION_1(__city_get_rating_property)
+
+void __city_rating_update_prosperity_explanation() {
+    g_city.update_prosperity_explanation();
+}
+ANK_FUNCTION(__city_rating_update_prosperity_explanation)
+
+std::optional<bvariant> __city_get_avg_coverage_property(pcstr property) {
+    return archive_helper::get(g_city.avg_coverage, property, true);
+}
+ANK_FUNCTION_1(__city_get_avg_coverage_property)
+
+std::optional<bvariant> __city_get_sentiment_property(pcstr property) {
+    return archive_helper::get(g_city.sentiment, property, true);
+}
+ANK_FUNCTION_1(__city_get_sentiment_property)
+
+std::optional<bvariant> __city_get_migration_property(pcstr property) {
+    return archive_helper::get(g_city.migration, property, true);
+}
+ANK_FUNCTION_1(__city_get_migration_property)
+
+int __city_figures_total_invading_enemies() {
+    return g_city.figures.total_invading_enemies();
+}
+ANK_FUNCTION(__city_figures_total_invading_enemies)
+
+std::optional<bvariant> __city_get_population_property(pcstr property) {
+    return archive_helper::get(g_city.population, property, true);
+}
+ANK_FUNCTION_1(__city_get_population_property)
+
+int __city_population_monthly_count() {
+    return g_city.population.monthly.count;
+}
+ANK_FUNCTION(__city_population_monthly_count)
+
+int __city_population_at_month(int max_months, int month) {
+    return g_city.population.at_month(max_months, month);
+}
+ANK_FUNCTION_2(__city_population_at_month)
+
+int __city_population_at_age(int index) {
+    if (index < 0 || index >= 100) {
+        return 0;
+    }
+    return g_city.population.at_age[index];
+}
+ANK_FUNCTION_1(__city_population_at_age)
+
+void __city_population_set_at_age(int index, int value) {
+    if (index < 0 || index >= 100) {
+        return;
+    }
+    if (value < 0) {
+        value = 0;
+    } else if (value > 65535) {
+        value = 65535;
+    }
+    g_city.population.at_age[index] = (uint16_t)value;
+}
+ANK_FUNCTION_2(__city_population_set_at_age)
+
+int __city_population_at_level(int index) {
+    if (index < 0 || index >= HOUSE_LEVEL_MAX) {
+        return 0;
+    }
+    return g_city.population.at_level[index];
+}
+ANK_FUNCTION_1(__city_population_at_level)
+
+int __city_total_housing_buildings() {
+    return calculate_total_housing_buildings();
+}
+ANK_FUNCTION(__city_total_housing_buildings)
+
+int __city_housing_type_count_at(int index) {
+    if (index < 0 || index >= HOUSE_LEVEL_MAX) {
+        return 0;
+    }
+    return g_city.population.housing_type_counts[index];
+}
+ANK_FUNCTION_1(__city_housing_type_count_at)
+
+int __city_count_houses_at_least(int min_level) {
+    return city_count_houses_at_least(min_level);
+}
+ANK_FUNCTION_1(__city_count_houses_at_least)
+
+int __city_houses_demanding_goods_at(int index) {
+    if (index < 0 || index > 3) {
+        return 0;
+    }
+    return g_city.population.houses_demanding_goods[index];
+}
+ANK_FUNCTION_1(__city_houses_demanding_goods_at)
+
+int __city_open_housing_capacity() {
+    return city_population_open_housing_capacity();
+}
+ANK_FUNCTION(__city_open_housing_capacity)
+
+int __city_total_housing_capacity() {
+    return city_population_total_housing_capacity();
+}
+ANK_FUNCTION(__city_total_housing_capacity)
+
+int __city_population_average_age() {
+    return g_city.population.average_age();
+}
+ANK_FUNCTION(__city_population_average_age)
+
+int __city_population_yearly_births() {
+    return city_population_yearly_births();
+}
+ANK_FUNCTION(__city_population_yearly_births)
+
+int __city_population_yearly_deaths() {
+    return city_population_yearly_deaths();
+}
+ANK_FUNCTION(__city_population_yearly_deaths)
+
+int __city_resource_operating_granaries() {
+    return city_resource_operating_granaries();
+}
+ANK_FUNCTION(__city_resource_operating_granaries)
+
+int __city_resource_food_supply_months() {
+    return city_resource_food_supply_months();
+}
+ANK_FUNCTION(__city_resource_food_supply_months)
+
+int __city_resource_food_types_available_num() {
+    return g_city.resource.food_types_available_num();
+}
+ANK_FUNCTION(__city_resource_food_types_available_num)
+
+int __city_resource_food_types_eaten_max() {
+    return g_city.resource.food_types_eaten_max();
+}
+ANK_FUNCTION(__city_resource_food_types_eaten_max)
+
+int __city_resource_granary_total_stored() {
+    return g_city.resource.granary_total_stored;
+}
+ANK_FUNCTION(__city_resource_granary_total_stored)
+
+int __city_resource_food_needed_per_month() {
+    return g_city.resource.food_needed_per_month;
+}
+ANK_FUNCTION(__city_resource_food_needed_per_month)
+
+int __city_resource_luxury_goods_kinds() {
+    return g_city.resource.luxury_goods_kinds;
+}
+ANK_FUNCTION(__city_resource_luxury_goods_kinds)
+
+int __city_resource_food_produced_last_month() {
+    return g_city.resource.food_produced_last_month();
+}
+ANK_FUNCTION(__city_resource_food_produced_last_month)
+
+int __city_resource_food_consumed_last_month() {
+    return g_city.resource.food_consumed_last_month();
+}
+ANK_FUNCTION(__city_resource_food_consumed_last_month)
+
+int __city_migration_newcomers() {
+    return g_city.migration.newcomers;
+}
+ANK_FUNCTION(__city_migration_newcomers)
+
+int __city_migration_percentage() {
+    return g_city.migration.percentage;
+}
+ANK_FUNCTION(__city_migration_percentage)
+
+int __city_migration_no_room_for_immigrants() {
+    return g_city.migration.no_room_for_immigrants() ? 1 : 0;
+}
+ANK_FUNCTION(__city_migration_no_room_for_immigrants)
+
+int __city_migration_problems_cause() {
+    return g_city.migration.problems_cause();
+}
+ANK_FUNCTION(__city_migration_problems_cause)
+
+bvariant_map __city_migration_caps() {
+    bvariant_map result;
+    for (const auto &[reason, cap] : g_city.migration.get_migration_caps()) {
+        result[reason] = bvariant(cap);
+    }
+    return result;
+}
+ANK_FUNCTION(__city_migration_caps)
+
+int __scenario_invasion_exists_upcoming() {
+    return scenario_invasion_exists_upcoming() ? 1 : 0;
+}
+ANK_FUNCTION(__scenario_invasion_exists_upcoming)
+
+int __distant_battle_kingdome_army_is_traveling() {
+    return g_distant_battle.kingdome_army_is_traveling();
+}
+ANK_FUNCTION(__distant_battle_kingdome_army_is_traveling)
+
+int __distant_battle_months_until_battle() {
+    return g_distant_battle.battle.months_until_battle;
+}
+ANK_FUNCTION(__distant_battle_months_until_battle)
+
+int __scenario_requests_active_count() {
+    return scenario_requests_active_count();
+}
+ANK_FUNCTION(__scenario_requests_active_count)
+
+std::optional<bvariant> __city_get_entertainment_property(pcstr property) {
+    return archive_helper::get(g_city.entertainment, property, true);
+}
+ANK_FUNCTION_1(__city_get_entertainment_property)
+
+std::optional<bvariant> __city_get_labor_category_property(int index, pcstr property) {
+    if (index < 0 || index >= LABOR_CATEGORY_SIZE) {
+        return {};
+    }
+    return archive_helper::get(g_city.labor.categories[index], property, true);
+}
+ANK_FUNCTION_2(__city_get_labor_category_property)
+
+void __city_camera_go_to(tile2i tile) { g_camera.go_to_mappoint(tile); } ANK_FUNCTION_1(__city_camera_go_to)
+
+void __city_bookmark_set(int index, tile2i tile) { g_city.bookmarks.set(index, tile); }
+ANK_FUNCTION_2(__city_bookmark_set)
+
+tile2i __city_bookmark_get(int index) { return g_city.bookmarks.get(index); }
+ANK_FUNCTION_1(__city_bookmark_get)
+
+e_resource __city_allowed_foods(int index) { return g_city.allowed_foods(index); }
+ANK_FUNCTION_1(__city_allowed_foods)
+
+int __city_workers_diff() {
+    return g_city.labor.workers_unemployed - g_city.labor.workers_needed;
+}
+ANK_FUNCTION(__city_workers_diff)
+
+tile2i __city_message_next_problem_area_grid_offset() { return tile2i(city_message_next_problem_area_grid_offset()); } ANK_FUNCTION(__city_message_next_problem_area_grid_offset)
+
+int __city_map_entry_flag_offset() {
+    return g_city.map.entry_flag.grid_offset();
+}
+ANK_FUNCTION(__city_map_entry_flag_offset)
+
+int __city_map_exit_flag_offset() {
+    return g_city.map.exit_flag.grid_offset();
+}
+ANK_FUNCTION(__city_map_exit_flag_offset)
+
+void __city_message_sort_and_compact() { city_message_sort_and_compact(); }
+ANK_FUNCTION(__city_message_sort_and_compact)
+
+int __city_message_count() { return city_message_count(); }
+ANK_FUNCTION(__city_message_count)
+
+int __city_message_problem_area_count() { return city_message_problem_area_count(); }
+ANK_FUNCTION(__city_message_problem_area_count)
+
+int __city_message_month(int message_index) { return city_message_get(message_index).month; }
+ANK_FUNCTION_1(__city_message_month)
+
+int __city_message_year(int message_index) { return city_message_get(message_index).year; }
+ANK_FUNCTION_1(__city_message_year)
+
+bool __city_message_is_read(int message_index) { return city_message_get(message_index).is_read; }
+ANK_FUNCTION_1(__city_message_is_read)
+
+int __city_message_eventmsg_body_id(int message_index) { return city_message_get(message_index).eventmsg_body_id; }
+ANK_FUNCTION_1(__city_message_eventmsg_body_id)
+
+int __city_message_eventmsg_title_id(int message_index) { return city_message_get(message_index).eventmsg_title_id; }
+ANK_FUNCTION_1(__city_message_eventmsg_title_id)
+
+int __city_message_mm_text_id(int message_index) { return city_message_get(message_index).MM_text_id; }
+ANK_FUNCTION_1(__city_message_mm_text_id)
+
+int __city_message_lang_category(int message_index) {
+    const int mm_id = city_message_get_text_id(message_index);
+    return (int)lang_get_message(mm_id).message_type;
+}
+ANK_FUNCTION_1(__city_message_lang_category)
+
+void __city_message_delete(int message_index) {
+    city_message_delete(message_index);
+}
+ANK_FUNCTION_1(__city_message_delete)
+
+void __city_message_mark_read(int message_index) {
+    city_message_mark_read(message_index);
+}
+ANK_FUNCTION_1(__city_message_mark_read)
+
+int __city_message_param1(int message_index) {
+    return city_message_get(message_index).param1;
+}
+ANK_FUNCTION_1(__city_message_param1)
+
+int __city_message_param2(int message_index) {
+    return city_message_get(message_index).param2;
+}
+ANK_FUNCTION_1(__city_message_param2)
+
+int __city_message_sequence(int message_index) {
+    return city_message_get(message_index).sequence;
+}
+ANK_FUNCTION_1(__city_message_sequence)
+
+int __city_message_find_index_by_sequence(int sequence) {
+    return city_message_find_index_by_sequence(sequence);
+}
+ANK_FUNCTION_1(__city_message_find_index_by_sequence)
+
+void __city_message_show_from_archive(int message_index) {
+    city_message_show_from_archive(message_index);
+}
+ANK_FUNCTION_1(__city_message_show_from_archive)
+
+int __popup_message_category_for_key(xstring key) {
+    return (int)popup_message_category_for_key(key);
+}
+ANK_FUNCTION_1(__popup_message_category_for_key)
+
+bool __popup_messages_want_banner(int cat) {
+    return popup_messages_want_banner((e_popup_message_category)cat);
+}
+ANK_FUNCTION_1(__popup_messages_want_banner)
+
+void __popup_messages_set_banner(int cat, bool banner) {
+    popup_messages_set_banner((e_popup_message_category)cat, banner);
+}
+ANK_FUNCTION_2(__popup_messages_set_banner)
+
+std::optional<bvariant> __city_get_coverage_property(pcstr property) {
+    return archive_helper::get(g_city.coverage, property, true);
+}
+ANK_FUNCTION_1(__city_get_coverage_property)
+
+std::optional<bvariant> __city_get_house_demands_property(pcstr property) {
+    return archive_helper::get(g_city.houses, property, true);
+}
+ANK_FUNCTION_1(__city_get_house_demands_property)
+
+std::optional<bvariant> __city_get_house_demands_requiring_property(pcstr property) {
+    return archive_helper::get(g_city.houses.requiring, property, true);
+}
+ANK_FUNCTION_1(__city_get_house_demands_requiring_property)
+
+std::optional<bvariant> __city_get_house_demands_missing_property(pcstr property) {
+    return archive_helper::get(g_city.houses.missing, property, true);
+}
+ANK_FUNCTION_1(__city_get_house_demands_missing_property)
+
+bool __city_can_produce_resource(int resource) {
+    return g_city.can_produce_resource((e_resource)resource);
+}
+ANK_FUNCTION_1(__city_can_produce_resource)
+
+ANK_GLOBAL_OBJECT(g_city.mission, __city_mission,
+    fired_message_shown,
+    victory_message_shown
+    );
+
+ANK_GLOBAL_OBJECT(g_city.victory, __city_victory, state, force_win, force_lost, lost_by_population, lost_can_replay);
+
+void __city_victory_reset() {
+    g_city.victory.reset();
+}
+ANK_FUNCTION(__city_victory_reset)
+
+int __city_victory_determine_state(bool script_goals_met) {
+    return g_city.victory.determine_state(script_goals_met);
+}
+ANK_FUNCTION_1(__city_victory_determine_state)
+
+void __city_victory_lost_cleanup() {
+    g_city.victory.lost_cleanup();
+}
+ANK_FUNCTION(__city_victory_lost_cleanup)
+
+int __city_victory_defeat_options() {
+    return g_city.victory.defeat_options();
+}
+ANK_FUNCTION(__city_victory_defeat_options)
+
+void __city_victory_lower_difficulty() {
+    g_city.victory.lower_difficulty();
+}
+ANK_FUNCTION(__city_victory_lower_difficulty)
+
+int __city_victory_end_year() {
+    return city_victory_end_year();
+}
+ANK_FUNCTION(__city_victory_end_year)
+
+int __city_victory_score(int months, int monument_weight) {
+    return city_victory_score(months, monument_weight);
+}
+ANK_FUNCTION_2(__city_victory_score)
+
+void js_register_city_objects(js_State *J) {
+}

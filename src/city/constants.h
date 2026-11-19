@@ -1,0 +1,118 @@
+#pragma once
+
+#include <cstdint>
+#include "core/tokenum.h"
+
+// OG numbering (advisors.h): the advisor bar, portraits and help ids follow it; ids past
+// ADVISOR_MONUMENTS are remake-only.
+enum e_advisor : uint8_t {
+    ADVISOR_NONE = 0,
+    ADVISOR_LABOR = 1,
+    ADVISOR_MILITARY = 2,
+    ADVISOR_FLEET = 3,
+    ADVISOR_KINGDOM = 4,
+    ADVISOR_RATINGS = 5,
+    ADVISOR_TRADE = 6,
+    ADVISOR_POPULATION = 7,
+    ADVISOR_HEALTH = 8,
+    ADVISOR_EDUCATION = 9,
+    ADVISOR_ENTERTAINMENT = 10,
+    ADVISOR_RELIGION = 11,
+    ADVISOR_FINANCIAL = 12,
+    ADVISOR_CHIEF = 13,
+    ADVISOR_MONUMENTS = 14,
+    ADVISOR_WATER = 15,
+    ADVISOR_FOOD = 16,
+    ADVISOR_PRODUCTION = 17,
+    ADVISOR_ENVIRONMENT = 18,
+    ADVISOR_SECURITY = 19,
+    ADVISOR_HOUSING = 20,
+    ADVISOR_TRANSPORT = 21,
+    ADVISOR_FOREIGN = 22,
+    ADVISOR_DIPLOMACY = 23,
+    ADVISOR_MAX
+};
+using e_advisor_tokens_t = token_holder<e_advisor, ADVISOR_NONE, ADVISOR_MAX>;
+
+enum e_low_mood_reason : uint8_t {
+    LOW_MOOD_NONE = 0,
+    LOW_MOOD_NO_FOOD = 1,
+    LOW_MOOD_NO_JOBS = 2,
+    LOW_MOOD_HIGH_TAXES = 3,
+    LOW_MOOD_LOW_WAGES = 4,
+    LOW_MOOD_MANY_TENTS = 5,
+};
+
+enum e_no_immigration_reason : uint8_t {
+    NO_IMMIGRATION_LOW_WAGES = 0,
+    NO_IMMIGRATION_NO_JOBS = 1,
+    NO_IMMIGRATION_NO_FOOD = 2,
+    NO_IMMIGRATION_HIGH_TAXES = 3,
+    NO_IMMIGRATION_MANY_TENTS = 4,
+    NO_IMMIGRATION_LOW_MOOD = 5,
+
+    NO_IMMIGRATION_MAX
+};
+using e_no_immigration_reason_tokens_t = token_holder<e_no_immigration_reason, NO_IMMIGRATION_LOW_WAGES, NO_IMMIGRATION_MAX>;
+
+enum e_trade_status : uint8_t {
+    TRADE_STATUS_NONE = 0,
+    TRADE_STATUS_IMPORT = 1,
+    TRADE_STATUS_EXPORT = 2,
+    TRADE_STATUS_IMPORT_AS_NEEDED = 3,
+    TRADE_STATUS_EXPORT_SURPLUS = 4,
+
+    TRADE_STATUS_MAX
+};
+using e_trade_status_tokens_t = token_holder<e_trade_status, TRADE_STATUS_NONE, TRADE_STATUS_MAX>;
+
+enum e_availability : int8_t {
+    NOT_AVAILABLE_YET = -1,
+    NOT_AVAILABLE = 0,
+    AVAILABLE = 1,
+};
+
+enum e_permission : uint8_t {
+    epermission_none = 0,
+    epermission_maintenance = 1,
+    epermission_priest = 2,
+    epermission_market = 3,
+    epermission_entertainer = 4,
+    epermission_education = 5,
+    epermission_medicine = 6,
+    epermission_tax_collector = 7,
+
+    epermission_count
+};
+using e_permission_tokens_t = token_holder<e_permission, epermission_none, epermission_count>;
+
+enum e_rating_change : uint8_t {
+    e_rating_dropping = 0,
+    e_rating_stalling,
+    e_rating_rising
+};
+
+enum e_tooltip_mode {
+    e_tooltip_mode_none = 0,
+    e_tooltip_mode_some = 1,
+    e_tooltip_mode_full = 2,
+    e_tooltip_count,
+};
+using etooltip_flag = uint32_t;
+
+enum e_sound_type {
+    SOUND_NONE = 0,
+    SOUND_MUSIC = 1,
+    SOUND_SPEECH = 2,
+    SOUND_EFFECTS = 3,
+    SOUND_CITY = 4,
+
+    SOUND_COUNT
+};
+using e_sound_type_tokens_t = token_holder<e_sound_type, SOUND_NONE, SOUND_COUNT>;
+
+enum e_features_profile : int {
+    features_profile_default = 0,
+    features_profile_og,
+    features_profile_enhanced,
+};

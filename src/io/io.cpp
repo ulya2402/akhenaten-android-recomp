@@ -1,0 +1,135 @@
+#include "io.h"
+
+#include "content/vfs.h"
+#include "content/zipreader.hpp"
+#include "platform/platform.h"
+
+int io_read_sg3_entries_num(vfs::path filepath) {
+    vfs::path fs_file = filepath.resolve();
+    if (fs_file.empty()) {
+        return 0;
+    }
+
+    FILE *fp = vfs::file_open_os(fs_file, "rb");
+    if (!fp) {
+        return 0;
+    }
+
+    struct sgx_header_t {
+        uint32_t unk00;
+        uint32_t version;
+        uint32_t unk02;
+        uint32_t unk03;
+        uint32_t entries_num;
+        uint32_t num_bmp_names;
+        uint32_t reserved;
+    } sgx_header;
+
+    [[maybe_unused]] int bytesRead = fread(&sgx_header, sizeof(sgx_header_t), 1, fp);
+    vfs::file_close_os(fp);
+
+    sgx_header.entries_num += 1;
+
+    return sgx_header.entries_num;
+}
+
+bool io_read_sg3_has_system_bmp(vfs::path filepath) {
+    vfs::path fs_file = filepath.resolve();
+    if (fs_file.empty()) {
+        return false;
+    }
+
+    FILE *fp = vfs::file_open_os(fs_file, "rb");
+    if (!fp) {
+        return false;
+    }
+
+    // Skip PAK_HEADER_INFO_BYTES (80), then read group_image_ids[0].
+    if (fseek(fp, 80, SEEK_SET) != 0) {
+        vfs::file_close_os(fp);
+        return false;
+    }
+
+    uint16_t first_group = 0xffff;
+    const size_t n = fread(&first_group, sizeof(first_group), 1, fp);
+    vfs::file_close_os(fp);
+    return n == 1 && first_group == 0;
+}
+
+int io_read_sgx_entries_num(vfs::path filename) {
+    vfs::ZipArchive archive(filename);
+    if (!archive.isValid()) {
+        return 0;
+    }
+
+    const auto &entries = archive.entries();
+    int png_count = 0;
+    for (const auto &entry : entries) {
+        if (vfs::file_has_extension(entry.c_str(), "png")) {
+            png_count++;
+        }
+    }
+    return png_count;
+}
+
+int io_read_file_into_buffer(vfs::path filepath, int localizable, buffer* buf, int max_size) {
+    if (buf == nullptr) {
+        return 0;
+    }
+
+    vfs::path fs_file = filepath.resolve();
+    if (fs_file.empty()) {
+        return 0;
+    }
+
+    vfs::reader reader = vfs::file_open(fs_file, "rb");
+    if (!reader) {
+        return 0;
+    }
+
+    long size = reader->size();
+    if (size > max_size) {
+        size = max_size;
+    }
+
+    if (size > buf->size()) {
+        return 0;
+    }
+
+    buf->from_file((size_t)size, reader);
+    return size;
+}
+
+int io_read_file_part_into_buffer(vfs::path  filepath, int localizable, buffer* buf, int size, int offset_in_file) {
+    vfs::path fs_file = filepath.resolve();
+    if (fs_file.empty()) {
+        return 0;
+    }
+
+    int bytes_read = 0;
+    vfs::reader reader = vfs::file_open(fs_file, "rb");
+    if (reader) {
+        reader->seek(offset_in_file);
+        buf->from_file((size_t)size, reader);
+        bytes_read = size;
+    }
+    return bytes_read;
+}
+
+int io_write_buffer_to_file(vfs::path  filepath, buffer* buf, int size) {
+    // Find existing file to overwrite
+    vfs::path fs_file = filepath.resolve();
+    if (fs_file.empty()) {
+        fs_file = filepath;
+    }
+
+    FILE* fp = vfs::file_open_os(fs_file, "wb");
+    if (!fp) {
+        return 0;
+    }
+
+    int bytes_written = buf->to_file((size_t)size, fp);
+    vfs::file_close_os(fp);
+    vfs::sync_em_fs();
+    return bytes_written;
+}

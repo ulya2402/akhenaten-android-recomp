@@ -1,0 +1,1047 @@
+log_info("akhenaten: localization_ru_f config started")
+
+localization_ru_f = [
+	{ key:"#TR_NO_PATCH_TITLE", text:""}
+    { key:"#TR_NO_PATCH_MESSAGE", text:""}
+    { key:"#TR_NO_EDITOR_TITLE", text:"Редактор карт не установлен"}
+    { key:"#TR_NO_EDITOR_MESSAGE", text:"Файлы редактора карт в вашей версии игры отсутствуют."}
+    { key:"#main_menu_editor", text:"Редактор"}
+    { key:"#main_menu_free_play", text:"Свободная игра"}
+    { key:"#TR_INVALID_LANGUAGE_TITLE", text:"Неправильная языковая директория"}
+    { key:"#TR_INVALID_LANGUAGE_MESSAGE", text:"В указанной папке языковые пакеты отсутствуют. Пожалуйста, проверьте записи журнала игры (log)."}
+    { key:"#TR_BUTTON_OK", text:"Ок"}
+    { key:"#TR_CONFIG_IRONWILL", text:"Режим Ironwill — сохранение только при выходе в главное меню (блокирует Save, Ctrl+S, автосейв, быстрый сейв/загрузку)"}
+    { key:"#TR_CONFIG_UNLOCK_ALL_CAMPAIGNS", text:"Открыть все периоды кампании в Family History"}
+    { key:"#ironwill_briefing_label", text:"Ironwill"}
+    { key:"#ironwill_save_blocked", text:"Ironwill: сохранение только при выходе в меню"}
+    { key:"#ironwill_load_blocked", text:"Ironwill: загрузка только из главного меню (Continue)"}
+    { key:"#ironwill_save_failed", text:"Не удалось записать Ironwill-чекпоинт — остаёмся в городе"}
+    { key:"#tax_rate_of", text:"Налог"}
+    { key:"#palace_vaults_hold", text:"В сейфе" }
+    { key:"#debens", text:"деньги" }
+    { key:"#building_no_road_access", text:"ВНИМАНИЕ: Это здание не соединено дорогой" }
+    { key:"#building_no_people_in_city", text:"Нет людей в городе!" }
+    { key:"#building_no_workers_nearby", text:"Нет рабочих, живущих поблизости" }
+    { key:"#building_labor_could_shift", text:"Куратор рабочих мог бы перераспределить рабочую силу" }
+    { key:"#building_poor_worker_access", text:"ВНИМАНИЕ: Плохой доступ для рабочих" }
+    { key:"#hunting_lodge", text:"Oxoтничий дoмик" }
+    { key:"#hunting_lodge_info", text:"Oxoтники, paбoтaющиe здecь, выcлeживaют и yбивaют мecтнyю дичь. Oxoтничий дoмик зaтeм pacпpeдeляeт мяco дичи пo мecтным cклaдaм или xpaнилищaм." }
+    { key:"#hunting_lodge_production_is", text:"Пpoизвoдcтвo" }
+    { key:"#hunting_lodge_complete", text:"зaвepшeнo." }
+    { key:"#hunting_lodge_mothballed", text:"Kypaтop тopгoвли pacпopядилcя пpeкpaтить oxoтy." }
+    { key:"#hunting_lodge_no_workers", text:"Здecь нeт paбoтникoв. Oxoтa пpeкpaщeнa." }
+    { key:"#hunting_lodge_workers_full", text:"Здecь дocтaтoчнo paбoтникoв. Oxoтники пpecлeдyют кaждoe cтaдo, кoтopoe oни мoгyт нaйти." }
+    { key:"#hunting_lodge_workers_below_max", text:"Этo здaниe paбoтaeт нижe мaкcимaльнoй cпocoбнocти. Дoбычa пpoдoвoльcтвия мeдлeннee в peзyльтaтe." }
+    { key:"#hunting_lodge_workers_understaffed", text:"Здecь нe xвaтaeт paбoтникoв, и тpeбyeтcя бoльшe вpeмeни, чтoбы дoбыть мяco." }
+    { key:"#hunting_lodge_workers_few", text:"Здecь oчeнь мaлo paбoтникoв. Дoбычa мяca oчeнь мeдлeннaя." }
+    { key:"#hunting_lodge_workers_hardly", text:"C минимyмoм oxoтникoв, paбoтaющиx здecь, дикиe живoтныe cвoбoднo paзгyливaют. Этoт ceзoн бyдeт гoлoдным." }
+    { key:"#hunting_lodge_hunters_seeking", text:"Oxoтники этoгo здaния ceйчac oxoтятcя нa дичь." }
+    { key:"#hunting_lodge_too_far", text:"Tpeбyeтcя мнoгo вpeмeни, чтoбы пpинecти cюдa мяco дичи. Пocтpoйтe oxoтничий дoмик ближe к диким живoтным." }
+    { key:"#hunting_lodge_stored_meat", text:"Зaпaceннoe мяco," }
+    { key:"#TR_BUTTON_CANCEL", text:"Отмена"}
+    { key:"#TR_BUTTON_RESET_DEFAULTS", text:"По умолчанию"}
+    { key:"#TR_BUTTON_CONFIGURE_HOTKEYS", text:"Горячие клавиши"}
+    { key:"#TR_CONFIG_TITLE", text:"Настройки Ozzy"}
+    { key:"#TR_CONFIG_LANGUAGE_LABEL", text:"Язык:"}
+    { key:"#TR_CONFIG_LANGUAGE_DEFAULT", text:"(по умолчанию)"}
+    { key:"#TR_CONFIG_PAGE_LABEL", text:"Страница"}
+    { key:"#TR_CONFIG_HEADER_UI_CHANGES", text:"Изменения пользовательского интерфейса"}
+    { key:"#TR_CONFIG_HEADER_GAMEPLAY_CHANGES", text:"Изменения игрового процесса"}
+    { key:"#TR_CONFIG_HEADER_GODS_CHANGES", text:"Изменения логики богов"}
+    { key:"#TR_CONFIG_HEADER_BUILDING_CHANGES", text:"Изменения логики зданий"}
+    { key:"#TR_CONFIG_HEADER_RESOURCE_CHANGES", text:"Изменения логики ресурсов"}
+    { key:"#TR_CONFIG_SHOW_INTRO_VIDEO", text:"Проигрывать вступительные видеоролики"}
+    { key:"#TR_CONFIG_SIDEBAR_INFO", text:"Дополнительная информация на панели управления"}
+    { key:"#TR_CONFIG_SMOOTH_SCROLLING", text:"Включить плавную прокрутку карты"}
+    { key:"#TR_CONFIG_SMOOTH_ZOOM", text:"Включить плавный зум"}
+    { key:"#TR_CONFIG_VISUAL_FEEDBACK_ON_DELETE", text:"Улучшить наглядность очистки земли"}
+    { key:"#TR_CONFIG_ALLOW_CYCLING_TEMPLES", text:"Разрешить строительство каждого храма по очереди"}
+    { key:"#TR_CONFIG_SHOW_WATER_STRUCTURE_RANGE", text:"Отображать область водоснабжения при строительстве зданий водоснабжения"}
+    { key:"#TR_CONFIG_SHOW_BUILDING_ROAD_ACCESS", text:"Показывать клетку дорожного доступа здания при размещении и наведении"}
+    { key:"#TR_CONFIG_SHOW_DELIVERY_PATHS", text:"Показывать недавние пути доставки при зажатом Alt над амбаром или охотничьей ложей"}
+    { key:"#delivery_path_no_road", text:"Нет доступа к дороге — доставка невозможна"}
+    { key:"#delivery_path_understaffed", text:"Нет принимающего склада — нехватка рабочих"}
+    { key:"#delivery_path_no_destination", text:"Нет принимающего назначения для этого товара"}
+    { key:"#delivery_path_no_route", text:"Назначение есть, но нет пути по дорогам"}
+    { key:"#TR_CONFIG_SHOW_CONSTRUCTION_SIZE", text:"Отображать размер здания при строительстве с зажатой клавишей мыши"}
+    { key:"#TR_CONFIG_FIX_IMMIGRATION_BUG", text:"Исправлять ошибку иммиграции на 'Очень сложной' сложности игры"}
+    { key:"#TR_CONFIG_FIX_100_YEAR_GHOSTS", text:"Исправлять ошибку '100-летних призраков' населения"}
+    { key:"#TR_CONFIG_FIX_EDITOR_EVENTS", text:"Исправлять запросы Императора и время выживания в польз. миссиях"}
+    { key:"#TR_CONFIG_DRAW_WALKER_WAYPOINTS", text:"Отображать маршрут ходоков по правому щелчку на здании"}
+    { key:"#TR_CONFIG_ZOOM_STEPPED", text:"Включить функцию зума (возможно замедление)"}
+    { key:"#TR_CONFIG_COMPLETE_RATING_COLUMNS", text:"Исправить незавершенные колонны рейтинга"}
+    { key:"#TR_CONFIG_GRANDFESTIVAL", text:"Великий фестиваль разрешает дополнительное благословение от божества"}
+    { key:"#TR_CONFIG_JEALOUS_GODS", text:"Отключить ревность божеств"}
+    { key:"#TR_CONFIG_GLOBAL_LABOUR", text:"Включить глобальный пул работников"}
+    { key:"#TR_CONFIG_NOBLES_DONT_PROVIDE_LABOR", text:"Богатые дома (усадьбы и выше) не дают работников"}
+    { key:"#TR_CONFIG_SCHOOL_WALKERS", text:"Увеличить зону покрытия школ"}
+    { key:"#TR_CONFIG_RETIRE_AT_60", text:"Изменить возраст выхода на пенсию с 50 до 60 лет"}
+    { key:"#TR_CONFIG_FIXED_WORKERS", text:"Фиксированный пул работников — 38% простолюдинов"}
+    { key:"#workers_staffing_tooltip", text:"%d / %d работников"}
+    { key:"#TR_CONFIG_EXTRA_FORTS", text:"Разрешить строительство 4-х дополнительных фортов"}
+    { key:"#TR_CONFIG_WOLVES_BLOCK", text:"Запретить строительство около волков"}
+    { key:"#TR_CONFIG_DYNAMIC_GRANARIES", text:"Блокировать тупиковые выходы из амбара"}
+    { key:"#TR_CONFIG_MORE_STOCKPILE", text:"Дома запасают больше товаров с рынка"}
+    { key:"#TR_CONFIG_NO_BUYER_DISTRIBUTION", text:"Закупщицы с рынка не продают товары"}
+    { key:"#TR_CONFIG_IMMEDIATELY_DELETE_BUILDINGS", text:"Мгновенное разрушение зданий"}
+    { key:"#TR_CONFIG_GETTING_GRANARIES_GO_OFFROAD", text:"Тележки в амбар могут покидать дорогу"}
+    { key:"#TR_CONFIG_GRANARIES_GET_DOUBLE", text:"Удвоить вместимость тележек распределяющих еду между амбарами"}
+    { key:"#TR_CONFIG_DOCK_SMART_ROUTING", text:"Умный выбор причала: по заказам/товарам и смена на лучший свободный (не как в оригинале)"}
+    { key:"#TR_CONFIG_SLED_PULLERS_FLEE", text:"Тянущие сани бросают их и убегают к выходу с карты, если рядом враги; сани остаются на месте (не как в оригинале)"}
+    { key:"#TR_CONFIG_FOLLOWER_RUNAWAY", text:"Спутники убегают к выходу с карты, если лидер погиб (ослы каравана, разносчики; не как в оригинале)"}
+    { key:"#TR_CONFIG_ROBBER_REMAKE", text:"Вор-ремейк: кража при появлении, всегда к дворцу, фоновые кражи из особняков (не как в оригинале)"}
+    { key:"#TR_CONFIG_TOMB_ROBBER_REMAKE", text:"Расхититель гробниц-ремейк: месячный спавн, бегство/арест, фиксированный удар по рейтингу (не как в оригинале)"}
+    { key:"#TR_CONFIG_POLICE_WEAPONS", text:"Полиция берёт оружие со складов, каждый констебль забирает одно (не как в оригинале)"}
+    { key:"#TR_CONFIG_WALKER_PHRASES_REMAKE", text:"Фразы ходоков-ремейк: у каждого ходока свои реплики, говорят и солдаты с врагами (не как в оригинале)"}
+    { key:"#TR_CONFIG_PROTESTOR_HUNT_NOBLES", text:"Протестующие охотятся на ноблей и их усадьбы (не как в оригинале)"}
+    { key:"#TR_CONFIG_PLAGUED_CITIZEN_REMAKE", text:"Чумной горожанин-ремейк: по одному из каждого больного дома, лечится рядом с травником, труп исчезает (не как в оригинале)"}
+    { key:"#TR_CONFIG_FISHING_BOAT_REMAKE", text:"Рыбацкая лодка-ремейк: быстрее с рабочими, половинный улов, липкие точки, мягкая потеря пристани (не как в оригинале)"}
+    { key:"#TR_CONFIG_WOOD_CUTTER_SINGLE_GATHERER", text:"Лесорубы: один дровосек + любой TERRAIN_TREE (ремейк; в оригинале 1/2/3 по штату и только выросшие деревья)"}
+    { key:"#TR_CONFIG_TRADER_CAPACITY_1600", text:"Большая вместимость торговцев (1600 за визит; не годовой лимит империи)"}
+    { key:"#TR_CONFIG_TRADER_PER_GOOD_1600", text:"New Era: до 1600 каждого товара за визит (не годовой лимит; не только общий мешок)"}
+    { key:"#trader_capacity_per_good", text:"Вместимость (за товар)"}
+    { key:"#TR_CONFIG_BAST_LION_RAID", text:"Гнев Бастет: набег львов из храмов/зоопарка (TEMP Enhanced)"}
+    { key:"#TR_CONFIG_SETH_ASP_RAID", text:"Гнев Сета: набег змей из храмов, если нет роты для проклятия (TEMP Enhanced)"}
+    { key:"#TR_CONFIG_PTAH_SCORPION_RAID", text:"Гнев Птаха: набег скорпионов из храмов, если нет промышленности (TEMP Enhanced)"}
+    { key:"#TR_CONFIG_AUTO_RESOLVE_INVASIONS", text:"Автобой вторжений: враги ждут на входе, быстрая битва через 8 дней (стены/башни не считаются; фараон включён; не восстания)"}
+    { key:"#TR_CONFIG_FLOOD_BASINS", text:"Enhanced: дамбы / бассейны на пойме (замкните контур — лучше урожай после разлива)"}
+    { key:"#TR_CONFIG_FOOD_MILL", text:"Enhanced: разнообразие еды у базара + здание мельницы (арт-заглушка)"}
+    { key:"#TR_CONFIG_INDUSTRY_OFFICE", text:"Enhanced: офис индустрии — mothball цехов в радиусе (папирус + писцы)"}
+    { key:"#TR_CONFIG_LABOR_CATEGORY_SPLIT", text:"Enhanced: склады и доки отдельно от индустрии в советнике по труду"}
+    { key:"#TR_CONFIG_WALKER_SPAWN_BOOST", text:"Enhanced: чаще выпускать служебных walkers (недокомплект менее жёсткий)"}
+    { key:"#TR_CONFIG_WALKER_MOVE_BOOST", text:"Enhanced: быстрее граждане / короче ожидание телеги"}
+    { key:"#TR_CONFIG_FESTIVAL_CALENDAR", text:"Enhanced: сезонные календарные обряды (темы фестивалей)"}
+    { key:"#TR_CONFIG_LOCAL_CULTS", text:"Enhanced: локальные культы через алтарь/оракул комплекса"}
+    { key:"#labor_category_storage", text:"Склады и снабжение"}
+    { key:"#labor_category_industry", text:"Индустрия"}
+    { key:"#labor_category_industry_commerce", text:"Индустрия и торговля"}
+    { key:"#labor_category_culture", text:"Культура"}
+    { key:"#TR_CONFIG_HISTORICAL_ECONOMY", text:"Enhanced: историчная экономика — deben как мера ценности; часть зарплат зерном из амбаров"}
+    { key:"#finance_deben_unit_of_account", text:"мера deben"}
+    { key:"#finance_historical_economy_hint", text:"Deben — мера ценности (вес металла), не монеты. Часть труда оплачивается зерном из амбаров, если оно есть."}
+    { key:"#finance_wages_paid_in_grain", text:"Зарплата зерном (экв. deben)"}
+    { key:"#building_food_mill", text:"Мельница (врем.)"}
+    { key:"#building_food_mill_info", text:"Склад еды для базаров. Фермы кормят амбары; на мельнице включите GET из амбара или склада. Базары предпочитают укомплектованную мельницу и могут взять несколько типов еды за визит. Арт временный (зелёные кубы)."}
+    { key:"#food_mill_no_road_access", text:"У мельницы нет доступа к дороге. Рабочие не могут подвозить еду."}
+    { key:"#food_mill_storing", text:"Хранится"}
+    { key:"#food_mill_space_for", text:"Места на"}
+    { key:"#food_mill_units", text:"ед."}
+    { key:"#food_mill_quality_now", text:"Качество еды:"}
+    { key:"#food_mill_variety_none", text:"нет (пусто)"}
+    { key:"#food_mill_variety_bland", text:"Пресная"}
+    { key:"#food_mill_variety_plain", text:"Простая"}
+    { key:"#food_mill_variety_appetizing", text:"Аппетитная"}
+    { key:"#food_mill_variety_tasty", text:"Вкусная"}
+    { key:"#bazaar_desired_variety", text:"Желаемые типы еды:"}
+    { key:"#bazaar_min_variety", text:"Мин. разнообразие мельницы:"}
+    { key:"#bazaar_waiting_mill_variety", text:"Ждём разнообразия еды на мельнице."}
+    { key:"#building_dike", text:"Дамба"}
+    { key:"#building_dike_info", text:"Земляной вал для ирригации бассейнов на пойме. Замкните контур вокруг ферм — урожай после разлива будет выше."}
+    { key:"#terrain_dike_sealed", text:"Замкнутый бассейн"}
+    { key:"#terrain_dike_breached", text:"Рядом нет замкнутого бассейна — замкните контур вокруг пойменных ферм, чтобы удержать дар разлива."}
+    { key:"#terrain_dike_tiles", text:"тайлов"}
+    { key:"#terrain_dike_farms", text:"ферм"}
+    { key:"#terrain_dike_bonus_hint", text:"Пока контур замкнут, плодородие и рост ферм выше."}
+    { key:"#farm_in_flood_basin", text:"В пойменном бассейне — урожай после разлива выше, пока контур замкнут."}
+    { key:"#overlay_flood_basin", text:"Пойменные бассейны"}
+    { key:"#overlay_flood_basin_off", text:"Пойменные бассейны (Enhanced) выключены"}
+    { key:"#overlay_flood_basin_open", text:"Открытая пойма — не в замкнутом бассейне"}
+    { key:"#overlay_flood_basin_none", text:"Здесь нет пойменного бассейна"}
+    { key:"#warning_auto_resolve_orders_blocked", text:"Нельзя вести роту на замороженную волну вторжения"}
+    { key:"#warning_auto_resolve_queue_full", text:"Слишком много ожидающих вторжений — эта волна идёт боем на карте"}
+    { key:"#follow_walker", text:"Следить за ходоком"}
+    { key:"#stop_following", text:"Стоп"}
+    { key:"#warning_follow_walker_lost", text:"Потерян след выбранного ходока"}
+    { key:"#invasion_quick_battle_title", text:"Быстрая битва"}
+    { key:"#invasion_quick_battle_hint", text:"Враги ждут у входа. Можно донабрать войска. Сразиться сейчас или ждать таймер."}
+    { key:"#invasion_quick_battle_resolve", text:"Сразиться"}
+    { key:"#invasion_quick_battle_wait", text:"Ждать"}
+    { key:"#invasion_quick_battle_strength", text:"Ваши силы: {player}   Враг: {enemy}"}
+    { key:"#invasion_quick_battle_days", text:"Битва через {days} дн."}
+    { key:"#invasion_quick_battle_queue", text:"(в очереди: {n})"}
+    { key:"#invasion_quick_battle_head", text:"Волна #{id} ({i}/{n})"}
+    { key:"#invasion_quick_battle_none", text:"Нет ожидающей битвы"}
+    { key:"#TR_CONFIG_BAZAAR_MULTI_BUYERS", text:"Базар может отправлять двух закупщиков сразу (еда + товары)"}
+    { key:"#TR_CONFIG_BAZAAR_BUYER_SPAWN_TIMER", text:"Закупщики базара по таймеру labor spawn вместо оригинального day%8 (не как в Pharaoh)"}
+    { key:"#TR_CONFIG_BAZAAR_DEMAND_FROM_TRADER", text:"Спрос базара на товары только при визите продавца, вместо оригинального скана домов в радиусе 10 (не как в Pharaoh)"}
+    { key:"#TR_CONFIG_MARKET_DISTRIBUTE_REMAKE", text:"Раздача базара-ремейк: один тип еды за визит, заполнение по food_storage_multiplier (не как в оригинале)"}
+    { key:"#TR_CONFIG_LIBRARY_SERVICE_CAP", text:"Библиотека-ремейк: библиотекарь обслуживает не больше max_service жителей за обход и только дома у дороги (не как в оригинале)"}
+    { key:"#TR_CONFIG_DENTIST_SERVICE_CAP", text:"Дантист-ремейк: дантист обслуживает не больше max_serve_clients жителей в месяц и обновляет только дома с покрытием ниже половины (не как в оригинале)"}
+    { key:"#TR_CONFIG_DENTIST_TOOTHACHE", text:"Дантист-ремейк: у знати болят зубы, дантисты сами находят и лечат дома знати (не как в оригинале)"}
+    { key:"#TR_CONFIG_PHYSICIAN_SERVICE_CAP", text:"Врач-ремейк: обслуживает не больше max_serve_clients жителей в месяц, обновляет только дома с покрытием ниже половины и повышает здоровье дома вместо снижения риска малярии (не как в оригинале)"}
+    { key:"#TR_CONFIG_APOTHECARY_REMAKE", text:"Аптекарь-ремейк: травник поднимает здоровье домов до 50 и снижает риск малярии на 30 (не как в оригинале)"}
+    { key:"#TR_CONFIG_MORTUARY_SERVICE_CAP", text:"Морг-ремейк: эмбальмер обслуживает не больше max_serve_clients жителей в месяц и обновляет только дома с покрытием ниже половины (не как в оригинале)"}
+    { key:"#TR_CONFIG_MORTUARY_LINEN_UPKEEP", text:"Морг-ремейк: работающий морг ещё и тратит лён каждый месяц (не как в оригинале)"}
+    { key:"#TR_CONFIG_MORTUARY_MOTHBALLED_LINEN", text:"Морг-ремейк: эмбальмеры не выходят, пока лён законсервирован (не как в оригинале)"}
+    { key:"#TR_CONFIG_FORT_ROTATION", text:"Форт-ремейк: клавиша поворота переставляет плац вокруг форта (не как в оригинале)"}
+    { key:"#TR_CONFIG_FORT_REFUND_CARRY_TROOPS", text:"Форт-ремейк: снос форта возвращает войска, перенесённые из прошлой миссии (не как в оригинале)"}
+    { key:"#TR_CONFIG_STATUE_VARIANTS", text:"Статуи-ремейк: случайный вид при выборе, отдельные клавиши поворота и вида, дополнительные виды статуй (не как в оригинале)"}
+    { key:"#TR_CONFIG_GUILD_STATUE_SERVICE", text:"Гильдии-ремейк: свободные рабочие гильдий ухаживают за статуями (не как в оригинале)"}
+    { key:"#TR_CONFIG_MASTABA_CLAY_DELIVERY", text:"Мастаба-ремейк: рабочие возят на санях и глину из квот brick-фаз (в оригинале на памятник везли только кирпичи)"}
+    { key:"#TR_CONFIG_RECRUIT_NEAREST_FORT", text:"Казармы-ремейк: рекрут идёт в ближайший форт, а не сначала к колесничим, потом к пехоте, потом к лучникам (не как в оригинале)"}
+    { key:"#TR_CONFIG_TOWER_SENTRIES_GO_OFFROAD", text:"Башенные часовые не нуждаются в дороге"}
+    { key:"#TR_CONFIG_FARMS_DELIVER_CLOSE", text:"Фермы и причалы доставляют еду только в близкорасположенные амбары"}
+    { key:"#TR_CONFIG_DELIVER_ONLY_TO_ACCEPTING_GRANARIES", text:"Не доставлять еду в амбары с включенной доставкой"}
+    { key:"#TR_CONFIG_ALL_HOUSES_MERGE", text:"Разрешить слияние всех домов"}
+    { key:"#TR_CONFIG_RANDOM_COLLAPSES_TAKE_MONEY", text:"Вместо разрушения, разрушающаяся шахта заберет часть денег"}
+    { key:"#TR_CONFIG_DISASTER_EVENTS_USE_AMOUNT", text:"Затопление глины / обвал золота ломают amount зданий из события"}
+    { key:"#TR_CONFIG_MULTIPLE_BARRACKS", text:"Разрешить постройку нескольких казарм"}
+    { key:"#TR_HOTKEY_TITLE", text:"Настройки горячих клавиш Ozzy"}
+    { key:"#TR_HOTKEY_LABEL", text:"Основная"}
+    { key:"#TR_HOTKEY_ALTERNATIVE_LABEL", text:"Альтернативная"}
+    { key:"#TR_HOTKEY_HEADER_ARROWS", text:"Кнопки стрелок"}
+    { key:"#TR_HOTKEY_HEADER_GLOBAL", text:"Глобальные горячие клавиши"}
+    { key:"#TR_HOTKEY_HEADER_CITY", text:"Городские горячие клавиши"}
+    { key:"#TR_HOTKEY_HEADER_ADVISORS", text:"Советники"}
+    { key:"#TR_HOTKEY_HEADER_OVERLAYS", text:"Слои"}
+    { key:"#TR_HOTKEY_HEADER_BOOKMARKS", text:"Закладки городской карты"}
+    { key:"#TR_HOTKEY_HEADER_EDITOR", text:"Редактор"}
+    { key:"#TR_HOTKEY_ARROW_UP", text:"Вверх"}
+    { key:"#TR_HOTKEY_ARROW_DOWN", text:"Вниз"}
+    { key:"#TR_HOTKEY_ARROW_LEFT", text:"Влево"}
+    { key:"#TR_HOTKEY_ARROW_RIGHT", text:"Вправо"}
+    { key:"#TR_HOTKEY_TOGGLE_FULLSCREEN", text:"Переключить на полный экран"}
+    { key:"#TR_HOTKEY_CENTER_WINDOW", text:"Окно по центру"}
+    { key:"#TR_HOTKEY_RESIZE_TO_640", text:"Задать размер окна 640x480"}
+    { key:"#TR_HOTKEY_RESIZE_TO_800", text:"Задать размер окна 800x600"}
+    { key:"#TR_HOTKEY_RESIZE_TO_1024", text:"Задать размер окна 1024x768"}
+    { key:"#TR_HOTKEY_SAVE_SCREENSHOT", text:"Сохранить скриншот"}
+    { key:"#TR_HOTKEY_SAVE_CITY_SCREENSHOT", text:"Сохранить скриншот всего города"}
+    { key:"#TR_HOTKEY_LOAD_FILE", text:"Загрузить файл"}
+    { key:"#TR_HOTKEY_SAVE_FILE", text:"Сохранить файл"}
+    { key:"#TR_HOTKEY_QUICKSAVE", text:"Быстрое сохранение"}
+    { key:"#TR_HOTKEY_QUICKLOAD", text:"Быстрая загрузка"}
+    { key:"#quicksave_ok", text:"Сохранено"}
+    { key:"#quickload_ok", text:"Загружено"}
+    { key:"#quicksave_missing", text:"Нет быстрого сохранения"}
+    { key:"#quicksave_failed", text:"Ошибка быстрого сохранения"}
+    { key:"#quickload_failed", text:"Ошибка быстрой загрузки"}
+    { key:"#dock_order_trade", text:"Торговать"}
+    { key:"#dock_order_dont_trade", text:"Не торговать"}
+    { key:"#dock_order_accept_all", text:"Принимать всё"}
+    { key:"#dock_orders_hint", text:"Корабли швартуются здесь, только если хотя бы один их товар включён (Торговать)."}
+    { key:"#dock_orders_closed", text:"Док не принимает товары — корабли сюда не швартуются."}
+    { key:"#TR_HOTKEY_INCREASE_GAME_SPEED", text:"Увеличить скорость игры"}
+    { key:"#TR_HOTKEY_DECREASE_GAME_SPEED", text:"Уменьшить скорость игры"}
+    { key:"#TR_HOTKEY_TOGGLE_PAUSE", text:"Пауза"}
+    { key:"#TR_GAME_PAUSED", text:"Пayзa в игpe (клaвишeй '{0}' пpoдoлжить)"}
+    { key:"#TR_HOTKEY_CYCLE_LEGION", text:"Следующий легион"}
+    { key:"#TR_HOTKEY_ROTATE_MAP_LEFT", text:"Повернуть карту влево"}
+    { key:"#TR_HOTKEY_ROTATE_MAP_RIGHT", text:"Повернуть карту вправо"}
+    { key:"#TR_HOTKEY_SHOW_ADVISOR_LABOR", text:"Советник по труду"}
+    { key:"#TR_HOTKEY_SHOW_ADVISOR_MILITARY", text:"Военный советник"}
+    { key:"#TR_HOTKEY_SHOW_ADVISOR_IMPERIAL", text:"Советник по делам империи"}
+    { key:"#TR_HOTKEY_SHOW_ADVISOR_RATINGS", text:"Советник по рейтингам"}
+    { key:"#TR_HOTKEY_SHOW_ADVISOR_TRADE", text:"Торговый советник"}
+    { key:"#TR_HOTKEY_SHOW_ADVISOR_POPULATION", text:"Советник по населению"}
+    { key:"#TR_HOTKEY_SHOW_ADVISOR_HEALTH", text:"Советник по здоровью"}
+    { key:"#TR_HOTKEY_SHOW_ADVISOR_EDUCATION", text:"Советник по образованию"}
+    { key:"#TR_HOTKEY_SHOW_ADVISOR_ENTERTAINMENT", text:"Советник по развлечениям"}
+    { key:"#TR_HOTKEY_SHOW_ADVISOR_RELIGION", text:"Советник по религии"}
+    { key:"#TR_HOTKEY_SHOW_ADVISOR_FINANCIAL", text:"Финансовый советник"}
+    { key:"#TR_HOTKEY_SHOW_ADVISOR_CHIEF", text:"Главный советник"}
+    { key:"#TR_HOTKEY_TOGGLE_OVERLAY", text:"Переключить текущий слой"}
+    {key:"#TR_HOTKEY_TOGGLE_FLAT_BUILDINGS", text:"Плоский вид зданий"}
+    { key: "#sidebar_flat_buildings", text: "Плоский вид" }
+    { key: "#sidebar_flat_buildings_on", text: "Плоский вид: ВКЛ" }
+    { key: "#TR_CONFIG_FLAT_BUILDINGS", text: "Плоский вид зданий (Shift+F) — схлопывать высокие здания, чтобы видеть дороги за ними" }
+    { key: "#TR_TOOLTIP_FLAT_BUILDINGS", text: "Плоский вид зданий (Shift+F). Когда ВКЛ: Ctrl+ПКМ поднимает одно здание." }
+    { key:"#TR_HOTKEY_SHOW_OVERLAY_WATER", text:"Включить слой водоснабжения"}
+    { key:"#TR_HOTKEY_SHOW_OVERLAY_FIRE", text:"Включить слой риска пожара"}
+    { key:"#TR_HOTKEY_SHOW_OVERLAY_DAMAGE", text:"Включить слой риска разрушения"}
+    { key:"#TR_HOTKEY_SHOW_OVERLAY_CRIME", text:"Включить слой риска преступлений"}
+    { key:"#TR_HOTKEY_SHOW_OVERLAY_PROBLEMS", text:"Слой проблем"}
+    { key:"#TR_HOTKEY_SHOW_OVERLAY_MALARIA_RISK", text:"Слой риска малярии"}
+    { key:"#TR_HOTKEY_SHOW_OVERLAY_DISEASE", text:"Слой болезни"}
+    { key:"#TR_HOTKEY_SHOW_OVERLAY_HIDE_CLIFFS", text:"Скрыть скалы"}
+    { key: "#grain_stocks_none", text: "В этом доме нет запасов зерна" }
+    { key: "#grain_stocks_low", text: "Этот дом скоро съест свои ограниченные запасы зерна" }
+    { key: "#grain_stocks_medium", text: "У этого дома есть запасы зерна минимум на предстоящий месяц" }
+    { key: "#grain_stocks_high", text: "У этого дома нет проблем с получением необходимого зерна" }
+    { key: "#chickpeas_stocks_none", text: "В этом доме нет запасов нута" }
+    { key: "#chickpeas_stocks_low", text: "Этот дом скоро съест свои ограниченные запасы нута" }
+    { key: "#chickpeas_stocks_medium", text: "У этого дома есть запасы нута минимум на предстоящий месяц" }
+    { key: "#chickpeas_stocks_high", text: "У этого дома нет проблем с получением необходимого нута" }
+    { key: "#pomegranates_stocks_none", text: "В этом доме нет запасов гранатов" }
+    { key: "#pomegranates_stocks_low", text: "Этот дом скоро съест свои ограниченные запасы гранатов" }
+    { key: "#pomegranates_stocks_medium", text: "У этого дома есть запасы гранатов минимум на предстоящий месяц" }
+    { key: "#pomegranates_stocks_high", text: "У этого дома нет проблем с получением необходимых гранатов" }
+    { key: "#figs_stocks_none", text: "В этом доме нет запасов инжира" }
+    { key: "#figs_stocks_low", text: "Этот дом скоро съест свои ограниченные запасы инжира" }
+    { key: "#figs_stocks_medium", text: "У этого дома есть запасы инжира минимум на предстоящий месяц" }
+    { key: "#figs_stocks_high", text: "У этого дома нет проблем с получением необходимого инжира" }
+    { key: "#meat_stocks_none", text: "В этом доме нет запасов мяса" }
+    { key: "#meat_stocks_low", text: "Этот дом скоро съест свои ограниченные запасы мяса" }
+    { key: "#meat_stocks_medium", text: "У этого дома есть запасы мяса минимум на предстоящий месяц" }
+    { key: "#meat_stocks_high", text: "У этого дома нет проблем с получением необходимого мяса" }
+    { key: "#game_stocks_none", text: "В этом доме нет запасов дичи" }
+    { key: "#game_stocks_low", text: "Этот дом скоро съест свои ограниченные запасы дичи" }
+    { key: "#game_stocks_medium", text: "У этого дома есть запасы дичи минимум на предстоящий месяц" }
+    { key: "#game_stocks_high", text: "У этого дома нет проблем с получением необходимой дичи" }
+    { key: "#pottery_stocks_none", text: "В этом доме нет запасов керамики" }
+    { key: "#pottery_stocks_low", text: "Этот дом скоро израсходует свои ограниченные запасы керамики" }
+    { key: "#pottery_stocks_medium", text: "У этого дома есть запасы керамики минимум на предстоящий месяц" }
+    { key: "#pottery_stocks_high", text: "У этого дома нет проблем с получением необходимой керамики" }
+    { key: "#jewelry_stocks_none", text: "В этом доме нет запасов украшений" }
+    { key: "#jewelry_stocks_low", text: "Этот дом скоро израсходует свои ограниченные запасы украшений" }
+    { key: "#jewelry_stocks_medium", text: "У этого дома есть запасы украшений минимум на предстоящий месяц" }
+    { key: "#jewelry_stocks_high", text: "У этого дома нет проблем с получением необходимых украшений" }
+    { key: "#linen_stocks_none", text: "В этом доме нет запасов льна" }
+    { key: "#linen_stocks_low", text: "Этот дом скоро израсходует свои ограниченные запасы льна" }
+    { key: "#linen_stocks_medium", text: "У этого дома есть запасы льна минимум на предстоящий месяц" }
+    { key: "#linen_stocks_high", text: "У этого дома нет проблем с получением необходимого льна" }
+    { key: "#empty_housing_vacant", text: "В этом жилище никто не живёт" }
+    { key: "#irrigation_none", text: "Эта земля не орошена" }
+    { key: "#irrigation_low", text: "Эта земля слабо орошена" }
+    { key: "#irrigation_medium", text: "Эта земля умеренно орошена" }
+    { key: "#irrigation_high", text: "Эта земля хорошо орошена" }
+    { key: "#overlay_water_crossings_ferry", text: "Паромная переправа" }
+    { key: "#overlay_water_crossings_bridge", text: "Мост" }
+    { key: "#overlay_city_defenses_structure", text: "Оборонительное сооружение" }
+    { key: "#overlay_hide_cliffs_hint", text: "Скалы временно скрыты" }
+    { key: "#overlay_grain", text: "Зерно" }
+    { key: "#overlay_chickpeas", text: "Нут" }
+    { key: "#overlay_pomegranates", text: "Гранаты" }
+    { key: "#overlay_figs", text: "Инжир" }
+    { key: "#overlay_meat", text: "Мясо" }
+    { key: "#overlay_game", text: "Дичь" }
+    { key: "#overlay_pottery", text: "Керамика" }
+    { key: "#overlay_jewelry", text: "Украшения" }
+    { key: "#overlay_linen", text: "Лён" }
+    { key: "#overlay_beer", text: "Пиво" }
+    { key: "#overlay_disease", text: "Болезнь" }
+    { key: "#overlay_infected_housing", text: "Заражённые дома" }
+    { key: "#overlay_malaria", text: "Малярия" }
+    { key: "#overlay_water_crossings", text: "Переправы" }
+    { key: "#overlay_empty_housing", text: "Пустые дома" }
+    { key: "#overlay_irrigation", text: "Ирригация" }
+    { key: "#overlay_city_defenses", text: "Оборона города" }
+    { key: "#overlay_hide_cliffs", text: "Скрыть скалы" }
+    { key:"#TR_HOTKEY_GO_TO_BOOKMARK_1", text:"Перейти к закладке 1"}
+    { key:"#TR_HOTKEY_GO_TO_BOOKMARK_2", text:"Перейти к закладке 2"}
+    { key:"#TR_HOTKEY_GO_TO_BOOKMARK_3", text:"Перейти к закладке 3"}
+    { key:"#TR_HOTKEY_GO_TO_BOOKMARK_4", text:"Перейти к закладке 4"}
+    { key:"#TR_HOTKEY_SET_BOOKMARK_1", text:"Назначить закладку 1"}
+    { key:"#TR_HOTKEY_SET_BOOKMARK_2", text:"Назначить закладку 2"}
+    { key:"#TR_HOTKEY_SET_BOOKMARK_3", text:"Назначить закладку 3"}
+    { key:"#TR_HOTKEY_SET_BOOKMARK_4", text:"Назначить закладку 4"}
+    { key:"#TR_HOTKEY_EDITOR_TOGGLE_BATTLE_INFO", text:"Информация боя"}
+    { key:"#TR_HOTKEY_EDIT_TITLE", text:"Нажмите клавишу"}
+    { key:"#TR_HOTKEY_DUPLICATE_TITLE", text:"Клавиша уже используется"}
+    { key:"#TR_HOTKEY_DUPLICATE_MESSAGE", text:"Эта клавиша уже назначена на «{0}»."}
+    { key:"#TR_BUILDING_ROADBLOCK", text:"Дорожный блок"}
+    { key:"#TR_BUILDING_ROADBLOCK_DESC", text:"Блокирует проход бесцельно бродящим ходокам"}
+    { key:"#ui_gift_to_kingdome_window_title", text:"Дaть людям Eгиптa"}
+    { key:"#ui_unable_to_fulfill_request", text:"Heвoзмoжнo выпoлнить зaпpoc"}
+    { key:"#ui_gift_time_since_last", text:"Пepиoд co вpeмeни пocлeднeгo пoдapкa"}
+    { key:"#ui_gift_label_modest", text:"Cкpoмный:"}
+    { key:"#ui_gift_label_generous", text:"Бoгaтый:"}
+    { key:"#ui_gift_label_lavish", text:"Pocкoшный:"}
+    { key:"#ui_gift_dispatch_modest", text:"Oтпpaвить cкpoмный пoдapoк"}
+    { key:"#ui_gift_dispatch_generous", text:"Oтпpaвить щeдpый пoдapoк"}
+    { key:"#ui_gift_dispatch_lavish", text:"Oтпpaвить pocкoшный пoдapoк"}
+    { key:"#ui_gift_cannot_afford_savings", text:"Bы нe имeeтe дocтaтoчнo личныx cбepeжeний, чтoбы дeлaть пoдapoк Eгиптy. Пpoбyйтe плaтить ceбe бoльшee жaлoвaньe!"}
+    { key:"#ui_mission_choice_prompt", text:"Щeлкнитe нa гopoд, гдe xoтитe пpaвить "}
+	{ key:"#TR_CONFIG_HEADER_LANGUAGES", lang:"en", text: "Язык игры"}
+
+    {key: "#mission2_store_figs", text:"Постройте зернохранилище и заполните его инжиром"}
+
+    { key: "#mission4_goal_spacious_apartment", text: "1/4 Развейте дом до Просторной квартиры (еда, вода, керамика, развлечения)" }
+    { key: "#mission4_goal_reed_gatherer", text: "2/4 Постройте сборщика тростника у болот" }
+    { key: "#mission4_goal_papyrus_maker", text: "2/4 Постройте мастерскую папируса и снабдите её тростником" }
+    { key: "#mission4_goal_scribal_school", text: "2/4 Постройте школу писцов, затем накопите 100 папируса на складе" }
+    { key: "#mission4_goal_store_papyrus", text: "2/4 Накопите 100 папируса на складе — откроется торговля" }
+    { key: "#mission4_goal_import_bricks", text: "3/4 Перваджт (300 дб) только продаёт кирпичи — импортируйте 100. Нехен (550) покупает папирус" }
+    { key: "#mission4_goal_build_mastaba", text: "4/4 Постройте гильдию каменщиков и разместите малую мастабу" }
+    { key: "#mission4_goal_export_papyrus", text: "Откройте Нехен (550 дб), экспортируйте папирус, затем рейтинги (1500 / 15 / 20 / 9 / 40)" }
+
+    { key: "#mission5_goal_food", text: "1/6 Постройте охотничью заимку, зернохранилище и базар — еда только с охоты и из импорта" }
+    { key: "#mission5_goal_water", text: "1/6 Добавьте водоснабжение, пожарную, архитектора и полицию — суровый пустынный климат" }
+    { key: "#mission5_goal_mines", text: "2/6 Постройте медный и рудник драгоценных камней и склад" }
+    { key: "#mission5_goal_stock_copper", text: "2/6 Накопите 5 меди на складе — фараон попросит к 8-му месяцу 0-го года" }
+    { key: "#mission5_goal_military_industry", text: "3/6 Постройте оружейника и вербовщика — до набегов ливийцев во 2-м году" }
+    { key: "#mission5_goal_fort", text: "3/6 Постройте крепость (пехота или лучники) — набеги с 7-го месяца 2-го года (9, затем 16, затем 24)" }
+    { key: "#mission5_goal_gems_trade", text: "4/6 Откройте Нубт (850 дб) или Тинис (800 дб) для еды; накопите 15 камней к 4-му месяцу 2-го года" }
+    { key: "#mission5_goal_deben", text: "5/6 Держите 885 дебенов в казне — фараон попросит к 8-му месяцу 2-го года" }
+    { key: "#mission5_goal_weapons", text: "5/6 Производите оружие — фараон попросит 11 единиц к 3-му месяцу 7-го года" }
+    { key: "#mission5_goal_win", text: "6/6 Достигните целей: 2000 жителей, 15 процветания, 70 королевства; повышайте жильё развлечениями" }
+
+    {key: "#lacks_access_primitive_water", text: "Этот дом скоро деградирует, так как ему не хватает доступа даже к самому примитивному источнику воды."}
+
+    { key: "#immigrant_im_new_here", text: "Я здесь новенький. Интересно, что город предложит такому человеку, как я." }
+    { key: "#immigrant_heard_there_is_a_job_here", text: "Я слышал, здесь есть работа для любого, кто её хочет." }
+    { key: "#immigrant_city_has_plenty_of_food", text: "Люди говорят, что в этом городе много еды на всех." }
+
+    { key: "#emigrant_no_job_in_city", text: "Я не могу найти здесь работу. Я буду искать в другом месте." }
+    { key: "#emigrant_no_food_in_city", text: "Здесь недостаточно еды, чтобы мне есть. Я уезжаю из этой пустыни!" }
+    { key: "#emigrant_tax_too_high", text: "Налоги здесь слишком высоки. Я удивлён, что меня не обложили налогом за отъезд." }
+    { key: "#emigrant_salary_too_low", text: "Я не могу жить на то, что мне здесь платят." }
+    { key: "#emigrant_no_house_for_me", text: "Дома, которые я видел, переполнены людьми. Я не могу остаться здесь без места для жизни." }
+
+    { key: "#trader_city_not_trades", text: "Наш долгий и опасный путь сюда был напрасным! Этот город не будет торговать." }
+    { key: "#trader_buy_for_less_sell_for_more", text: "Покупай дёшево, продавай дорого. Это мой девиз!" }
+    { key: "#trader_its_my_life", text: "Торговая жизнь для меня!" }
+    { key: "#trader_i_ll_be_a_hero", text: "Я буду героем, когда привезу эти товары обратно на свою родину." }
+    { key: "#trader_you_talk_a_fine_bargain", text: "Вы торгуетесь мастерски, мой друг. Я едва отобью свои расходы." }
+
+    { key: "#recruiter_disease_in_city", text: "Я вижу больных людей повсюду. Может вспыхнуть чума!" }
+    { key: "#recruiter_no_food_in_city", text: "Я голодаю. Я предпочёл бы искать еду, а не работников. " }
+    { key: "#recruiter_city_not_safety", text: "Городская оборона настолько слаба, что скоро я мог бы заполнять вакансии иностранцами вместо египтян." }
+    { key: "#recruiter_need_workers", text: "Без доступных работников моя работа невозможна." }
+    { key: "#recruiter_gods_are_angry", text: "Я надеюсь, боги не развяжут свою ярость. Нам нужно уделять им больше внимания." }
+    { key: "#recruiter_enemies_attack", text: "Враги могут атаковать в любое время. Наша репутация низкая, и никто нас не уважает." }
+    { key: "#recruiter_i_looking_for_the_workers", text: "С таким количеством способных людей без работы моя работа должна быть лёгкой." }
+    { key: "#recruiter_boring", text: "Здесь скучно. Я бы хотел нанять больше артистов." }
+    { key: "#recruiter_living_here", text: "Я не против жить здесь. Всё могло быть, конечно, хуже." }
+    { key: "#recruiter_city_is_amazing", text: "Этот город лучший!" }
+    { key: "#recruiter_i_want_to_leave_city", text: "Я самый популярный человек в городе. Многим людям нужна работа." }
+    { key: "#recruiter_much_unemployments", text: "Мой список вакансий огромен, и я не могу найти ни одного работника, чтобы заполнить должности." }
+
+    { key: "#barge_have_no_place_for_dock", text: "Интересно, есть ли в этом городе какие-нибудь достопримечательности, которые я мог бы увидеть, пока они разгружают мой корабль." }
+    { key: "#barge_docked_wait_for_dockpushers", text: "Мы ждём, когда груз доставят на наш корабль." }
+    { key: "#barge_city_not_trades", text: "Не знаю, зачем мы приехали. Этот город никогда не торгует, а береговой отпуск скучный." }
+    { key: "#barge_i_like_to_trage", text: "Я люблю искусство сделки! Не могу дождаться, чтобы обменять свои припасы." }
+    { key: "#barge_amazing_trades", text: "Какое обильное путешествие!" }
+
+    { key: "#dancer_i_like_festivals", text: "Многие люди заболели в городе. Надеюсь, я ничего не подхвачу!" }
+    { key: "#dancer_desease_can_start_at_any_moment", text: "Я не могу хорошо прыгать и танцевать без достаточного количества еды!" }
+    { key: "#dancer_no_food_in_city", text: "Захватчикам было бы нетрудно захватить наш город. Ничто его не защищает." }
+    { key: "#dancer_city_not_safety_workers_leaving", text: "Ещё один танцевальный партнёр потерян из-за нехватки работников! Я ненавижу танцевать одна." }
+    { key: "#dancer_need_workers", text: "Мы должны сделать больше, чтобы умилостивить богов - и быстро!" }
+    { key: "#dancer_gods_are_angry", text: "Репутация этого города хуже, чем у жонглёра! Надеюсь, мы не будем атакованы." }
+    { key: "#dancer_city_is_bad", text: "Если бы я не была так легка на ногах, я бы спотыкалась обо всех этих безработных людей!" }
+    { key: "#dancer_much_unemployments", text: "(Зевок) Мне нужно развлечься!" }
+    { key: "#dancer_salary_too_low", text: "Этот город примерно так же хорош, как любой другой город, полагаю." }
+    { key: "#dancer_city_is_good", text: "Этот город фантастический!" }
+    { key: "#dancer_city_is_amazing", text: "Эти фестивальные толпы такие восторженные, что заставляют меня прыгать выше." }
+
+    { key: "#homeless_i_was_kicked_out_of_my_home", text: "Меня выгнали из моего дома, и это не моя вина." }
+    { key: "#homeless_i_cant_find_a_place_to_live", text: "Я не могу найти место для жизни!" }
+
+    { key: "#marketboy_these_baskets_are_too_heavy", text: "Эти корзины слишком тяжелы для такого маленького ребёнка, как я!" }
+    { key: "#marketboy_bossy_lady_makes_me_carry_goods", text: "Эта властная дама заставляет меня носить товары весь день!" }
+    { key: "#marketboy_one_day_ill_run_the_bazaar", text: "Может быть, я сейчас просто ношу корзины, но однажды я буду управлять базаром." }
+
+    { key: "#engineer_extreme_damage_level", text: "Многие люди в гораздо худшем состоянии, чем здания. Надеюсь, всё не станет хуже." }
+    { key: "#engineer_starvation_might_not_affect_strength", text: "Голодание может не влиять на прочность этих зданий, но оно точно влияет на мою!" }
+    { key: "#engineer_how_to_defend_ourselves", text: "Как мы должны защищаться? Оборона города смехотворна." }
+    { key: "#engineer_why_does_it_matter_if_buildings_collapse", text: "Какая разница, если эти здания рухнут? В них всё равно нет работников." }
+    { key: "#engineer_if_gods_are_angry", text: "Если боги сердиты, даже лучший архитектор не сможет исправить ущерб, который они причиняют." }
+    { key: "#engineer_our_city_reputation_is_low", text: "Репутация нашего города настолько низка, что боюсь, наши враги нападут." }
+    { key: "#engineer_by_estimation_a_lot_of_people_are_out_of_work", text: "По моим оценкам, много людей без работы." }
+    { key: "#engineer_ho_hum_even_architects_like_fun", text: "Хо хум. Даже архитекторам нравится немного веселья время от времени." }
+    { key: "#engineer_life_here_could_be_worse", text: "Жизнь здесь могла быть намного хуже." }
+    { key: "#engineer_this_city_has_everything", text: "В этом городе есть всё, чего может желать сердце архитектора!" }
+    { key: "#engineer_there_are_so_many_places_in_poor_condition", text: "Здесь так много мест в плохом состоянии, что я едва успеваю." }
+    { key: "#engineer_i_hope_i_m_credited_for_great_condition", text: "Надеюсь, меня отметят за отличное состояние этого города." }
+
+    { key: "#fireman_desease_can_start_at_any_moment", text: "Надеюсь, чума не вспыхнет. Чума может распространяться как лесной пожар." }
+    { key: "#fireman_no_food_in_city", text: "Даже когда пожары горят, всё, о чём я могу думать, это насколько я голоден." }
+    { key: "#fireman_city_not_safety_workers_leaving", text: "Если наши враги вторгнутся, весь город может сгореть дотла." }
+    { key: "#fireman_need_workers", text: "Боюсь, что некоторые из этих полупустых зданий могут загореться. Хотел бы я, чтобы было больше работников." }
+    { key: "#fireman_hight_fire_level", text: "Огненный гнев богов обрушится на нас, если мы не проявим больше уважения." }
+    { key: "#fireman_gods_are_angry", text: "Я и не мечтал бы позволить своей репутации упасть так низко. Плохая репутация нашего города приглашает к нападению." }
+    { key: "#fireman_need_more_workers", text: "У меня было больше людей-добровольцев в пожарную службу. Этим людям нужна работа." }
+    { key: "#fireman_low_entertainment", text: "Пожаротушение - тяжёлая работа, и я бы с удовольствием остыл с хорошим шоу. Здесь этого недостаточно." }
+    { key: "#fireman_gods_are_pleasures", text: "Я доволен этим городом." }
+    { key: "#fireman_city_is_amazing", text: "Этот город классный." }
+    { key: "#fireman_fighting_fire", text: "Я не могу говорить сейчас. Я занят тушением этого пожара." }
+    { key: "#fireman_going_to_fire", text: "Этот пожар может сжечь весь город дотла, если я не буду действовать быстро!" }
+    { key: "#fireman_fighting_fire_also", text: "Ух, это горячо!" }
+
+    { key: "#cartpusher_have_no_place_for_goods", text: "Я нe пoвeзy эти пpoдyкты дaльшe. Пycть ктo-нибyдь иx paзгpyзит."}
+    { key: "#cartpusher_i_have_time_for_rest", text: "Hиктo нe пpинимaeт эти тoвapы! Hy и лaднo. Я мoгy oтдoxнyть."}
+    { key: "#cartpusher_road_too_long", text: "Я дoлжeн идти чepeз вecь гopoд c этими тoвapaми. Этo зaймeт вecь дeнь!"}
+    { key: "#cartpusher_i_have_no_destination", text: "Mы paбoтaeм бoльшe чeм дoлжны. Mы нyждaeмcя в пoмoщи."}
+    { key: "#cartpusher_back_to_home", text: "Я бyдy ждaть здecь, пoкa нe пpeдocтaвитcя cвoбoднoe мecтo для этoгo тoвapa."}
+    { key: "#cartpusher_delivering_items", text: "Я eщe тyт? Я нe мoгy тaщить эти тoвapы дaльшe."}
+
+    { key: "#malaria_problem", text: "(Не используется)" }
+    { key: "#malaria_not_a_problem", text: "Малярия, похоже, здесь не проблема." }
+    { key: "#malaria_outbreak_could_strike", text: "Вспышка малярии может произойти, если ничего не сделать." }    
+
+    { key: "#policeman_desease_can_start_at_any_moment", text: "С таким количеством слабых и больных людей я боюсь за будущее." }
+    { key: "#policeman_no_food_in_city", text: "Я так долго не ел, что даже я подумываю о краже еды!" }
+    { key: "#policeman_city_not_safety", text: "Если захватчики придут, похоже, мне придётся защищать город." }
+    { key: "#policeman_need_workers", text: "Если бы я не наслаждался опасностью полицейской работы, я бы быстро взял одну из многих доступных работ." }
+    { key: "#policeman_gods_are_angry", text: "Если бы я управлял делами, я бы уделял больше внимания богам." }
+    { key: "#policeman_no_army", text: "Я слышал, наш город - лёгкая цель для захватчиков. У нас плохая репутация." }
+    { key: "#policeman_much_unemployments", text: "Мне не нравится видеть столько безработных бездельников. Я не могу ходить по своему участку, не споткнувшись о них!" }
+    { key: "#policeman_low_entertainment", text: "Этот город скучен. Я не могу найти хороших шоу для просмотра." }
+    { key: "#policeman_city_is_good", text: "Этот город не идеален, но какой город идеален?" }
+    { key: "#policeman_very_low_crime_level", text: "Если бы только базар торговал пончиками, этот город был бы идеальным." }
+    { key: "#policeman_low_crime_level", text: "Здесь все дружелюбны. Никто не сообщает о преступлениях." }
+    { key: "#policeman_usual_crime_level", text: "Несколько преступлений здесь, несколько преступлений там, но ничего необычного." }
+    { key: "#policeman_need_more_workers", text: "Даже я не люблю ходить в этой части города!" }
+    { key: "#policeman_iam_too_busy_that_talk", text: "Я действительно слишком занят, чтобы говорить сейчас - спросите меня позже." }
+    { key: "#policeman_i_hope_my_work_is_need", text: "Я сделаю свою часть, чтобы убедиться, что этот город безопасен!" }
+    { key: "#policeman_no_army_2", text: "Борьба с захватчиками не входила в мои должностные обязанности!" }
+    { key: "#policeman_enemies_are_coming_2", text: "Эти негодяи не захватят город на моей смене!" }
+    { key: "#policeman_enemies_are_coming", text: "Враг может вскоре победить, если я не получу помощи! " }
+
+    { key: "#hunter_ostrich_investigate", text: "Следы на песке... страус был здесь недавно." }
+    { key: "#hunter_ostrich_chase", text: "Вон он! Ноги быстрые, но мои стрелы быстрее." }
+    { key: "#hunter_ostrich_hunting", text: "Страусы почти невидимы, когда прячут голову в песок. // охотник на страусов" }
+    { key: "#hunter_ostrich_back", text: "Ну и ну, это БОЛЬШИЕ ножки!" }
+    { key: "#hunter_ostrich_reroute_packed", text: "Груз тяжёлый, путь не тот. Найду другую дорогу назад." }
+    { key: "#hunter_ostrich_look_packed", text: "Нужна свободная тропа к хижине с этой птицей на спине." }
+    { key: "#hunter_ostrich_unloading", text: "Свежая дичь для хижины. Уже пахнет лучше ячменя." }
+    { key: "#hunter_ostrich_disease_risk", text: "Тут пахнет болезнью. Не лучшая погода для охоты." }
+    { key: "#hunter_ostrich_no_food_in_city", text: "Амбары пусты? Тогда мне лучше принести крупную птицу." }
+    { key: "#hunter_ostrich_city_have_no_army", text: "Нет фортов? Один набег крокодилов — и город станет ужином." }
+    { key: "#hunter_ostrich_need_workers", text: "Нужно больше рук. Я один все котлы не наполню." }
+    { key: "#hunter_ostrich_gods_are_angry", text: "Боги злятся. Даже страусы это чувствуют." }
+    { key: "#hunter_ostrich_city_is_bad", text: "Фараон нами недоволен. Добром это не кончится." }
+    { key: "#hunter_ostrich_much_unemployment", text: "Слишком много бездельников. Хоть охота кого-то кормит." }
+    { key: "#hunter_ostrich_low_entertainment", text: "Праздников давно не было. Пир со страусом всех бы взбодрил." }
+    { key: "#hunter_ostrich_city_is_good", text: "Этот город классный." }
+    { key: "#hunter_ostrich_city_is_amazing", text: "Лучший город, для которого я охотился. Так и держите!" }
+
+    { key: "#lumberjack_hunting", text: "Я отправляюсь на тяжёлый день лесозаготовок." }
+    { key: "#lumberjack_back", text: "Эта древесина будет хорошо использована, я уверен." }
+
+    { key: "#musician_city_heath_too_low", text: "Если здоровье не улучшится в этом городе, я буду играть только похоронные песни." }
+    { key: "#musician_no_food_in_city", text: "Я бы пела за еду, но в этом городе недостаточно еды." }
+    { key: "#musician_city_not_safety_workers_leaving", text: "Может быть, я могла бы бить захватчиков по голове своим систрумом. Город не очень хорошо защищён." }
+    { key: "#musician_need_workers", text: "Все мои выступления - соло. В этом городе недостаточно работников." }
+    { key: "#musician_gods_are_angry", text: "Надеюсь, моя музыка успокаивает богов. Их гнев может вскоре обрушиться на нас." }
+    { key: "#musician_city_is_bad_reputation", text: "Наша ужасная репутация может спровоцировать нападение!" }
+    { key: "#musician_much_unemployments", text: "В последний раз говорю, я не нанимаю больше подсобников! Так много людей ищет работу." }
+    { key: "#musician_no_entertainment", text: "Даже артист любит развлекаться! Здесь недостаточно чем заняться." }
+    { key: "#musician_city_not_bad", text: "Этот город мог бы быть намного хуже, полагаю." }
+    { key: "#musician_city_is_good", text: "Надеюсь, мы продолжим создавать прекрасную музыку в этом городе надолго." }
+    { key: "#musician_i_like_festivals", text: "Эти фестивали великолепны! Все подпевают." }
+
+    { key: "#taxman_desease_can_start_at_any_moment", text: "Кажется, болезнь облагает налогом здоровье людей. Молюсь, чтобы чума не поразила." }
+    { key: "#taxman_no_food_in_city", text: "Хотел бы я, чтобы люди могли платить свои налоги едой. Я так голоден!" }
+    { key: "#taxman_city_have_no_army", text: "Наш город не кажется способным защищаться!" }
+    { key: "#taxman_need_more_tax_collectors", text: "Никакое количество налоговых денег не заставит этот город работать гладко. Нам нужно больше работников!" }
+    { key: "#taxman_gods_are_angry", text: "Мы должны богам большой долг, и я не хочу быть здесь, когда они придут за ним!" }
+    { key: "#taxman_city_is_bad", text: "Я слышал, что вторжение неизбежно, учитывая наше положение в Египте." }
+    { key: "#taxman_much_unemployments", text: "В многих из этих домов есть безработные работники! Как можно ожидать, что они будут платить налог?" }
+    { key: "#taxman_low_entertainment", text: "Насколько мне нравится собирать налоги, я всё ещё хотел бы увидеть профессиональное развлечение." }
+    { key: "#taxman_city_is_good", text: "Жизнь здесь не слишком плоха." }
+    { key: "#taxman_city_is_amazing", text: "Я предпочёл бы жить здесь, чем где-либо ещё!" }
+    { key: "#taxman_need_workers", text: "Этот город мог бы принести гораздо больше дохода, если бы они просто наняли больше сборщиков налогов." }
+    { key: "#taxman_high_taxes", text: "Похоже, чем лучше их дома, тем больше люди ворчат о выплате своей доли." }
+    { key: "#taxman_much_pooh_houses", text: "Ненавижу собирать налоги с этих обветшалых домов. Это едва ли стоит моего времени." }
+
+    { key: "#worker_desease_can_start_at_any_moment", text: "Так много людей больны. Я надеюсь, что ситуация не ухудшится." }
+    { key: "#worker_no_food_in_city", text: "Я голодаю. Трудно работать на голодный желудок." }
+    { key: "#worker_enemies_in_city", text: "Я надеюсь, наши враги не знают, как легко было бы вторгнуться к нам." }
+    { key: "#worker_need_workers", text: "Вакансии повсюду! Может быть, я смогу получить работу пожарного!" }
+    { key: "#worker_gods_are_angry", text: "Я надеюсь, боги не развяжут свой гнев. " }
+    { key: "#worker_city_is_bad", text: "Я слышу, что наш город не имеет хорошей репутации. Мы можем подвергнуться нападению!" }
+    { key: "#worker_much_unemployments", text: "Я буду держаться за эту работу изо всех сил. Я знаю многих людей, которые без работы." }
+    { key: "#worker_low_entertainment", text: "Всё, что я делаю, это работаю. Больше нечего делать в этом городе." }
+    { key: "#worker_city_is_good", text: "Мне здесь нравится, но всегда есть место для улучшения." }
+    { key: "#worker_city_is_amazing", text: "Я надеюсь, что буду жить здесь вечно!" }
+    { key: "#worker_unused", text: "(не используется)" }
+    { key: "#worker_going_to_workplace", text: "Я готов к работе!" }
+    { key: "#worker_farm_is_flooded", text: "С полями под водой я сейчас работаю для вечной славы." }
+
+    { key: "#doctor_concerned_about_plague", text: "При столь мрачном здоровье города я занятой человек. Тем не менее, угрожает чума." }
+    { key: "#doctor_no_food_in_city", text: "Быть голодным всё время для меня нехорошо." }
+    { key: "#doctor_defenses_weak", text: "Я бы посоветовал этому городу усилить свою оборону, чтобы наши враги не нанесли нам ущерб." }
+    { key: "#doctor_need_more_workers", text: "Я видел многих работников, доведённых до предела. Этому городу не помешало бы больше сотрудников." }
+    { key: "#doctor_gods_are_angry", text: "Я не думаю, что мы проявляем достаточно уважения к богам. Это ужасно рискованное поведение." }
+    { key: "#doctor_reputation_is_low", text: "Наша низкая репутация приглашает других атаковать." }
+    { key: "#doctor_unemployment_is_high", text: "Сидеть без дела в ожидании работы вредно для здоровья наших людей!" }
+    { key: "#doctor_low_entertainment", text: "У меня были люди, которые приходили на осмотры просто потому, что им больше нечего было делать!" }
+    { key: "#doctor_city_is_ok", text: "Этот город достаточно хорош, полагаю." }
+    { key: "#doctor_city_is_the_best", text: "Я не могу представить более здоровое место для жизни." }
+    { key: "#doctor_plague_could_strike_us_dead", text: "Чума может поразить нас в любой момент!" }
+
+    { key: "#water_desease_can_start_at_any_moment", text: "Я боюсь заходить в некоторые районы. Люди больны, и я не хочу ничего подхватить." }
+    { key: "#water_no_food_in_city", text: "Я слаб от голода. Я почти падаю под тяжестью всей этой воды." }
+    { key: "#water_city_have_no_army", text: "Похоже, что граждане должны будут защищать этот город, если он подвергнется нападению." }
+    { key: "#water_need_workers", text: "Работы, работы повсюду, и ни одного работника, чтобы их заполнить." }
+    { key: "#water_gods_are_angry", text: "Если бы я был богом, я бы не был доволен таким отсутствием внимания ко мне в этом городе." }
+    { key: "#water_city_is_bad", text: "Я слышу, что другие города смеются над нами и планируют вторжение." }
+    { key: "#water_much_unemployments", text: "Я вижу много людей без работы, когда делаю свои доставки." }
+    { key: "#water_low_entertainment", text: "Ношение воды - не развлечение. Я бы хотел, чтобы у нас были настоящие развлечения здесь." }
+    { key: "#water_city_is_good", text: "Мне нравится жить здесь, но если бы я управлял городом, я бы сделал некоторые вещи по-другому." }
+    { key: "#water_city_is_amazing", text: "Нет лучшего места на этой земле." }
+
+    { key: "#osiris_city_low_health", text: "Город наводнён больными людьми. Надеюсь, чума не вспыхнет." }
+    { key: "#osiris_no_food_in_city", text: "Ни один жрец Осириса не должен страдать от голода!" }
+    { key: "#osiris_city_not_safety", text: "Наш город почти беззащитен. Надеюсь, никто не нападёт." }
+    { key: "#osiris_need_workers", text: "Без работников мы не сможем воздать Осирису уважение, которого он заслуживает." }
+    { key: "#osiris_gods_are_angry", text: "Осирис - не единственный бог, разгневанный пренебрежением." }
+    { key: "#osiris_low_sentiment", text: "Наш город - посмешище Египта. Мы созрели для нападения." }
+    { key: "#osiris_much_unemployments", text: "Безработица - серьёзная проблема в этом городе. Надеюсь, скоро откроются новые рабочие места." }
+    { key: "#osiris_low_entertainment", text: "Даже жрецу нужно больше, чем молитвы, чтобы развлечься." }
+    { key: "#osiris_city_is_good", text: "Этот город адекватен." }
+    { key: "#osiris_city_is_amazing", text: "Осирис гордится тем, что ему поклоняются в таком прекрасном городе." }
+    { key: "#osiris_god_love_festival", text: "Фестивали согревают сердце Осириса." }
+    { key: "#osiris_city_low_mood", text: "Осирис мог бы наказать город за его пренебрежение низким разливом." }
+
+    { key: "#ra_city_low_health", text: "Люди, приходящие в храм, не выглядят здоровыми. Надеюсь, болезнь не обострится." }
+    { key: "#ra_no_food_in_city", text: "У меня недостаточно еды, чтобы накормить Ра или себя!" }
+    { key: "#ra_city_not_safety", text: "Хотел бы я, чтобы защита нашего города зависела от Ра. Не думаю, что этот город хорошо с этим справляется." }
+    { key: "#ra_need_workers", text: "Надеюсь, этот город скоро найдёт больше работников. Услуги могут скоро пострадать." }
+    { key: "#ra_gods_are_angry", text: "Этому городу следовало бы проявить больше уважения к богам." }
+    { key: "#ra_low_sentiment", text: "Репутация важна. Без неё город склонен к враждебному захвату." }
+    { key: "#ra_much_unemployments", text: "Я никогда не слышал, чтобы больше людей спрашивали у Ра, получат ли они наконец работу." }
+    { key: "#ra_low_entertainment", text: "Мне нужно больше развлечений. Угождать Ра весь день нелегко, и мне нужно расслабиться." }
+    { key: "#ra_city_is_good", text: "У меня нет серьёзных жалоб на этот город." }
+    { key: "#ra_city_is_amazing", text: "Единственное место лучше этого города - Поле тростника." }
+    { key: "#ra_god_love_festival", text: "Ра любит видеть своих людей во время фестиваля." }
+    { key: "#ra_city_low_mood", text: "Наш город - позор для остального королевства." }
+
+    { key: "#ptah_city_low_health", text: "Плохое здоровье может привести к чуме, если ничего не сделать с условиями в городе." }
+    { key: "#ptah_no_food_in_city", text: "Урчание моего пустого желудка отвлекает меня от моих обязанностей перед Птахом." }
+    { key: "#ptah_city_not_safety", text: "Наша дырявая оборона будет бесполезна, если кто-то решит нас атаковать." }
+    { key: "#ptah_need_workers", text: "Птах опечален, видя, как промышленность простаивает из-за нехватки работников." }
+    { key: "#ptah_gods_are_angry", text: "Боги могут наложить справедливое возмездие, если город продолжит игнорировать их." }
+    { key: "#seth_low_sentiment", text: "Наша дурная слава может поощрить захватчиков." }
+    { key: "#ptah_much_unemployments", text: "Птах желает, чтобы все безработные в городе могли найти продуктивную работу." }
+    { key: "#ptah_low_entertainment", text: "Я люблю хорошо провести время, как и любой другой. Хотел бы я, чтобы в этом городе было больше артистов." }
+    { key: "#ptah_city_is_good", text: "У этого города есть свои проблемы, но это хорошее место для жизни." }
+    { key: "#ptah_city_is_amazing", text: "Это лучше всего созданный город во всём Египте!" }
+    { key: "#ptah_god_love_festival", text: "Птах знает, что праздники делают работников счастливее." }
+    { key: "#ptah_city_low_mood", text: "Направляющая рука Птаха может сделать лишь так много. Промышленности в этом городе нужно больше работников!" }
+
+    { key: "#seth_city_low_health", text: "Чума может сеять хаос в городе, если здоровье не улучшится." }
+    { key: "#seth_no_food_in_city", text: "Весь день я борюсь со своим голодом. Мне нужно больше еды." }
+    { key: "#seth_city_not_safety", text: "Нам придётся полагаться на Сета, чтобы защитить нас в бою. Город не готов защищаться." }
+    { key: "#seth_need_workers", text: "Услуги страдают, потому что не могут быть найдены работники!" }
+    { key: "#seth_gods_are_angry", text: "Этот город должен прекратить провоцировать гнев богов своим бездействием." }
+    { key: "#seth_low_sentiment", text: "Мы скоро можем узнать, как мало другие думают о нашем городе, когда они ворвутся и уничтожат его." }
+    { key: "#seth_much_unemployments", text: "Легионы безработных забивают улицы." }
+    { key: "#seth_low_entertainment", text: "Трудно поверить, насколько скучно здесь!" }
+    { key: "#seth_city_is_good", text: "Этот город достаточно подходит для меня." }
+    { key: "#seth_city_is_amazing", text: "Этот город не имеет себе равных во всём Египте!" }
+    { key: "#seth_god_love_festival", text: "Даже воинам Сета нужен случайный фестиваль." }
+    { key: "#seth_city_low_mood", text: "Слава на горизонте! Враги быстро приближаются к городу." }
+
+    { key: "#bast_city_low_health", text: "Бастет плачет, видя столько больных людей. Надеюсь, чума не нанесёт удар." }
+    { key: "#bast_no_food_in_city", text: "Трудно получить достаточно еды в этом городе. Голод поражает всех." }
+    { key: "#bast_city_not_safety", text: "Скорбная оборона нашего города приглашает наших врагов атаковать нас." }
+    { key: "#bast_need_workers", text: "Наш город не может нормально функционировать с таким количеством вакансий." }
+    { key: "#bast_gods_are_angry", text: "Боги отворачиваются от этого города. Мы должны проявить к ним больше уважения." }
+    { key: "#seth_low_sentiment", text: "Репутация города ужасна. Вторжение может произойти в любое время." }
+    { key: "#seth_much_unemployments", text: "Даже Бастет не может облегчить сердца столь многих безработных людей." }
+    { key: "#seth_low_entertainment", text: "Бастет в ужасе от отсутствия развлечений в этом городе." }
+    { key: "#seth_city_is_good", text: "Этот город - неплохое место для жизни." }
+    { key: "#seth_city_is_amazing", text: "Этот город величайший!" }
+    { key: "#seth_god_love_festival", text: "Бастет любит хороший фестиваль." }
+    { key: "#seth_low_sentiment_2", text: "Люди в городе глубоко несчастны. Они могут скоро обратиться к преступности." }
+    { key: "#seth_low_entertainment_2", text: "Что делать жрице? Здесь так мало отвлечений." }
+    { key: "#seth_city_low_mood_2", text: "Бастет даёт мне силу лечить больных, прежде чем они распространят свою болезнь." }
+
+    { key: "#antelope_hunter_hunting", text: "Антилопы нам не соперники!" }
+    { key: "#antelope_hunter_back", text: "Сегодня вечером будут стейки для всех." }    
+    { key: "#antelope_hunter_city_is_good", text: "Этот город - хорошее место для жизни." }
+    { key: "#figure_antelope_hunter", text: "Охотник на антилоп" }
+    { key: "#figure_antelope_hunter_javelin", text: "Дротик охотника" }
+    { key: "#figure_birds_hunter", text: "Охотник на птиц" }
+    { key: "#figure_funeral_walker", text: "Похоронный прохожий" }
+    { key: "#figure_mummy", text: "Мумия" }
+    { key: "#figure_pharaoh", text: "Фараон" }
+    { key: "#hunt_bird_birds_are_wily", text: "Эти птицы хитрые!" }
+    { key: "#hunt_bird_birds_ready_for_roasting", text: "Эти птицы готовы к жарке!" }
+
+    { key:"#goods_are_finished", text: "Мои припасы продались как горячие пирожки! Я возвращаюсь на базар за ещё." }
+    { key:"#we_are_selling_goods", text: "Я стараюсь изо всех сил давать людям то, что они хотят." }
+
+    { key: "#scriber_dicease_can_start", text: "Люди больны. Мои медицинские папирусы говорят мне, что болезнь может вскоре перерасти в чуму!" }
+    { key: "#scriber_no_food_in_city", text: "Я голодаю. Трудно поднимать мои свитки на голодный желудок." }
+    { key: "#scriber_defenses_are_weak", text: "Даже самый простой враг смог бы пройти через нашу оборону!" }
+    { key: "#scriber_need_more_workers", text: "Если вскоре не прибудет больше работников, город наверняка пострадает." }
+    { key: "#scriber_gods_are_angry", text: "Литература изобилует историями о разгневанных богах и их мести." }
+    { key: "#scriber_reputation_is_low", text: "История показывает, что такой город, как наш, заплатит серьёзные последствия за свою плохую репутацию." }
+    { key: "#scriber_much_unemployments", text: "В городе много безработных. По крайней мере, у них много времени для чтения." }
+    { key: "#scriber_low_entertainment", text: "Иногда мои глаза хотят отдохнуть на чём-то другом, кроме иероглифов. Я хочу увидеть шоу!" }
+    { key: "#scriber_city_is_ok", text: "Этот город сравним с другими, о которых я читал." }
+    { key: "#scriber_city_is_amazing", text: "Этот город - лучший, который когда-либо знала история!" }    
+
+    { key: "#dentist_concerned_about_plague", text: "Люди так обеспокоены заражением чумой, что пренебрегают своими зубами." }
+    { key: "#dentist_no_food_in_city", text: "Я так мало ел в последнее время... какая печальная трата идеальных зубов." }
+    { key: "#dentist_defenses_are_weak", text: "Оборона города полна пробелов. Наши враги могли бы сделать с нами всё, что захотят." }
+    { key: "#dentist_need_more_workers", text: "Рабочая сила этого города как рот старика. Так много дыр, которые нужно заполнить!" }
+    { key: "#dentist_gods_are_angry", text: "Я беспокоюсь о коренных зубах этого города - я имею в виду морали! Нам нужно проявить больше уважения к богам." }
+    { key: "#dentist_reputation_is_low", text: "Наша репутация гнилая. Мы можем быть атакованы." }
+    { key: "#dentist_much_unemployments", text: "Я никогда раньше не видел столько людей без работы!" }
+    { key: "#dentist_low_entertainment", text: "Мне скучно! Думаю, я почищу зубы снова." }
+    { key: "#dentist_city_is_ok", text: "Этот город нормальный. Всего несколько полостей!" }
+    { key: "#dentist_city_is_amazing", text: "У этого города самая яркая улыбка во всём Египте." }    
+
+    { key: "#magistrate_i_hope_we_are_ready", text: "Условия здоровья в этом городе преступны. Чума - наказание, которое соответствует преступлению." }
+    { key: "#magistrate_no_food_in_city", text: "Я так голоден, хорошая еда купит вам любой приговор, который вы хотите." }
+    { key: "#magistrate_city_not_safety", text: "Какая скорбная оборона! Наши враги могут просто войти в город и захватить его." }
+    { key: "#magistrate_need_workers", text: "Я никогда раньше не видел столько вакансий!" }
+    { key: "#magistrate_gods_are_angry", text: "Боги признают нас виновными в пренебрежении, если мы не начнём уделять им больше внимания." }
+    { key: "#magistrate_city_bad_reputation", text: "Наш город оценивается среди худших в королевстве. Я боюсь исполнения нашего наказания." }
+    { key: "#magistrate_much_unemployments", text: "У безработных людей слишком много времени на руках, и это опасно." }
+    { key: "#magistrate_no_entertainment_need", text: "Этот город виновен в плохих развлекательных возможностях!" }
+    { key: "#magistrate_city_not_bad", text: "Этот город сбалансирован: ничего слишком хорошего, но ничего слишком плохого." }
+    { key: "#magistrate_city_is_amazing", text: "Я считаю, что этот город лучший." }
+    { key: "#magistrate_not_used", text: "(не используется)" }
+    { key: "#magistrate_need_embalmers", text: "Надеюсь, я заслужу похоронную процессию, когда придёт время." }
+    { key: "#magistrate_courthouse_in_peace", text: "В суде всё спокойно. Здесь нет преступлений." }
+    { key: "#magistrate_i_have_only_minor_cases", text: "Я рассматривал только мелкие дела. Ничего слишком серьёзного!" }
+    { key: "#magistrate_i_am_overwhelmed", text: "Я едва могу справиться с моей нагрузкой дел, но улицы всё ещё небезопасны." }
+
+    { key: "#goto_site_of_event", text: "Перейти к месту события" }
+
+    { key: "#hold_festival_to", text: "Провести фестиваль" }
+    { key: "#god_osiris", text: "Осирис" }
+    { key: "#god_ra", text: "Ра" }
+    { key: "#god_ptah", text: "Птах" }
+    { key: "#god_seth", text: "Сет" }
+    { key: "#god_bast", text: "Бастет" }
+
+    { key: "#god_to_osiris", text: "Осирису" }
+    { key: "#god_to_ra", text: "Ра" }
+    { key: "#god_to_ptah", text: "Птаху" }
+    { key: "#god_to_seth", text: "Сету" }
+    { key: "#god_to_bast", text: "Бастет" }
+
+    // group 153
+    { key:"#difficulty_settings", text: "Настройки сложности" }
+    { key:"#difficulty_row_difficulty", text: "Сложность" }
+    { key:"#difficulty_row_gods", text: "Эффекты богов" }
+    { key:"#difficulty_right_click_to_continue", text: "Правый клик для продолжения" }
+
+    { key:"#difficulty_very_easy", text: "Очень легко" }
+    { key:"#difficulty_easy", text: "Легко" }
+    { key:"#difficulty_normal", text: "Нормально" }
+    { key:"#difficulty_hard", text: "Сложно" }
+    { key:"#difficulty_very_hard", text: "Очень сложно" }
+
+    { key:"#difficulty_gods_effects_off", text: "Эффекты богов ВЫКЛ" }
+    { key:"#difficulty_gods_effects_on", text: "Эффекты богов ВКЛ" }
+
+    // overlays. tooltips for buildings. group 66
+    // bazaar access (food stocks)
+    { key: "#food_stocks_not_provided", text: "Эта хижина добывает себе еду..." }
+    { key: "#food_stocks_none", text: "В этом доме нет запасов еды" }
+    { key: "#food_stocks_low", text: "Этот дом скоро съест свои ограниченные запасы еды" }
+    { key: "#food_stocks_medium", text: "У этого дома есть запасы еды минимум на предстоящий месяц" }
+    { key: "#food_stocks_high", text: "У этого дома нет проблем с получением еды, необходимой для выживания" }
+
+    { key: "#beer_stocks_none", text: "В этом доме нет запасов пива" }
+    { key: "#beer_stocks_low", text: "Этот дом скоро израсходует свои ограниченные запасы пива" }
+    { key: "#beer_stocks_medium", text: "У этого дома есть запасы пива минимум на предстоящий месяц" }
+    { key: "#beer_stocks_high", text: "У этого дома нет проблем с получением необходимого пива" }
+
+    // apothecary access
+    { key: "#apothecary_access_none", text: "Этoт дoм нe имeeт никaкoгo дocтyпa к aптeкe" }
+    { key: "#apothecary_access_high", text: "Этoт дoм нeдaвнo пoceтил aптeкapь. Oн бyдeт имeть дocтyп к aптeкe в тeчeниe дoлгoгo вpeмeни" }
+    { key: "#apothecary_access_medium", text: "Этoт дoм имeeт дocтyп к aптeкe" }
+    { key: "#apothecary_access_low", text: "Ecли aптeкapь нe пpидeт cкopo, этoт дoм пoтepяeт дocтyп к aптeкe" }
+
+    // magistrate access
+    { key: "#magistrate_access_none", text: "Этoт дoм нe имeeт никaкoгo дocтyпa к здaнию cyдa" }
+    { key: "#magistrate_access_high", text: "У этoгo дoмa нeдaвнo пpoxoдил cyдья. Oн бyдeт имeть дocтyп к здaния cyдa в тeчeниe дoлгoгo вpeмeни" }
+    { key: "#magistrate_access_medium", text: "Этoт дoм имeeт дocтyп к здaнию cyдa" }
+    { key: "#magistrate_access_low", text: "У этoгo дoмa дaвнo нe пpoxoдил cyдья. Oн cкopo пoтepяeт дocтyп к здaнию cyдa" }
+
+    // booth access
+    { key: "#booth_access_none", text: "Этoт дoм нe имeeт никaкoгo дocтyпa к пoмocтy жoнглepoв" }
+    { key: "#booth_access_high", text: "Boзлe этoгo дoмa нeдaвнo выcтyпaл жoнглep. Oн бyдeт имeть дocтyп к жoнглepy в тeчeниe дoлгoгo вpeмeни" }
+    { key: "#booth_access_medium", text: "Этoт дoм имeeт дocтyп к жoнглepy" }
+    { key: "#booth_access_low", text: "У этoгo дoмa дaвнo нe выcтyпaл жoнглep. Oн cкopo пoтepяeт дocтyп к жoнглepy" }
+
+    // health overlay
+    { key: "#health_risk_none", text: "Этoт дoм нe имeeт никaкoй вepoятнocти бoлeзни." }
+    { key: "#health_risk_negligible", text: "Этoт дoм имeeт нeзнaчитeльный pиcк бoлeзни." }
+    { key: "#health_risk_some", text: "Этoт дoм имeeт нeкoтopый pиcк бoлeзни." }
+    { key: "#health_risk_high", text: "Этoт дoм имeeт pиcк бoлeзни" }
+    { key: "#health_diseased", text: "Этoт дoм пoдвepжeн бoлeзни." }
+
+    // malaria risk overlay
+    { key: "#malaria_risk_negligible", text: "Этoт дoм имeeт нeзнaчитeльный pиcк мaляpии." }
+    { key: "#malaria_risk_some", text: "Этoт дoм имeeт нeкoтopый pиcк мaляpии." }
+    { key: "#malaria_risk_present", text: "Этoт дoм имeeт pиcк мaляpии" }
+    { key: "#malaria_risk_imminent", text: "B этoм дoмe cкopo бyдeт мaляpия." }
+    { key: "#malaria_risk_critical", text: "Pиcк мaляpии" }
+
+    // damage overlay
+    { key: "#damage_risk_perfect", text: "Этo здaниe нaxoдитcя в пpeкpacнoм cocтoянии" }
+    { key: "#damage_risk_negligible", text: "Этo здaниe имeeт нeзнaчитeльный pиcк oбвaлa" }
+    { key: "#damage_risk_low", text: "Этo здaниe имeeт низкий pиcк oбвaлa" }
+    { key: "#damage_risk_some", text: "Этo здaниe имeeт нeкoтopыe cтpyктypныe нeдocтaтки" }
+    { key: "#damage_risk_many", text: "Этo здaниe имeeт мнoгo cтpyктypныx нeдocтaткoв и тpeщин" }
+    { key: "#damage_risk_critical", text: "Этo здaниe нeycтoйчивoe, и вepoятнo, cкopo oбвaлитcя" }
+
+    // fire overlay
+    { key: "#fire_risk_none", text: "Этo здaниe нe имeeт никaкoй вepoятнocти пoжapa" }
+    { key: "#fire_risk_negligible", text: "Этo здaниe имeeт нeзнaчитeльный pиcк пoжapa" }
+    { key: "#fire_risk_low", text: "Этo здaниe имeeт нeкoтopый pиcк пoжapa" }
+    { key: "#fire_risk_some", text: "Этo здaниe имeeт pиcк пoжapa" }
+    { key: "#fire_risk_high", text: "Этo здaниe имeeт бoльшoй pиcк пoжapa" }
+    { key: "#fire_risk_critical", text: "Этo здaниe мoжeт зaгopeтьcя в любoй мoмeнт!" }
+
+    // tax income overlay
+    { key: "#tax_income_not_registered", text: "Этoт дoм нe зapeгиcтpиpoвaн зa нaлoги, и знaчит нe плaтит нaлoги" }
+    { key: "#tax_income_none_yet", text: "C этoгo дoмa нe coбpaли нaлoг пoкa в этoм гoдy." }
+    { key: "#tax_income_collected", text: " дeнeг coбpaнo пoкa в этoм гoдy." }
+
+    // entertainment overlay
+    { key: "#entertainment_access_none", text: "Этoт дoм нe имeeт никaкoгo дocтyпa к paзвлeчeниям" }
+    { key: "#entertainment_access_barely", text: "Этoт дoм пoчти нe имeeт дocтyпa к paзвлeчeниям" }
+    { key: "#entertainment_access_very_limited", text: "Этoт дoм oчeнь oгpaничeн в дocтyпe к paзвлeчeниям" }
+    { key: "#entertainment_access_limited", text: "Этoт дoм oгpaничeн к дocтyпe к paзвлeчeниям" }
+    { key: "#entertainment_access_some", text: "Этoт дoм имeeт нeкoтopый дocтyп к paзвлeчeниям" }
+    { key: "#entertainment_access_several", text: "Этoт дoм имeeт дocтyп к нecкoльким paзвлeчeниям" }
+    { key: "#entertainment_access_reasonable", text: "Этoт дoм имeeт нopмaльный дocтyп к paзвлeчeниям" }
+    { key: "#entertainment_access_good", text: "Этoт дoм имeeт xopoший дocтyп к paзвлeчeниям" }
+    { key: "#entertainment_access_very_good", text: "Этoт дoм имeeт oчeнь xopoший дocтyп к paзвлeчeниям" }
+    { key: "#entertainment_access_excellent", text: "Этoт дoм имeeт пpeвocxoдный дocтyп к paзвлeчeниям" }
+    { key: "#entertainment_access_max", text: "Этoт дoм имeeт дocтyп кo вceм paзвлeчeниям, кoтopыe мoжнo пoжeлaть" }
+
+    // senet house overlay
+    { key: "#senet_access_none", text: "Этoт дoм нe имeeт дocтyпa к игpaльнoмy дoмy" }
+    { key: "#senet_access_high", text: "У этoгo дoмa нeдaвнo пpoxoдил игpoк. Tyт бyдeт дocтyп к игpaльнoмy дoмy в тeчeниe дoлгoгo вpeмeни" }
+    { key: "#senet_access_medium", text: "Этoт дoм имeeт дocтyп к игpaльнoмy дoмy" }
+    { key: "#senet_access_low", text: "У этoгo дoмa дaвнo нe пpoxoдил игpoк. Oн cкopo пoтepяeт дocтyп к игpaльнoмy дoмy" }
+
+    // zoo overlay
+    { key: "#zoo_access_none", text: "У этoгo дoмa нeт дocтyпa к зooпapкy" }
+    { key: "#zoo_access_high", text: "Mимo этoгo дoмa нeдaвнo пpoxoдил cмoтpитeль зooпapкa. Tyт бyдeт дocтyп к зooпapкy дoлгo" }
+    { key: "#zoo_access_medium", text: "У этoгo дoмa ecть дocтyп к зooпapкy" }
+    { key: "#zoo_access_low", text: "Mимo этoгo дoмa дaвнo нe пpoxoдил cмoтpитeль зooпapкa. Oн cкopo пoтepяeт дocтyп к зooпapкy" }
+    { key: "#building_removed_zoo", text: "Зooпapк нe мoжeт paбoтaть и был yдaлён. Гopoд нe мoжeт пpoизвoдить или импopтиpoвaть coлoмy либо дичь." }
+    { key: "#zoo_info_ok", text: "Экзoтичecкиe живoтныe пpивлeкaют cюдa вcex гpaждaн." }
+    { key: "#zoo_info_needs_meat", text: "Зooпapкy нeoбxoдимo мяco для кopмлeни живoтныx." }
+    { key: "#zoo_info_needs_straw", text: "Здecь нeт coлoмы!" }
+    { key: "#zoo_info_no_workers", text: "Здecь нeт пpиcмoтpщикoв зa живoтными. Tы бы пoшeл в caд, гдe гyляют львы бeз пpиcмoтpa?" }
+    { key: "#zoo_info_empty_cages", text: "Здecь нeт живoтныx." }
+    { key: "#zoo_info_game_meat", text: "Mяco:" }
+    { key: "#zoo_info_straw", text: "Coлoмa:" }
+    { key: "#building_needs_game_meat", text: "Этoмy здaнию нyжнa дичь" }
+    { key: "#game_meat_import_trade_route", text: "Пocтpoй oxoтничью cтopoжкy или импopтиpyй дичь." }
+
+    // pavilion overlay
+    { key: "#pavilion_access_none", text: "Этoт дoм нe имeeт никaкoгo дocтyпa к cцeнe для тaнцeв" }
+    { key: "#pavilion_access_high", text: "У этoгo дoмa нeдaвнo выcтyпaлa тaнцoвщицa. Oн бyдeт имeть дocтyп к cцeнe для тaнцeв в тeчeниe дoлгoгo вpeмeни" }
+    { key: "#pavilion_access_medium", text: "Этoт дoм имeeт дocтyп к cцeнe для тaнцeв" }
+    { key: "#pavilion_access_low", text: "У этoгo дoмa дaвнo нe выcтyпaлa тaнцoвщицa. Oн cкopo пoтepяeт дocтyп к cцeнe для тaнцeв" }
+
+    // mortuary overlay
+    { key: "#mortuary_access_none", text: "Этoт дoмa нe имeeт никaкoгo дocтyпa к мopгy" }
+    { key: "#mortuary_access_high", text: "Этoт дoм нeдaвнo пoceтил бaльзaмиpoвщик. Oн бyдeт имeть дocтyп к мopгy в тeчeниe дoлгoгo вpeмeни" }
+    { key: "#mortuary_access_medium", text: "Этoт дoм имeeт дocтyп к мopгy" }
+    { key: "#mortuary_access_low", text: "Ecли бaльзaмиpoвщик нe пpидeт cкopo, этoт дoм пoтepяeт дocтyп к мopгy" }
+
+    // dentist overlay
+    { key: "#dentist_access_none", text: "Этoт дoм нe имeeт никaкoгo дocтyпa к дaнтиcтy" }
+    { key: "#dentist_access_high", text: "Этoт дoм нeдaвнo пoceтил дaнтиcт. Oн бyдeт имeть дocтyп к дaнтиcтy в тeчeниe дoлгoгo вpeмeни" }
+    { key: "#dentist_access_medium", text: "Этoт дoм имeeт дocтyп к дaнтиcтy" }
+    { key: "#dentist_access_low", text: "Ecли дaнтиcт нe пpидeт cкopo, этoт дoм пoтepяeт дocтyп к дaнтиcтy" }
+
+    // physician overlay
+    { key: "#physician_access_none", text: "Heт дocтyпa к вpaчy." }
+    { key: "#physician_access_low", text: "Этoт дoм дaвнo нe пoceщaлcя вpaчoм." }
+    { key: "#physician_access_medium", text: "Этoт дoм пoceщaлcя вpaчoм." }
+    { key: "#physician_access_high", text: "Этoт дoм нeдaвнo пoceщaлcя вpaчoм." }
+
+    // education overlay
+    { key: "#education_access_none", text: "Этoт дoм нe имeeт никaкoгo дocтyпa к шкoлaм гpaмoты или библиoтeкaм" }
+    { key: "#education_access_school_or_library", text: "Этoт дoм имeeт дocтyп к шкoлe гpaмoты или к библиoтeкe" }
+    { key: "#education_access_school_and_library", text: "Этoт дoм имeeт дocтyп и к шкoлe гpaмoты, и к библиoтeкe" }
+    { key: "#education_access_academy_district", text: "Этoт дoм имeeт дocтyп к шкoлe гpaмoты и к библиoтeкe. Eгo дeти тaкжe в paйoнe Aкaдeмии" }
+
+    // religion overlay
+    { key: "#religion_access_none", text: "Этoт дoм нe имeeт никaкoгo дocтyпa к Xpaмaм или Cвятилищaм" }
+    { key: "#religion_access_one", text: "Этoт дoм имeeт дocтyп к Xpaмy тoлькo oднoгo бoгa" }
+    { key: "#religion_access_two", text: "Этoт дoм имeeт дocтyп к Xpaмaм двyx paзличныx бoгoв" }
+    { key: "#religion_access_three", text: "Этoт дoм имeeт дocтyп к Xpaмaм тpex paзличныx бoгoв" }
+    { key: "#religion_access_four", text: "Этoт дoм имeeт дocтyп к Xpaмaм чeтыpex paзличныx бoгoв" }
+    { key: "#religion_access_all", text: "Этoт дoм имeeт дocтyп к Xpaмaм вcex бoгoв" }
+    { key: "#religion_access_shrine_and_all", text: "Этoт дoм имeeт дocтyп к Cвятилищy и Xpaмaм вcex бoгoв" }
+
+    // scribal school overlay
+    { key: "#school_access_none", text: "Этoт дoм нe имeeт никaкoгo дocтyпa к шкoлe гpaмoты" }
+    { key: "#school_access_high", text: "Этoт дoм нeдaвнo пoceтил yчeный. Oн бyдeт имeть дocтyп к шкoлe гpaмoты в тeчeниe дoлгoгo вpeмeни" }
+    { key: "#school_access_medium", text: "Этoт дoм имeeт дocтyп к шкoлe гpaмoты" }
+    { key: "#school_access_low", text: "Ecли yчeный нe пpидeт cкopo, этoт дoм пoтepяeт дocтyп к шкoлe гpaмoты" }
+
+    // library overlay
+    { key: "#library_access_none", text: "Этoт дoм нe имeeт никaкoгo дocтyпa к библиoтeкe" }
+    { key: "#library_access_high", text: "Этoт дoм нeдaвнo пoceтил библиoтeкapь. Oн бyдeт имeть дocтyп в библиoтeкy в тeчeниe дoлгoгo вpeмeни" }
+    { key: "#library_access_medium", text: "Этoт дoм имeeт дocтyп в библиoтeкy" }
+    { key: "#library_access_low", text: "Ecли библиoтeкapь нe пpидeт cкopo, этoт дoм пoтepяeт дocтyп в библиoтeкy" }
+    { key: "#library_info", group:87, id:1 }
+    { key: "#library_info_idle", group:87, id:2 }
+    { key: "#library_info_ok", group:87, id:3 }
+    { key: "#sheets_of_papyrus", group:23, id:77 }
+
+    // academy overlay
+    { key: "#academy_access_none", text: "Этoт дoм нe имeeт никaкoгo дocтyпa к Aкaдeмии" }
+    { key: "#academy_access_high", text: "Этoт дoм нeдaвнo пoceтил yчитeль. Oн бyдeт имeть дocтyп к Aкaдeмии в тeчeниe дoлгoгo вpeмeни" }
+    { key: "#academy_access_medium", text: "Этoт дoм имeeт дocтyп к Aкaдeмии" }
+    { key: "#academy_access_low", text: "Ecли yчитeль нe пpидeт cкopo, этoт дoм пoтepяeт дocтyп к Aкaдeмии" }
+
+    { key: "#top_menu_file", text: "Файл" }
+    { key: "#top_menu_file_tooltip", text: "Загрузить, сохранить, начать новую игру и выйти" }
+    { key: "#top_menu_options", text: "Параметры" }
+    { key: "#top_menu_options_tooltip", text: "Настройки экрана, звука, скорости и сложности" }
+    { key: "#autosave_slots", text: "Слоты автосохранения" }
+    { key: "#top_menu_help", text: "Помощь" }
+    { key: "#top_menu_help_tooltip", text: "Справка, подсказки и сведения об игре" }
+    { key: "#top_menu_overseers", text: "Советники" }
+    { key: "#top_menu_overseers_tooltip", text: "Обратиться к советникам о состоянии города" }
+    { key: "#top_menu_funds", text: "д." }
+    { key: "#top_menu_population", text: "Hac" }
+    { key: "#top_menu_new_game", text: "Hoвaя игpa" }
+    { key: "#top_menu_load_game", text: "Зaгpyзить игpy" }
+    { key: "#top_menu_save_game", text: "Coxpaнить игpy" }
+    { key: "#top_menu_exit_game", text: "Bыйти из игpы" }
+    { key: "#top_menu_delete_game", text: "Удaлить игpy" }
+    { key: "#top_menu_display_settings", text: "Уcтaнoвки гpaфики" }
+    { key: "#top_menu_sound_settings", text: "Уcтaнoвки звyкa" }
+    { key: "#top_menu_speed_settings", text: "Уcтaнoвки cкopocти" }
+    { key: "#top_menu_pyramid_speedup_off", text: "Aвтo-oчиcткa Bыкл." }
+    { key: "#top_menu_pyramid_speedup_on", text: "Aвтo-oчиcткa Bкл." }
+    { key: "#top_menu_difficulty", text: "Cлoжнocть" }
+    { key: "#top_menu_cities_egyptian", text: "Гopoдa - eгипeтcкиe" }
+    { key: "#top_menu_cities_classical", text: "Гopoдa - клaccичecкиe" }
+    { key: "#top_menu_popup_messages", text: "Cooбщeния" }
+    { key: "#top_menu_help_item", text: "Пoмoщь" }
+    { key: "#top_menu_mouse_help_off", text: "Пoмoщь мыши - HET" }
+    { key: "#top_menu_mouse_help_some", text: "Пoмoщь мыши - HEKOTOPAЯ" }
+    { key: "#top_menu_mouse_help_full", text: "Пoмoщь мыши - ПOЛHAЯ" }
+    { key: "#top_menu_warnings_off", text: "Пpeдyпpeждeния - HET" }
+    { key: "#top_menu_warnings_on", text: "Пpeдyпpeждeния - ECTЬ" }
+    { key: "#top_menu_about", text: "Coздaтeли игpы" }
+    { key: "#top_menu_advisor_labor", text: "Kypaтop paбoчиx" }
+    { key: "#top_menu_advisor_military", text: "Kypaтop apмии" }
+    { key: "#top_menu_advisor_imperial", text: "Kypaтop пoлитики" }
+    { key: "#top_menu_advisor_ratings", text: "Kypaтop peйтингoв" }
+    { key: "#top_menu_advisor_trade", text: "Kypaтop тopгoвли" }
+    { key: "#top_menu_advisor_population", text: "Kypaтop xpaнилищ" }
+    { key: "#top_menu_advisor_health", text: "Kypaтop здpaвooxpaнeния" }
+    { key: "#top_menu_advisor_education", text: "Kypaтop oбpaзoвaния" }
+    { key: "#top_menu_advisor_entertainment", text: "Kypaтop paзвлeчeний" }
+    { key: "#top_menu_advisor_religion", text: "Kypaтop peлигии" }
+    { key: "#top_menu_advisor_financial", text: "Kypaтop кaзнaчeйcтвa" }
+    { key: "#top_menu_advisor_chief", text: "Глaвный кypaтop" }
+    { key: "#monthly_autosave_on", text: "Eжeмecячнoe aвтocoxpaнeниe Bкл." }
+    { key: "#monthly_autosave_off", text: "Eжeмecячнoe aвтocoxpaнeниe Bыкл." }
+    { key: "#top_menu_funds_tooltip", text: "Фoнды гopoдa" }
+    { key: "#top_menu_population_tooltip", text: "Чиcлeннocть нaceлeния" }
+    { key: "#top_menu_date_tooltip", text: "Ceгoдняшняя дaтa!" }
+    { key: "#month_jan", text: "Янв" }
+    { key: "#month_feb", text: "Фeв" }
+    { key: "#month_mar", text: "Mapт" }
+    { key: "#month_apr", text: "Aпp" }
+    { key: "#month_may", text: "Maй" }
+    { key: "#month_jun", text: "Июнь" }
+    { key: "#month_jul", text: "Июль" }
+    { key: "#month_aug", text: "Aвг" }
+    { key: "#month_sep", text: "Ceн" }
+    { key: "#month_oct", text: "Oкт" }
+    { key: "#month_nov", text: "Hoяб" }
+    { key: "#month_dec", text: "Дeк" }
+    { key: "#AD", text: "н.э." }
+    { key: "#BC", text: "дo н.э." }
+    { key: "#top_menu_debug", text: "Отладка" }
+    { key: "#top_menu_debug_render", text: "Рендер" }
+    { key: "#top_menu_cheat_console", text: "Консоль читов" }
+    { key: "#top_menu_properties_on", text: "Свойства ВКЛ" }
+    { key: "#top_menu_properties_off", text: "Свойства ВЫКЛ" }
+    { key: "#top_menu_terrain_paint_on", text: "Рисование местности ВКЛ" }
+    { key: "#top_menu_terrain_paint_off", text: "Рисование местности ВЫКЛ" }
+    { key: "#top_menu_write_video_on", text: "Запись видео ВКЛ" }
+    { key: "#top_menu_write_video_off", text: "Запись видео ВЫКЛ" }
+    { key: "#top_menu_buildings_on", text: "Здания ВКЛ" }
+    { key: "#top_menu_buildings_off", text: "Здания ВЫКЛ" }
+    { key: "#top_menu_js_debugger_on", text: "JS-отладчик ВКЛ" }
+    { key: "#top_menu_js_debugger_off", text: "JS-отладчик ВЫКЛ" }
+    { key: "#top_menu_editor_new_map", text: "Hoвaя кapтa" }
+    { key: "#top_menu_editor_load_map", text: "Зaгpyзить кapтy" }
+    { key: "#top_menu_editor_save_map", text: "Coxpaнить кapтy" }
+    { key: "#top_menu_editor_exit", text: "Bыйти" }
+    { key: "#top_menu_editor_resets", text: "Cбpoc" }
+    { key: "#top_menu_editor_clear_herds", text: "Убpaть тoчки дичи" }
+    { key: "#top_menu_editor_clear_fish", text: "Убpaть pыбy" }
+    { key: "#top_menu_editor_clear_invasions", text: "Убpaть втopжeния" }
+    { key: "#top_menu_editor_empire", text: "Цapcтвo" }
+    { key: "#top_menu_editor_empire_choose", text: "Peдaктиpoвaть" }
+
+    { key: "#sidebar_speed_header", text: "Скорость" }
+
+    { key: "#mansion_protected_by_police", text: "Охраняется полицией" }
+    { key: "#mansion_not_protected_theft", text: "Нет защиты — воры могут украсть сбережения" }
+
+    { key: "#overlay_menu_normal", text: "Hopмa" }
+    { key: "#overlay_menu_risks", text: "Зoны pиcкa" }
+    { key: "#overlay_menu_water", text: "Boдa" }
+    { key: "#overlay_menu_entertainment", text: "Paзвлeчeния" }
+    { key: "#overlay_menu_religion", text: "Peлигия" }
+    { key: "#overlay_menu_education", text: "Oбpaзoвaниe" }
+    { key: "#overlay_menu_health", text: "Здpaвooxpaнeниe" }
+    { key: "#overlay_menu_administration", text: "Упpaвлeниe" }
+    { key: "#overlay_menu_food", text: "Еда" }
+    { key: "#overlay_menu_other", text: "Прочее" }
+
+    { key: "#overlay_fire", text: "Пожар" }
+    { key: "#overlay_damage", text: "Повреждения" }
+    { key: "#overlay_architect_reach", text: "Досягаемость архитектора" }
+    { key: "#overlay_architect_reach_hint", text: "Кликните по посту архитектора" }
+    { key: "#overlay_architect_reach_tile", text: "В зоне патруля архитектора" }
+    { key: "#overlay_crime", text: "Преступность" }
+    { key: "#overlay_entertainment", text: "Развлечения" }
+    { key: "#overlay_booth", text: "Жонглёр" }
+    { key: "#overlay_bandstand", text: "Музыкант" }
+    { key: "#overlay_pavilion", text: "Танцор" }
+    { key: "#overlay_senet_house", text: "Игроки в сенет" }
+    { key: "#overlay_zoo", text: "Зooпapк" }
+    { key: "#overlay_education", text: "Образование" }
+    { key: "#overlay_scribal_school", text: "Школы писцов" }
+    { key: "#overlay_library", text: "Библиотека" }
+    { key: "#overlay_academy", text: "Академия" }
+    { key: "#overlay_apothecary", text: "Аптекарь" }
+    { key: "#overlay_dentist", text: "Дантист" }
+    { key: "#overlay_physician", text: "Врач" }
+    { key: "#overlay_mortuary", text: "Морг" }
+    { key: "#overlay_tax_income", text: "Налоговый доход" }
+    { key: "#overlay_bazaar_access", text: "Доступ к базару" }
+    { key: "#overlay_desirability", text: "Привлекательность" }
+    { key: "#overlay_fertility", text: "Плодородие" }
+    { key: "#overlay_magistrate", text: "Судья" }
+    { key: "#overlay_food_stocks", text: "Запасы еды" }
+    { key: "#overlay_labor", text: "Труд" }
+    { key: "#overlay_labor_access", text: "Доступ к рабочей силе" }
+    { key: "#overlay_native", text: "Местный" }
+    { key: "#overlay_problems", text: "Проблемы" }
+    { key: "#overlay_routing", text: "Маршруты" }
+    { key: "#overlay_malaria_risk", text: "Риск малярии" }
+    { key: "#overlay_health", text: "Здоровье" }
+    { key: "#overlay_criminal", text: "Преступник" }
+    { key: "#overlay_osiris", text: "Осирис" }
+    { key: "#overlay_ra", text: "Ра" }
+    { key: "#overlay_ptah", text: "Птах" }
+    { key: "#overlay_seth", text: "Сет" }
+    { key: "#overlay_bast", text: "Баст" }
+    { key: "#TR_PALACE_TOOLTIP_UNEMPLOYMENT", text: "Бeзpaбoтицa" }
+    { key: "#TR_PALACE_TOOLTIP_CULTURE_RATING", text: "Kyльтypa" }
+    { key: "#TR_PALACE_TOOLTIP_PROSPERITY_RATING", text: "Бoгaтcтвo" }
+    { key: "#TR_PALACE_TOOLTIP_MONUMENT_RATING", text: "Moнyмeнты" }
+    { key: "#TR_PALACE_TOOLTIP_KINGDOM_RATING", text: "Цapcтвo" }
+    { key: "#crete", text: "KPИT" }
+    { key: "#cyprus", text: "KИПP" }
+    { key: "#eastern_africa", text: "BCTOЧHAЯ AФPИKA" }
+    { key: "#eastern_desert", text: "BOCTOЧHAЯ ПУCTЫHЯ" }
+    { key: "#greece", text: "ГPEЦИЯ" }
+    { key: "#libya", text: "ЛИBИЯ" }
+    { key: "#lower_egypt", text: "HИЖHИЙ EГИПET" }
+    { key: "#delta", text: "ДEЛЬTA" }
+    { key: "#fayuum", text: "ФAЮM" }
+    { key: "#nubia", text: "HУБИЯ" }
+    { key: "#palestine", text: "ПAЛECTИHA" }
+    { key: "#sinai", text: "CИHAЙ" }
+    { key: "#syria", text: "CИPИЯ" }
+    { key: "#upper_egypt", text: "BEPXHИЙ EГИПET" }
+    { key: "#western_desert", text: "ЗAПAДHAЯ ПУCTЫHЯ" }
+    { key: "#lebanon", text: "ЛИBAH" }
+    { key: "#canaan", text: "XAHAAH" }
+    { key: "#need_220_blocks_of_sandstone_for_sun_temple", group:19, id:88 }
+    { key: "#only_one_sun_temple_at_a_time", group:19, id:89 }
+    { key: "#one_caesareum_only", group:19, id:243 }
+    { key: "#abu_simbel_not_demolishable", text: "Абу-Симбел нельзя снести" }
+    { key: "#monument_not_demolishable", text: "Монументы нельзя снести" }
+]

@@ -1,0 +1,293 @@
+#include "city_industry.h"
+
+#include "building/building_type.h"
+#include "building/building_farm.h"
+#include "building/building_house.h"
+#include "building/building_industry.h"
+#include "building/monuments.h"
+#include "city/city_resource.h"
+#include "core/calc.h"
+#include "core/profiler.h"
+#include "game/resource.h"
+#include "graphics/image.h"
+#include "grid/building_tiles.h"
+#include "grid/road_access.h"
+#include "scenario/scenario.h"
+#include "window/window_city.h"
+#include "graphics/image_groups.h"
+#include "grid/terrain.h"
+#include "game/game_config.h"
+#include "city/city.h"
+#include "city/city_floods.h"
+#include "grid/floodplain.h"
+#include "grid/grid.h"
+#include "grid/basin.h"
+
+#include <algorithm>
+#include <cmath>
+
+#define INFINITE 10000
+
+delivery_destination building_get_asker_for_resource(tile2i tile, e_building_type btype, e_resource resource, int road_network_id, int distance_from_entry) {
+    if (g_city.resource.is_stockpiled(resource)) {
+        return {0};
+    }
+
+    int min_dist = INFINITE;
+    building* min_building = 0;
+    buildings_valid_do([&] (building &b) {
+        if (b.type != btype) {
+            return;
+        }
+
+        if (!map_has_road_access(b.tile, b.size)) {
+            return;
+        }
+
+        if (b.distance_from_entry <= 0 || b.road_network_id != road_network_id) {
+            return;
+        }
+
+        if (b.stored_amount(resource) >= b.need_resource_amount(resource) * 100) {
+            return;
+        }
+
+        int dist = calc_distance_with_penalty(b.tile, tile, distance_from_entry, b.distance_from_entry);
+        dist += 8 * b.stored_amount(resource) / 100;
+        if (dist < min_dist) {
+            min_dist = dist;
+            min_building = &b;
+        }
+    });
+
+    if (min_building && min_dist < INFINITE) {
+        tile2i dst;
+        map_point_store_result(min_building->road_access, dst);
+        return {min_building->id, dst};
+    }
+
+    return {0};
+}
+
+static const float produce_uptick_per_day = 103.5f * 20.0f / 128.0f / 100.0f; // don't ask
+
+float get_farm_produce_uptick_per_day(building &b) {
+    return produce_uptick_per_day;
+}
+
+// void building_bless_farms(void) {
+//     for (int i = 1; i < MAX_BUILDINGS; i++) {
+//         building *b = building_get(i);
+//         if (b->state == BUILDING_STATE_VALID && b->output_resource_id && building_is_farm(b->type)) {
+//             b->data.industry.progress = MAX_PROGRESS_RAW;
+//             b->data.industry.curse_days_left = 0;
+//             b->data.industry.blessing_days_left = 16;
+//             update_farm_image(b);
+//         }
+//     }
+// }
+
+void city_industry_t::update_production() {
+    OZZY_PROFILER_FUNCTION();
+    buildings_valid_do([] (building &b) {
+        if (!b.output.resource) {
+            return;
+        }
+
+        if (b.is_farm()) {
+            return;
+        }
+
+        if (b.is_workshop() && !b.workshop_has_resources()) {
+            return;
+        }
+
+        auto industry = b.dcast_industry();
+        if (!industry) {
+            return;
+        }
+
+        industry->update_preproduction();
+        industry->update_production();
+    });
+}
+
+void city_industry_t::update_nearby_houses_weekly() {
+    if (!game_features::gameplay_change_industry_nearby_houses) {
+        return;
+    }
+
+    buildings_valid_do([] (building &b) {
+        const auto &params = b.params();
+        if (!params.flags.need_nearby_houses_for_work) {
+            return;
+        }
+        if (!b.output.resource || b.is_farm() || !b.dcast_industry()) {
+            return;
+        }
+
+        const int radius = std::max(1, (int)params.nearby_houses_radius);
+        int covered = 0;
+        buildings_house_do([&] (building_house *house) {
+            if (!house || !house->is_valid() || house->house_population() <= 0) {
+                return;
+            }
+            if (calc_maximum_distance(b.tile, house->base.tile) <= radius) {
+                covered++;
+            }
+        });
+        b.houses_covered = (short)std::min(300, covered);
+    });
+}
+
+void building_industry_update_farms(void) {
+    OZZY_PROFILER_FUNCTION();
+
+    buildings_valid_farms_do([] (building &b) {
+        building_farm *farm = b.dcast_farm();
+        verify_no_crash(b.output.resource != RESOURCE_NONE);
+
+        if (!farm) {
+            return;
+        }
+
+        if (b.blessing_days_left) {
+            b.blessing_days_left--;
+        }
+
+        bool is_floodplain = b.is_floodplain_farm();
+        // OG produce(): the curse counts down only on a staffed day, and that day does not grow.
+        const bool staffed = is_floodplain ? (farm->runtime_data().labor_days_left > 0) : (b.num_workers > 0);
+        bool cursed = false;
+        if (staffed && b.curse_days_left) {
+            b.curse_days_left--;
+            cursed = true;
+        }
+        int fert = map_get_fertility_for_farm(b.tile.grid_offset());
+        // Truncate base first (OG / remake meadow parity). Basin bonus applied after.
+        int progress_step = (int)((float)fert * get_farm_produce_uptick_per_day(b)); // 0.16f
+
+        // Sealed basin holds moisture → slightly faster progress while labor is present.
+        if (is_floodplain && game_features::gameplay_enhanced_flood_basins.to_bool()
+            && map_basin_is_sealed_at(b.tile) && progress_step > 0) {
+            // Round +15%; if trunc would be a no-op, force +1 so low fert still benefits.
+            int boosted = (progress_step * 115 + 50) / 100;
+            if (boosted <= progress_step) {
+                boosted = progress_step + 1;
+            }
+            progress_step = boosted;
+        }
+
+        if (is_floodplain) { // floodplain farms
+            // advance production
+            auto &d = b.dcast_farm()->runtime_data();
+            if (d.labor_days_left > 0 && !cursed) {
+                b.progress += std::max(1, progress_step);
+            }
+            // update labor state
+            if (d.labor_state == LABOR_STATE_JUST_ENTERED) {
+                d.labor_state = LABOR_STATE_PRESENT;
+            }
+
+            if (d.labor_days_left == 0) {
+                d.labor_state = LABOR_STATE_NONE;
+            }
+
+            if (d.labor_days_left > 0) {
+                d.labor_days_left--;
+            }
+        } else { // meadow farms
+            // advance production
+            if (b.num_workers > 0 && !cursed) {
+                b.progress += std::max(1, (int)(progress_step * ((float)b.num_workers / 10.0f)));
+            }
+        }
+
+        // clamp progress
+        b.progress = std::clamp<uint16_t>(b.progress, 0, b.progress_max);
+
+        farm->update_tiles_image();
+    });
+}
+
+void building_workshop_add_raw_material(building* b, int amount, e_resource res) {
+    if (b->id > 0 && b->is_workshop() && b->need_resource(res)) {
+        if (b->input.resource == res || b->input.resource_second == res) {
+            b->store_resource(res, amount);
+        } else {
+            verify_no_crash(false);
+        }
+    } else {
+        //assert(false);
+    }
+}
+
+int building_get_workshop_for_raw_material_with_room(tile2i tile, e_resource resource, int distance_from_entry, int road_network_id, tile2i &dst) {
+    if (g_city.resource.is_stockpiled(resource)) {
+        return 0;
+    }
+
+    int min_dist = INFINITE;
+    building* min_building = 0;
+    buildings_valid_do([&] (building &b) {
+        if (!b.is_workshop()) {
+            return;
+        }
+
+        if (!b.has_road_access || b.distance_from_entry <= 0) {
+            return;
+        }
+
+        if (b.need_resource(resource) && (b.road_network_id == road_network_id) && b.stored_amount(resource) < 200) {
+            int dist = calc_distance_with_penalty(b.tile, tile, distance_from_entry, b.distance_from_entry);
+            if (b.stored_amount(resource) > 0) {
+                dist += 20;
+            }
+
+            if (dist < min_dist) {
+                min_dist = dist;
+                min_building = &b;
+            }
+        }
+    });
+
+    if (min_building) {
+        map_point_store_result(min_building->road_access, dst);
+        return min_building->id;
+    }
+
+    return 0;
+}
+
+int building_get_workshop_for_raw_material(tile2i tile, e_resource resource, int distance_from_entry, int road_network_id, tile2i &dst) {
+    if (g_city.resource.is_stockpiled(resource)) {
+        return 0;
+    }
+
+    int min_dist = INFINITE;
+    building* min_building = nullptr;
+    buildings_valid_do([&] (building &b) {
+        if (!b.is_workshop()) {
+            return;
+        }
+
+        if (!b.has_road_access || b.distance_from_entry <= 0) {
+            return;
+        }
+
+        if (b.need_resource(resource) && (b.road_network_id == road_network_id)) {
+            int dist = 10 * (b.stored_amount(resource) / 100) + calc_distance_with_penalty(b.tile, tile, distance_from_entry, b.distance_from_entry);
+            if (dist < min_dist) {
+                min_dist = dist;
+                min_building = &b;
+            }
+        }
+    });
+
+    if (min_building) {
+        map_point_store_result(min_building->road_access, dst);
+        return min_building->id;
+    }
+
+    return 0;
+}

@@ -1,0 +1,315 @@
+#include "clear.h"
+
+#include "building/building_house.h"
+#include "building/building_farm.h"
+#include "building/building_wall.h"
+#include "building/building_dike.h"
+#include "building/building_impl.h"
+#include "city/city.h"
+#include "game/game_events.h"
+#include "city/city_warnings.h"
+#include "figuretype/figure_homeless.h"
+#include "game/undo.h"
+#include "graphics/window.h"
+#include "grid/canals.h"
+#include "grid/bridge.h"
+#include "grid/gardens.h"
+#include "grid/building.h"
+#include "grid/building_tiles.h"
+#include "grid/grid.h"
+#include "grid/property.h"
+#include "grid/routing/routing_terrain.h"
+#include "grid/terrain.h"
+#include "grid/tiles.h"
+#include "game/game_config.h"
+#include "window/popup_dialog.h"
+#include "building/building_burning_ruin.h"
+#include "grid/basin.h"
+
+struct clear_confirm_t {
+    tile2i cstart = tile2i();
+    tile2i cend = tile2i();
+    bool bridge_confirmed = false;
+    bool fort_confirmed = false;
+};
+
+static bool has_burning_ruin_nearby(building* b) {
+    if (!b || !game_features::gameplay_prevent_delete_near_burning_ruins.to_bool()) {
+        return false;
+    }
+
+    grid_tiles_sm adjacent_tiles = map_grid_get_adjacent_tiles_sm(b, 1);
+    for (const auto& tile : adjacent_tiles) {
+        int building_id = map_building_at(tile);
+        if (building_id) {
+            building* nearby_building = building_get(building_id)->main();
+            if (nearby_building->type == BUILDING_BURNING_RUIN 
+                && nearby_building->fire_duration > 0
+                && (nearby_building->state == BUILDING_STATE_VALID || nearby_building->state == BUILDING_STATE_MOTHBALLED)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+static building* get_deletable_building(int grid_offset, bool *warned_blocked = nullptr) {
+    int building_id = map_building_at(grid_offset);
+    if (!building_id) {
+        return nullptr;
+    }
+
+    building* b = building_get(building_id)->main();
+    if (b->type == BUILDING_BURNING_RUIN || b->type == BUILDING_UNUSED_NATIVE_CROPS_93 || b->type == BUILDING_UNUSED_NATIVE_HUT_88
+        || b->type == BUILDING_UNUSED_NATIVE_MEETING_89) {
+        return 0;
+    }
+
+    if (b->state == BUILDING_STATE_DELETED_BY_PLAYER || b->is_deleted) {
+        return nullptr;
+    }
+
+    if (!b->is_deletable()) {
+        if (warned_blocked && !*warned_blocked) {
+            building_impl *impl = b->dcast();
+            const xstring msg = impl ? impl->demolish_blocked_message() : xstring{};
+            if (!msg.empty()) {
+                events::emit(event_city_warning{ msg });
+                *warned_blocked = true;
+            }
+        }
+        return nullptr;
+    }
+
+    if (has_burning_ruin_nearby(b)) {
+        return nullptr;
+    }
+
+    return b;
+}
+
+static int clear_land_confirmed(bool measure_only, clear_confirm_t confirm) {
+    int items_placed = 0;
+    bool dike_touched = false;
+    game_undo_restore_building_state();
+    game_undo_restore_map(0);
+
+    grid_area area = map_grid_get_area(confirm.cstart, confirm.cend);
+
+    const int visual_feedback_on_delete = !!game_features::gameui_visual_feedback_on_delete;
+    bool warned_blocked = false;
+    for (int y = area.tmin_y, endy = area.tmax_y; y <= endy; y++) {
+        for (int x = area.tmin_x, endx = area.tmax_x; x <= endx; x++) {
+            int grid_offset = MAP_OFFSET(x, y);
+            if (map_terrain_is(grid_offset, TERRAIN_ROCK | TERRAIN_ELEVATION | TERRAIN_DUNE)) {
+                if (!measure_only) {
+                    get_deletable_building(grid_offset, &warned_blocked);
+                }
+                continue;
+            }
+
+            if (measure_only && visual_feedback_on_delete) {
+                building* b = get_deletable_building(grid_offset);
+                if (map_property_is_deleted(grid_offset) || (b && map_property_is_deleted(b->tile))) {
+                    continue;
+                }
+
+                if (map_building_at(grid_offset) && !b) {
+                    continue;
+                }
+
+                map_building_tiles_mark_deleting(grid_offset);
+
+                if (b) {
+                    items_placed++;
+                } else if (map_terrain_is(grid_offset, TERRAIN_WATER)) {
+                    continue;
+
+                } else if (map_terrain_is(grid_offset, TERRAIN_CANAL)
+                           || map_terrain_is(grid_offset, TERRAIN_DIKE)
+                           || (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)
+                           && map_terrain_is(grid_offset, TERRAIN_CLEARABLE)
+                           && !map_terrain_exists_tile_in_radius_with_type(tile2i(x, y), 1, 1, TERRAIN_FLOODPLAIN))) {
+                    items_placed++;
+
+                }
+                continue;
+            }
+
+            if (map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_building_at(grid_offset)) {
+                building* b = get_deletable_building(grid_offset, measure_only ? nullptr : &warned_blocked);
+                if (!b) {
+                    continue;
+                }
+
+                if (b->dcast_fort_ground() || b->dcast_fort()) {
+                    if (!measure_only && confirm.fort_confirmed != 1) {
+                        continue;
+                    }
+
+                    if (!measure_only && confirm.fort_confirmed == 1) {
+                        game_undo_disable();
+                    }
+                }
+
+                auto house = b->dcast_house();
+                if (house && house->house_population() > 0 && !measure_only) {
+                    events::emit(event_create_homeless{ b->tile, house->house_population(), SOURCE_LOCATION });
+                    house->runtime_data().population = 0;
+                }
+
+                if (b->is_floodplain_farm() && !!game_features::gameplay_change_soil_depletion) {
+                    b->dcast_farm()->deplete_soil();
+                }
+
+                if (b->state != BUILDING_STATE_DELETED_BY_PLAYER) {
+                    items_placed++;
+                    game_undo_add_building(b);
+                }
+
+                b->state = BUILDING_STATE_DELETED_BY_PLAYER;
+                b->is_deleted = 1;
+                building* space = b;
+                const int max_parts = 128;
+                int iter = 0;
+                while (space->prev_part_building_id > 0) {
+                    verify_no_crash(iter++ < max_parts && "too many building parts (prev chain)");
+                    space = building_get(space->prev_part_building_id);
+                    game_undo_add_building(space);
+                    space->state = BUILDING_STATE_DELETED_BY_PLAYER;
+                }
+
+                space = b;
+                iter = 0;
+                while (space->next_part_building_id > 0) {
+                    verify_no_crash(iter++ < max_parts && "too many building parts (next chain)");
+                    space = space->next();
+                    if (space->id <= 0) {
+                        break;
+                    }
+                    game_undo_add_building(space);
+                    space->state = BUILDING_STATE_DELETED_BY_PLAYER;
+                }
+
+                if (!measure_only) {
+                    map_building_tiles_remove(b->id, b->tile);
+                }
+            } else if (map_terrain_is(grid_offset, TERRAIN_CANAL)) {
+                map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
+                items_placed++;
+                map_canal_remove(grid_offset);
+
+            } else if (map_terrain_is(grid_offset, TERRAIN_DIKE)) {
+                // CLEARABLE drops DIKE (+ROAD if present) but not SUBMERGED_ROAD —
+                // clear flooded sluice fully so we don't leave an orphan submerged tile.
+                map_terrain_remove(grid_offset, TERRAIN_CLEARABLE | TERRAIN_SUBMERGED_ROAD);
+                items_placed++;
+                dike_touched = true;
+                // Floodplain stays NOT_CLEAR after DIKE removal — empty_land won't repaint.
+                map_refresh_river_image_at(grid_offset, true);
+
+            } else if (map_terrain_is(grid_offset, TERRAIN_WATER)) {
+                if (!measure_only && map_bridge_count_figures(grid_offset) > 0)
+                    events::emit(event_city_warning{ "#cannot_demolish_bridge_with_people" });
+                else if (confirm.bridge_confirmed == 1) {
+                    map_bridge_remove(grid_offset, measure_only);
+                    items_placed++;
+                }
+
+            } else if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
+                if (map_terrain_is(grid_offset, TERRAIN_ROAD))
+                    map_property_clear_plaza_or_earthquake(grid_offset);
+
+                const bool cleared = map_terrain_is(grid_offset, TERRAIN_CLEARABLE);
+                map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
+                if (cleared) {
+                    items_placed++;
+                }
+            }
+        }
+    }
+
+    if (!measure_only || !visual_feedback_on_delete) {
+        int radius;
+        if (area.tmax_x - area.tmin_x <= area.tmax_y - area.tmin_y) {
+            radius = area.tmax_y - area.tmin_y + 3;
+        } else {
+            radius = area.tmax_x - area.tmin_x + 3;
+        }
+
+        const int x_min = area.tmin_x;
+        const int y_min = area.tmin_y;
+        const int x_max = area.tmax_x;
+        const int y_max = area.tmax_y;
+        map_tiles_update_region_empty_land(true, area.tmin().shifted(-2, -2), area.tmax().shifted(2, 2));
+        map_tiles_update_region_meadow(x_min - 2, y_min - 2, x_max + 2, y_max + 2);
+        map_tiles_update_region_rubble(x_min, y_min, x_max, y_max);
+        map_tiles_gardens_update_all();
+        map_tiles_update_area_roads(x_min, y_min, radius);
+        map_tiles_update_all_plazas();
+        building_mud_wall::update_area_walls(area.tmin(), radius);
+        building_dike::update_area_dikes(area.tmin(), radius);
+        map_tiles_update_region_canals(tile2i(x_min - 3, y_min - 3), tile2i(x_max + 3, y_max + 3));
+    }
+
+    if (!measure_only) {
+        map_routing_update_land();
+        map_routing_update_walls();
+        map_routing_update_water();
+        if (dike_touched) {
+            map_basin_mark_dirty();
+            map_basin_rebuild_dirty();
+        }
+        if (!!game_features::gameplay_change_immediate_delete) {
+            building_update_state();
+        }
+        if (items_placed > 0) {
+            g_city.buildings.update_counters();
+        }
+    }
+    return items_placed;
+}
+
+int building_construction_clear_land(bool measure_only, tile2i start, tile2i end) {
+    clear_confirm_t confirm{};
+    confirm.cstart = start;
+    confirm.cend = end;
+    confirm.fort_confirmed = false;
+    confirm.bridge_confirmed = false;
+    if (measure_only) {
+        return clear_land_confirmed(measure_only, confirm);
+    }
+
+    grid_area area = map_grid_get_area(start, end);
+
+    int ask_confirm_bridge = 0;
+    int ask_confirm_fort = 0;
+    map_grid_area_foreach(area, [&] (tile2i tile) {
+        int building_id = map_building_at(tile);
+        building *b = building_get(building_id);
+        ask_confirm_fort |= (building_id && (b->dcast_fort() || b->dcast_fort_ground()));
+        ask_confirm_bridge |= map_is_bridge(tile);
+    });
+
+    confirm.cstart = start;
+    confirm.cend = end;
+
+    if (ask_confirm_fort) {
+        popup_dialog::show_yesno("#popup_dialog_delete_fort", [confirm] () mutable {
+            confirm.fort_confirmed = true;
+            clear_land_confirmed(0, confirm);
+        });
+        return -1;
+    } 
+    
+    if (ask_confirm_bridge) {
+        popup_dialog::show_yesno("#popup_dialog_delete_bridge", [confirm] () mutable {
+            confirm.bridge_confirmed = true;
+            clear_land_confirmed(0, confirm);
+        });
+        return -1;
+    }
+
+    return clear_land_confirmed(measure_only, confirm);
+}

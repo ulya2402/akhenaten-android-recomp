@@ -1,0 +1,253 @@
+#pragma once
+
+#include "building/building.h"
+#include "game/simulation_time.h"
+
+enum e_farm_worker_state {
+    e_farm_worker_tiling,
+    e_farm_worker_seeding,
+    e_farm_worker_harvesting,
+
+    e_farm_worker_count
+};
+
+class building_farm : public building_impl {
+public:
+    using inherited = building_impl;
+
+    building_farm(building &b) : building_impl(b) {}
+    virtual building_farm *dcast_farm() override { return this; }
+
+    struct farm_params_t {
+        svector<e_month, 2> month_harvest;
+        svector<vec2i, 16> tile_offsets;
+
+        vec2i tile_coord(vec2i pos, int tile_x, int tile_y) const {
+            int tile_id = 3 * abs(tile_y) + abs(tile_x);
+            return pos + tile_offsets[tile_id];
+        }
+    };
+
+    struct runtime_data_t : public no_copy_assignment {
+        vec2i worker_tile;
+        uint8_t worker_action;
+        bool is_floodplain;
+        bool flood_imminent;
+        uint16_t ready_production;
+        figure_id worker_id;
+        uint8_t labor_days_left;
+        e_labor_state labor_state;
+        building_id work_camp_id;
+    } BUILDING_RUNTIME_DATA_T;
+
+    virtual void on_create(int orientation) override;
+    virtual void on_place_update_tiles(int orientration, int variant) override;
+    virtual void on_post_load() override;
+    virtual bool force_draw_flat_tile(painter &ctx, tile2i tile, vec2i pixel, color mask) override;
+    virtual bool draw_ornaments_and_animations_height(painter &ctx, vec2i point, tile2i tile, color mask) override;
+    virtual void draw_normal_anim(painter &ctx, vec2i point, tile2i tile, color mask) override;
+    virtual void update_count() const override;
+    virtual void update_month() override;
+    virtual void spawn_figure() override;
+    virtual void update_graphic() override;
+    virtual void on_undo() override;
+    virtual void on_tick(bool refresh) override;
+    virtual bool allow_demolish() const override;
+    virtual xstring demolish_blocked_message() const override;
+    virtual void bind_dynamic(io_buffer *iob, size_t version) override;
+    virtual void start_production() override;
+    virtual figure_id expected_worker_id() const { return runtime_data().worker_id; }
+    virtual bool requested_workers() const;
+    virtual bool target_route_tile_blocked(int grid_offset) const override;
+
+    void map_building_tiles_add_farm(e_building_type type, int building_id, tile2i tile, int progress);
+    void add_tiles();
+    static int get_crops_image(e_building_type type, int growth);
+    static int get_farm_image(e_building_type type, tile2i tile);
+    static void draw_crops(painter &ctx, e_building_type type, int progress, tile2i tile, vec2i point, color color_mask);
+
+    void deplete_soil();
+    void update_tiles_image();
+    bool is_currently_flooded() const;
+    void restore_tiles_if_emerged();
+    void spawn_figure_harvests();
+    inline bool is_floodplain_farm() const { return base.is_floodplain_farm(); }
+
+    static int food_warning();
+
+    virtual void add_workers(figure_id fid) override;
+    virtual void remove_worker(figure_id fid) override;
+
+    void draw_farm_worker(painter &ctx, int direction, int action, vec2i coords, color color_mask = COLOR_MASK_NONE);
+    void draw_workers(painter &ctx, building *b, tile2i tile, vec2i pos);
+    bool time_to_deliver(bool floodplains, int resource_id = 0);
+    int expected_produce();
+
+    virtual const farm_params_t &farm_params() const = 0;
+};
+ANK_CONFIG_PROPERTY(building_farm::runtime_data_t, is_floodplain, flood_imminent)
+
+struct building_floodplain_farm : public building_farm {
+    building_floodplain_farm(building &b) : building_farm(b) {}
+};
+
+struct building_meadow_farm : public building_farm {
+    building_meadow_farm(building &b) : building_farm(b) {}
+};
+
+struct building_farm_grain : public building_floodplain_farm {
+    BUILDING_METAINFO(BUILDING_GRAIN_FARM, building_farm_grain, building_floodplain_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_farm_grain::static_params, month_harvest, tile_offsets);
+
+struct building_meadow_farm_grain : public building_meadow_farm {
+    BUILDING_METAINFO(BUILDING_GRAIN_MEADOW_FARM, building_meadow_farm_grain, building_meadow_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_meadow_farm_grain::static_params, month_harvest, tile_offsets);
+
+struct building_farm_lettuce : public building_floodplain_farm {
+    BUILDING_METAINFO(BUILDING_LETTUCE_FARM, building_farm_lettuce, building_floodplain_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_farm_lettuce::static_params, month_harvest, tile_offsets);
+
+struct building_meadow_farm_lettuce : public building_meadow_farm {
+    BUILDING_METAINFO(BUILDING_LETTUCE_MEADOW_FARM, building_meadow_farm_lettuce, building_meadow_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_meadow_farm_lettuce::static_params, month_harvest, tile_offsets);
+
+struct building_farm_chickpeas : public building_floodplain_farm {
+    BUILDING_METAINFO(BUILDING_CHICKPEAS_FARM, building_farm_chickpeas, building_floodplain_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_farm_chickpeas::static_params, month_harvest, tile_offsets);
+
+struct building_meadow_farm_chickpeas : public building_meadow_farm {
+    BUILDING_METAINFO(BUILDING_CHICKPEAS_MEADOW_FARM, building_meadow_farm_chickpeas, building_meadow_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_meadow_farm_chickpeas::static_params, month_harvest, tile_offsets);
+
+struct building_farm_pomegranates : public building_floodplain_farm {
+    BUILDING_METAINFO(BUILDING_POMEGRANATES_FARM, building_farm_pomegranates, building_floodplain_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_farm_pomegranates::static_params, month_harvest, tile_offsets);
+
+struct building_meadow_farm_pomegranates : public building_meadow_farm {
+    BUILDING_METAINFO(BUILDING_POMEGRANATES_MEADOW_FARM, building_meadow_farm_pomegranates, building_meadow_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_meadow_farm_pomegranates::static_params, month_harvest, tile_offsets);
+
+struct building_farm_barley : public building_floodplain_farm {
+    BUILDING_METAINFO(BUILDING_BARLEY_FARM, building_farm_barley, building_floodplain_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_farm_barley::static_params, month_harvest, tile_offsets);
+
+struct building_meadow_farm_barley : public building_meadow_farm {
+    BUILDING_METAINFO(BUILDING_BARLEY_MEADOW_FARM, building_meadow_farm_barley, building_meadow_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_meadow_farm_barley::static_params, month_harvest, tile_offsets);
+
+struct building_farm_flax : public building_floodplain_farm {
+    BUILDING_METAINFO(BUILDING_FLAX_FARM, building_farm_flax, building_floodplain_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_farm_flax::static_params, month_harvest, tile_offsets);
+
+struct building_meadow_farm_flax : public building_meadow_farm {
+    BUILDING_METAINFO(BUILDING_FLAX_MEADOW_FARM, building_meadow_farm_flax, building_meadow_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_meadow_farm_flax::static_params, month_harvest, tile_offsets);
+
+struct building_farm_henna : public building_floodplain_farm {
+    BUILDING_METAINFO(BUILDING_HENNA_FARM, building_farm_henna, building_floodplain_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_farm_henna::static_params, month_harvest, tile_offsets);
+
+struct building_meadow_farm_henna : public building_meadow_farm {
+    BUILDING_METAINFO(BUILDING_HENNA_MEADOW_FARM, building_meadow_farm_henna, building_meadow_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_meadow_farm_henna::static_params, month_harvest, tile_offsets);
+
+struct building_farm_figs : public building_floodplain_farm {
+    BUILDING_METAINFO(BUILDING_FIGS_FARM, building_farm_figs, building_floodplain_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_farm_figs::static_params, month_harvest, tile_offsets);
+
+struct building_meadow_farm_figs : public building_meadow_farm {
+    BUILDING_METAINFO(BUILDING_FIGS_MEADOW_FARM, building_meadow_farm_figs, building_meadow_farm);
+
+    struct static_params : public farm_params_t, public building_static_params {} BUILDING_STATIC_DATA_T;
+
+    virtual const farm_params_t &farm_params() const override { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_meadow_farm_figs::static_params, month_harvest, tile_offsets);

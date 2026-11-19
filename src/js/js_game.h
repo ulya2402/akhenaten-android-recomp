@@ -1,0 +1,768 @@
+#pragma once
+
+#include "mujs/jsi.h"
+
+#include "js/js_register.h"
+#include "js/js_constants.h"
+#include "js/js_struct.h"
+#include "js/js_global_object.h"
+#include "mujs/jsvalue.h"
+#include "core/bstring.h"
+#include "core/core.h"
+#include "core/typename.h"
+#include "js/js_defines.h"
+#include "core/vec2i.h"
+#include "core/archive.h"
+#include "core/variant.h"
+#include "core/svector.h"
+#include "core/hvector.h"
+#include "core/profiler.h" // ANK_FUNCTION_* expand to OZZY_PROFILER_FUNCTION()
+#include "grid/grid.h"
+#include "grid/point.h"
+
+#include <algorithm>
+#include <vector>
+#include <string>
+#include <optional>
+#include <mutex>
+#include <type_traits>
+#include <cstdint>
+#include <cmath>
+#include <cstring>
+
+// Forward declarations
+enum e_resource : uint8_t;
+
+// Helper functions to convert JS values to C++ types
+namespace js_helpers {
+    /** Reference to a JS function stored in the registry (for callbacks). */
+    struct js_function_ref {
+        xstring ref;
+        bool empty() const { return ref.empty(); }
+    };
+
+    extern js_StringNode property_x;
+    extern js_StringNode property_y;
+    extern js_StringNode property_minx;
+    extern js_StringNode property_miny;
+    extern js_StringNode property_maxx;
+    extern js_StringNode property_maxy;
+
+    /** Reads {x, y}, [x, y] or a native vec2i; missing components read as 0. */
+    inline vec2i js_read_xy(js_State *J, int idx) {
+        vec2i result;
+        if (J->isobject(idx) && !J->isarray(idx) && J->toobject(idx)->type == JS_CVEC2I) {
+            js_Object *o = J->toobject(idx);
+            return vec2i(o->u.vec2.x, o->u.vec2.y);
+        }
+        if (J->isobject(idx) && !J->isarray(idx)) {
+            J->getproperty(idx, property_x);
+            result.x = J->isnumber(-1) ? (int)js_tonumber(J, -1) : 0;
+            js_pop(J, 1);
+
+            J->getproperty(idx, property_y);
+            result.y = J->isnumber(-1) ? (int)js_tonumber(J, -1) : 0;
+            js_pop(J, 1);
+        } else if (J->isarray(idx)) {
+            js_getindex(J, idx, 0); result.x = J->isnumber(-1) ? (int)js_tonumber(J, -1) : 0; js_pop(J, 1);
+            js_getindex(J, idx, 1); result.y = J->isnumber(-1) ? (int)js_tonumber(J, -1) : 0; js_pop(J, 1);
+        }
+        return result;
+    }
+
+    inline void js_push_grid_area(js_State *J, const grid_area &a) {
+        J->newobject();
+        js_pushnumber(J, a.tmin_x); js_setproperty(J, -2, property_minx);
+        js_pushnumber(J, a.tmin_y); js_setproperty(J, -2, property_miny);
+        js_pushnumber(J, a.tmax_x); js_setproperty(J, -2, property_maxx);
+        js_pushnumber(J, a.tmax_y); js_setproperty(J, -2, property_maxy);
+    }
+}
+
+template<>
+struct js_convert<xstring> {
+    static xstring to(js_State *J, int idx) {
+        if (J->isundefined(idx) || J->isnull(idx)) {
+            return xstring();
+        }
+        xstring r;
+        r._set(js_tostring(J, idx));
+        return r;
+    }
+    static void push(js_State *J, const xstring &v) { J->pushstring((js_StringNode)v._get()); }
+};
+
+template<>
+struct js_convert<js_helpers::js_function_ref> {
+    static js_helpers::js_function_ref to(js_State *J, int idx) {
+        if (!J->iscallable(idx)) {
+            return js_helpers::js_function_ref{};
+        }
+        J->copy(idx);
+        auto pp = js_ref(J);
+        xstring r; r._set(pp);
+        js_pop(J, 1);
+        return js_helpers::js_function_ref{ r };
+    }
+};
+
+template<>
+struct js_convert<vec2i> {
+    static vec2i to(js_State *J, int idx) { return js_helpers::js_read_xy(J, idx); }
+    static void push(js_State *J, const vec2i &v) { J->newvec2i(v.x, v.y); }
+};
+
+template<>
+struct js_convert<tile2i> {
+    static tile2i to(js_State *J, int idx) {
+        const vec2i xy = js_helpers::js_read_xy(J, idx);
+        return tile2i(xy.x, xy.y);
+    }
+    static void push(js_State *J, const tile2i &v) { J->newvec2i(v.x(), v.y()); }
+};
+
+template<>
+struct js_convert<grid_area> {
+    static void push(js_State *J, const grid_area &v) { js_helpers::js_push_grid_area(J, v); }
+};
+
+template<typename T, size_t Cap>
+struct js_convert<svector<T, Cap>> {
+    static void push(js_State *J, const svector<T, Cap> &arr) {
+        J->newarray();
+        for (size_t i = 0; i < arr.size(); ++i) {
+            J->push(arr[i]);
+            js_setindex(J, -2, (int)i);
+        }
+    }
+};
+
+template<typename T, size_t Cap>
+struct js_convert<hvector<T, Cap>> {
+    static void push(js_State *J, const hvector<T, Cap> &arr) {
+        J->newarray();
+        for (size_t i = 0; i < arr.size(); ++i) {
+            J->push(arr[i]);
+            js_setindex(J, -2, (int)i);
+        }
+    }
+};
+
+namespace js_helpers {
+    inline void js_push_bvariant(js_State *J, const bvariant &val) {
+        switch (val.value_type()) {
+        case bvariant::etype_bool:
+            js_pushboolean(J, val.as_bool());
+            break;
+        case bvariant::etype_int32:
+            js_pushnumber(J, (double)val.as_int32());
+            break;
+        case bvariant::etype_uint32:
+            js_pushnumber(J, (double)val.as_uint32());
+            break;
+        case bvariant::etype_u16:
+            js_pushnumber(J, (double)val.as_u16());
+            break;
+        case bvariant::etype_float:
+            js_pushnumber(J, (double)val.as_float());
+            break;
+        case bvariant::etype_str:
+            J->pushstring(val.as_str().c_str());
+            break;
+        case bvariant::etype_ptr:
+            js_pushnull(J);
+            break;
+        case bvariant::etype_vec2i:
+            J->push(val.as_vec2i());
+            break;
+        case bvariant::etype_tile2i:
+            J->push(val.as_tile2i());
+            break;
+        case bvariant::etype_grid_area:
+            js_push_grid_area(J, val.as_grid_area());
+            break;
+        case bvariant::etype_none:
+        default:
+            J->pushundefined();
+            break;
+        }
+    }
+
+    inline void js_push_bvariant_map_as_js_object(js_State *J, const bvariant_map &params) {
+        J->newobject();
+        for (const auto &kv : params) {
+            js_push_bvariant(J, kv.second);
+            js_setproperty(J, -2, js_intern(kv.first.c_str()));
+        }
+    }
+}
+
+template<>
+struct js_convert<bvariant> {
+    static bvariant to(js_State *J, int idx) {
+        if (J->isundefined(idx)) {
+            return bvariant(); // none
+        } else if (J->isboolean(idx)) {
+            // js_toboolean returns int; cast so we hit bvariant(bool), not bvariant(int32).
+            return bvariant(js_toboolean(J, idx) != 0);
+        } else if (J->isstring(idx)) {
+            xstring str;
+            str._set(js_tostring(J, idx));
+            return bvariant(str);
+        } else if (J->isnumber(idx) || J->iscnumber(idx)) {
+            double num = js_tonumber(J, idx);
+            // Try to preserve integer if possible
+            if (num == (int)num) {
+                return bvariant((int)num);
+            } else {
+                return bvariant((float)num);
+            }
+        } else if (J->iscvec2i(idx)) {
+            js_Object *o = J->toobject(idx);
+            return bvariant(vec2i(o->u.vec2.x, o->u.vec2.y));
+        } else if (J->isobject(idx) && !J->isarray(idx)) {
+            // Check if it's a vec2i-like object with x and y properties
+            J->getproperty(idx, js_helpers::property_x);
+            bool has_x = !J->isundefined(-1);
+            js_pop(J, 1);
+
+            if (has_x) {
+                J->getproperty(idx, js_helpers::property_x);
+                int x = J->isnumber(-1) ? (int)js_tonumber(J, -1) : 0;
+                js_pop(J, 1);
+                J->getproperty(idx, js_helpers::property_y);
+                int y = J->isnumber(-1) ? (int)js_tonumber(J, -1) : 0;
+                js_pop(J, 1);
+                return bvariant(vec2i(x, y));
+            } else {
+                return bvariant(); // none for other objects
+            }
+        } else {
+            return bvariant(); // none
+        }
+    }
+    static void push(js_State *J, const bvariant &v) { js_helpers::js_push_bvariant(J, v); }
+};
+
+template<>
+struct js_convert<bvariant_map> {
+    static void push(js_State *J, const bvariant_map &v) { js_helpers::js_push_bvariant_map_as_js_object(J, v); }
+};
+
+template<>
+struct js_convert<std::optional<bvariant>> {
+    static void push(js_State *J, const std::optional<bvariant> &v) {
+        if (v.has_value()) {
+            js_helpers::js_push_bvariant(J, v.value());
+        } else {
+            J->pushundefined();
+        }
+    }
+};
+
+namespace js_helpers {
+    inline bvariant js_bvariant_from_js_stack(js_State *J, int idx) {
+        if (J->isundefined(idx) || J->isnull(idx)) {
+            return bvariant();
+        }
+        return J->to<bvariant>(idx);
+    }
+
+    inline void js_push_void(js_State *J) {
+        J->pushundefined();
+    }
+
+    template<typename Func>
+    inline void js_invoke_and_push_impl(js_State *J, std::false_type, Func &&func) {
+        func();
+        js_push_void(J);
+    }
+
+    template<typename Func>
+    inline void js_invoke_and_push_impl(js_State *J, std::true_type, Func &&func) {
+        auto result = func();
+        J->push(result);
+    }
+
+    template<bool is_void, typename Func>
+    inline void js_invoke_and_push(js_State *J, Func &&func) {
+        if constexpr (is_void) {
+            js_invoke_and_push_impl(J, std::false_type{}, func);
+        } else {
+            js_invoke_and_push_impl(J, std::true_type{}, func);
+        }
+    }
+
+    inline bvariant js_bvariant_from_js_value(js_State *J, int idx) {
+        if (J->isboolean(idx)) {
+            return bvariant(js_toboolean(J, idx) != 0);
+        }
+        if (J->isstring(idx)) {
+            xstring pp;
+            pp._set(js_tostring(J, idx));
+            return bvariant(pp);
+        }
+        if (J->isnumber(idx) || J->iscnumber(idx)) {
+            const double num = js_tonumber(J, idx);
+            if (num == (int)num) {
+                return bvariant((int)num);
+            }
+            return bvariant((float)num);
+        }
+        if (J->isarray(idx)) {
+            return bvariant(J->to<vec2i>(idx));
+        }
+        if (J->isobject(idx)) {
+            js_Object *o = J->toobject(idx);
+            if (o && o->type == JS_CVEC2I) {
+                return bvariant(J->to<vec2i>(idx));
+            }
+            J->getproperty(idx, property_x);
+            const bool has_x = J->isnumber(-1);
+            js_pop(J, 1);
+            J->getproperty(idx, property_y);
+            const bool has_y = J->isnumber(-1);
+            js_pop(J, 1);
+            if (has_x || has_y) {
+                return bvariant(J->to<vec2i>(idx));
+            }
+        }
+        return bvariant();
+    }
+
+    // Convert JS object to bvariant_map
+    inline bvariant_map js_object_to_bvariant_map(js_State *J, int idx) {
+        bvariant_map result;
+        if (!J->isobject(idx) || J->isarray(idx)) {
+            return result;
+        }
+
+        js_pushiterator(J, idx, 1); // own properties only
+        js_StringNode key;
+        while ((key = js_nextiterator(J, -1))) {
+            J->getproperty(idx, key);
+            bvariant value = js_bvariant_from_js_value(J, -1);
+            xstring keyp;
+            keyp._set(key);
+            result[keyp] = value;
+            js_pop(J, 1); // pop value
+        }
+        js_pop(J, 1); // pop iterator
+
+        return result;
+    }
+}
+
+template<typename Func>
+struct js_function_traits;
+
+template<typename R, typename... Args>
+struct js_function_traits<R(*)(Args...)> {
+    using return_type = R;
+    static constexpr size_t arity = sizeof...(Args);
+
+    template<size_t N>
+    struct arg {
+        using type = typename std::tuple_element<N, std::tuple<Args...>>::type;
+    };
+};
+
+template<typename R, typename... Args>
+struct js_function_traits<R(Args...)> : js_function_traits<R(*)(Args...)> {};
+
+template<typename C, typename R, typename... Args>
+struct js_function_traits<R(C:: *)(Args...)> {
+    using return_type = R;
+    static constexpr size_t arity = sizeof...(Args);
+
+    template<size_t N>
+    struct arg {
+        using type = typename std::tuple_element<N, std::tuple<Args...>>::type;
+    };
+};
+
+template<typename C, typename R, typename... Args>
+struct js_function_traits<R(C:: *)(Args...) const> : js_function_traits<R(C:: *)(Args...)> {};
+
+#define ANK_FUNCTION_NAMED(fname, func)                                                                         \
+    ANK_DECLARE_JSFUNCTION_ITERATOR(register_js2cpp_callback_##fname);                                          \
+    void permanent_js2cpp_callback_##fname(js_State* J); void register_js2cpp_callback_##fname(js_State* J) {   \
+        js_getglobal(J, #fname); bool exists = J->iscallable(-1); js_pop(J, 1);                                 \
+        if (!exists) { REGISTER_GLOBAL_FUNCTION(J, permanent_js2cpp_callback_##fname, #fname, 0); }  \
+    } void permanent_js2cpp_callback_##fname(js_State *J) {                                                     \
+        constexpr bool is_void = (std::is_void_v<js_function_traits<decltype(&func)>::return_type>);            \
+        js_helpers::js_invoke_and_push<is_void>(J, [&]() { return func(); });                                   \
+    }
+
+#define ANK_FUNCTION(func) \
+    ANK_FUNCTION_NAMED(func, func)
+
+/** Register a C variable as a global JS variable (JS_CPTR); the JS_PTR_* slot comes from its type.
+ *  Scripts read/write it in place. */
+#define ANK_BOUND(js_name, cptr) \
+    static void ANK_CONFIG_CC1(ank_bound_reg_, __LINE__)(js_State * J) { J->bind_global(js_intern(#js_name), &(cptr)); } \
+    ANK_DECLARE_JSFUNCTION_ITERATOR(ANK_CONFIG_CC1(ank_bound_reg_, __LINE__));
+
+/** Register a global JS object (JsName) whose listed fields bind as JS_CPTR ints (same storage as ANK_BOUND).
+ *  Fields must map to int-sized storage (enums, int8_t, etc. via (int*) cast in implementation). */
+#define ANK_GLOBAL_OBJECT(ContainerExpr, JsName, ...)                                                               \
+    static void ank_register_global_obj_##JsName(js_State *J) {                                                     \
+        js_getglobal(J, #JsName);                                                                                   \
+        const bool already_registered = J->isobject(-1);                                                            \
+        js_pop(J, 1);                                                                                               \
+        if (already_registered) return;                                                                             \
+        J->newobject();                        /* stack: [obj]      */                                             \
+        J->dup();                               /* stack: [obj, obj] */                                             \
+        js_defglobal(J, js_intern(#JsName), 0); /* stores top, pops  → stack: [obj] */                              \
+        ANK_GLOBAL_OBJ_PASTE(ContainerExpr, __VA_ARGS__);  /* attaches CPTR props to [obj] */                       \
+        js_pop(J, 1);                           /* stack: []         */                                             \
+    }                                                                                                               \
+    ANK_DECLARE_JSFUNCTION_ITERATOR(ank_register_global_obj_##JsName);
+
+// Template function version of ANK_FUNCTION_RAW
+// This template function handles the callback logic (extracted from macro)
+template <auto Func>
+inline void ank_function_raw_callback_impl(js_State* J) {
+    // std::decay_t converts function types to function pointer types
+    using func_ptr_type = std::decay_t<decltype(Func)>;
+    using traits = js_function_traits<func_ptr_type>;
+    using return_type = typename traits::return_type;
+
+    constexpr bool is_void = std::is_void_v<return_type>;
+    js_helpers::js_invoke_and_push<is_void>(J, [&]() { return Func(J); });
+}
+
+// Template function to register callback with 1 parameter
+template <auto Func>
+inline void ank_register_callback_raw(js_State* J, pcstr name) {
+    auto callback_impl = [](js_State* J) { ank_function_raw_callback_impl<Func>(J); };
+    js_getglobal(J, name);
+    bool exists = J->iscallable(-1);
+    js_pop(J, 1);
+    if (!exists) {
+        REGISTER_GLOBAL_FUNCTION(J, callback_impl, name, 1);
+    }
+}
+
+#define ANK_FUNCTION_RAW(func)                                        \
+    ANK_DECLARE_JSFUNCTION_ITERATOR(register_js2cpp_callback_##func); \
+    inline void register_js2cpp_callback_##func(js_State* J) {        \
+        OZZY_PROFILER_FUNCTION();                                     \
+        ank_register_callback_raw<&func>(J, #func);                   \
+    }
+
+// Template function version of ANK_FUNCTION_1
+// This template function handles the callback logic (extracted from macro)
+template<auto Func>
+inline void ank_function_1_callback_impl(js_State *J) {
+    // std::decay_t converts function types to function pointer types
+    using func_ptr_type = std::decay_t<decltype(Func)>;
+    using traits = js_function_traits<func_ptr_type>;
+    using param_type = typename traits:: template arg<0>::type;
+    using return_type = typename traits::return_type;
+
+    param_type param = J->to<param_type>(1);
+    constexpr bool is_void = std::is_void_v<return_type>;
+    js_helpers::js_invoke_and_push<is_void>(J, [&] () { return Func(param); });
+}
+
+// Template function to register callback with 1 parameter
+template<auto Func>
+inline void ank_register_callback_1(js_State *J, pcstr name) {
+    auto callback_impl = [] (js_State *J) { ank_function_1_callback_impl<Func>(J); };
+    js_getglobal(J, name);
+    bool exists = J->iscallable(-1);
+    js_pop(J, 1);
+    if (!exists) {
+        REGISTER_GLOBAL_FUNCTION(J, callback_impl, name, 1);
+    }
+}
+
+#define ANK_FUNCTION_1(func) \
+    ANK_DECLARE_JSFUNCTION_ITERATOR(register_js2cpp_callback_##func); \
+    inline void register_js2cpp_callback_##func(js_State* J) { OZZY_PROFILER_FUNCTION(); ank_register_callback_1<&func>(J, #func); }
+
+// Template function version of ANK_FUNCTION_2
+// This template function handles the callback logic (extracted from macro)
+template<auto Func>
+inline void ank_function_2_callback_impl(js_State *J) {
+    using func_ptr_type = std::decay_t<decltype(Func)>;
+    using traits = js_function_traits<func_ptr_type>;
+    using param1_type = typename traits:: template arg<0>::type;
+    using param2_type = typename traits:: template arg<1>::type;
+    using return_type = typename traits::return_type;
+
+    param1_type param1 = J->to<param1_type>(1);
+    param2_type param2 = J->to<param2_type>(2);
+    constexpr bool is_void = std::is_void_v<return_type>;
+    js_helpers::js_invoke_and_push<is_void>(J, [&] () { return Func(param1, param2); });
+}
+
+// Template function to register callback with 2 parameters
+template<auto Func>
+inline void ank_register_callback_2(js_State *J, pcstr name) {
+    auto callback_impl = [] (js_State *J) { ank_function_2_callback_impl<Func>(J); };
+    js_getglobal(J, name);
+    bool exists = J->iscallable(-1);
+    js_pop(J, 1);
+    if (!exists) {
+        REGISTER_GLOBAL_FUNCTION(J, callback_impl, name, 2);
+    }
+}
+
+#define ANK_FUNCTION_2(func) \
+    ANK_DECLARE_JSFUNCTION_ITERATOR(register_js2cpp_callback_##func); \
+    inline void register_js2cpp_callback_##func(js_State* J) { OZZY_PROFILER_FUNCTION(); ank_register_callback_2<&func>(J, #func); }
+
+// Template function version of ANK_FUNCTION_3
+// This template function handles the callback logic (extracted from macro)
+template<auto Func>
+inline void ank_function_3_callback_impl(js_State *J) {
+    using func_ptr_type = std::decay_t<decltype(Func)>;
+    using traits = js_function_traits<func_ptr_type>;
+    using param1_type = typename traits:: template arg<0>::type;
+    using param2_type = typename traits:: template arg<1>::type;
+    using param3_type = typename traits:: template arg<2>::type;
+    using return_type = typename traits::return_type;
+
+    param1_type param1 = J->to<param1_type>(1);
+    param2_type param2 = J->to<param2_type>(2);
+    param3_type param3 = J->to<param3_type>(3);
+    constexpr bool is_void = std::is_void_v<return_type>;
+    js_helpers::js_invoke_and_push<is_void>(J, [&] () { return Func(param1, param2, param3); });
+}
+
+// Template function to register callback with 3 parameters
+template<auto Func>
+inline void ank_register_callback_3(js_State *J, pcstr name) {
+    auto callback_impl = [] (js_State *J) { ank_function_3_callback_impl<Func>(J); };
+    js_getglobal(J, name);
+    bool exists = J->iscallable(-1);
+    js_pop(J, 1);
+    if (!exists) {
+        REGISTER_GLOBAL_FUNCTION(J, callback_impl, name, 3);
+    }
+}
+
+#define ANK_FUNCTION_3(func) \
+    ANK_DECLARE_JSFUNCTION_ITERATOR(register_js2cpp_callback_##func); \
+    inline void register_js2cpp_callback_##func(js_State* J) { OZZY_PROFILER_FUNCTION(); ank_register_callback_3<&func>(J, #func); }
+
+// Template function version of ANK_FUNCTION_4
+// This template function handles the callback logic (extracted from macro)
+template<auto Func>
+inline void ank_function_4_callback_impl(js_State *J) {
+    using func_ptr_type = std::decay_t<decltype(Func)>;
+    using traits = js_function_traits<func_ptr_type>;
+    using param1_type = typename traits:: template arg<0>::type;
+    using param2_type = typename traits:: template arg<1>::type;
+    using param3_type = typename traits:: template arg<2>::type;
+    using param4_type = typename traits:: template arg<3>::type;
+    using return_type = typename traits::return_type;
+
+    param1_type param1 = J->to<param1_type>(1);
+    param2_type param2 = J->to<param2_type>(2);
+    param3_type param3 = J->to<param3_type>(3);
+    param4_type param4 = J->to<param4_type>(4);
+    constexpr bool is_void = std::is_void_v<return_type>;
+    js_helpers::js_invoke_and_push<is_void>(J, [&] () { return Func(param1, param2, param3, param4); });
+}
+
+// Template function to register callback with 4 parameters
+template<auto Func>
+inline void ank_register_callback_4(js_State *J, pcstr name) {
+    auto callback_impl = [] (js_State *J) { ank_function_4_callback_impl<Func>(J); };
+    js_getglobal(J, name);
+    bool exists = J->iscallable(-1);
+    js_pop(J, 1);
+    if (!exists) {
+        REGISTER_GLOBAL_FUNCTION(J, callback_impl, name, 4);
+    }
+}
+
+#define ANK_FUNCTION_4(func) \
+    ANK_DECLARE_JSFUNCTION_ITERATOR(register_js2cpp_callback_##func); \
+    inline void register_js2cpp_callback_##func(js_State* J) { OZZY_PROFILER_FUNCTION(); ank_register_callback_4<&func>(J, #func); }
+
+// Template function version of ANK_FUNCTION_5
+// This template function handles the callback logic (extracted from macro)
+template<auto Func>
+inline void ank_function_5_callback_impl(js_State *J) {
+    using func_ptr_type = std::decay_t<decltype(Func)>;
+    using traits = js_function_traits<func_ptr_type>;
+    using param1_type = typename traits:: template arg<0>::type;
+    using param2_type = typename traits:: template arg<1>::type;
+    using param3_type = typename traits:: template arg<2>::type;
+    using param4_type = typename traits:: template arg<3>::type;
+    using param5_type = typename traits:: template arg<4>::type;
+    using return_type = typename traits::return_type;
+
+    param1_type param1 = J->to<param1_type>(1);
+    param2_type param2 = J->to<param2_type>(2);
+    param3_type param3 = J->to<param3_type>(3);
+    param4_type param4 = J->to<param4_type>(4);
+    param5_type param5 = J->to<param5_type>(5);
+    constexpr bool is_void = std::is_void_v<return_type>;
+    js_helpers::js_invoke_and_push<is_void>(J, [&] () { return Func(param1, param2, param3, param4, param5); });
+}
+
+// Template function to register callback with 5 parameters
+template<auto Func>
+inline void ank_register_callback_5(js_State *J, pcstr name) {
+    auto callback_impl = [] (js_State *J) { ank_function_5_callback_impl<Func>(J); };
+    js_getglobal(J, name);
+    bool exists = J->iscallable(-1);
+    js_pop(J, 1);
+    if (!exists) {
+        REGISTER_GLOBAL_FUNCTION(J, callback_impl, name, 5);
+    }
+}
+
+#define ANK_FUNCTION_5(func) \
+    ANK_DECLARE_JSFUNCTION_ITERATOR(register_js2cpp_callback_##func); \
+    inline void register_js2cpp_callback_##func(js_State* J) { OZZY_PROFILER_FUNCTION(); ank_register_callback_5<&func>(J, #func); }
+
+// Template function version of ANK_FUNCTION_6
+// This template function handles the callback logic (extracted from macro)
+template<auto Func>
+inline void ank_function_6_callback_impl(js_State *J) {
+    using func_ptr_type = std::decay_t<decltype(Func)>;
+    using traits = js_function_traits<func_ptr_type>;
+    using param1_type = typename traits:: template arg<0>::type;
+    using param2_type = typename traits:: template arg<1>::type;
+    using param3_type = typename traits:: template arg<2>::type;
+    using param4_type = typename traits:: template arg<3>::type;
+    using param5_type = typename traits:: template arg<4>::type;
+    using param6_type = typename traits:: template arg<5>::type;
+    using return_type = typename traits::return_type;
+
+    param1_type param1 = J->to<param1_type>(1);
+    param2_type param2 = J->to<param2_type>(2);
+    param3_type param3 = J->to<param3_type>(3);
+    param4_type param4 = J->to<param4_type>(4);
+    param5_type param5 = J->to<param5_type>(5);
+    param6_type param6 = J->to<param6_type>(6);
+    constexpr bool is_void = std::is_void_v<return_type>;
+    js_helpers::js_invoke_and_push<is_void>(J, [&] () { return Func(param1, param2, param3, param4, param5, param6); });
+}
+
+// Template function to register callback with 6 parameters
+template<auto Func>
+inline void ank_register_callback_6(js_State *J, pcstr name) {
+    auto callback_impl = [] (js_State *J) { ank_function_6_callback_impl<Func>(J); };
+    js_getglobal(J, name);
+    bool exists = J->iscallable(-1);
+    js_pop(J, 1);
+    if (!exists) {
+        REGISTER_GLOBAL_FUNCTION(J, callback_impl, name, 6);
+    }
+}
+
+#define ANK_FUNCTION_6(func) \
+    ANK_DECLARE_JSFUNCTION_ITERATOR(register_js2cpp_callback_##func); \
+    inline void register_js2cpp_callback_##func(js_State* J) { OZZY_PROFILER_FUNCTION(); ank_register_callback_6<&func>(J, #func); }
+
+// Template function version of ANK_FUNCTION_7
+// This template function handles the callback logic (extracted from macro)
+template<auto Func>
+inline void ank_function_7_callback_impl(js_State *J) {
+    using func_ptr_type = std::decay_t<decltype(Func)>;
+    using traits = js_function_traits<func_ptr_type>;
+    using param1_type = typename traits:: template arg<0>::type;
+    using param2_type = typename traits:: template arg<1>::type;
+    using param3_type = typename traits:: template arg<2>::type;
+    using param4_type = typename traits:: template arg<3>::type;
+    using param5_type = typename traits:: template arg<4>::type;
+    using param6_type = typename traits:: template arg<5>::type;
+    using param7_type = typename traits:: template arg<6>::type;
+    using return_type = typename traits::return_type;
+
+    param1_type param1 = J->to<param1_type>(1);
+    param2_type param2 = J->to<param2_type>(2);
+    param3_type param3 = J->to<param3_type>(3);
+    param4_type param4 = J->to<param4_type>(4);
+    param5_type param5 = J->to<param5_type>(5);
+    param6_type param6 = J->to<param6_type>(6);
+    param7_type param7 = J->to<param7_type>(7);
+    constexpr bool is_void = std::is_void_v<return_type>;
+    js_helpers::js_invoke_and_push<is_void>(J, [&] () { return Func(param1, param2, param3, param4, param5, param6, param7); });
+}
+
+// Template function to register callback with 7 parameters
+template<auto Func>
+inline void ank_register_callback_7(js_State *J, pcstr name) {
+    auto callback_impl = [] (js_State *J) { ank_function_7_callback_impl<Func>(J); };
+    js_getglobal(J, name);
+    bool exists = J->iscallable(-1);
+    js_pop(J, 1);
+    if (!exists) {
+        REGISTER_GLOBAL_FUNCTION(J, callback_impl, name, 7);
+    }
+}
+
+#define ANK_FUNCTION_7(func) \
+    ANK_DECLARE_JSFUNCTION_ITERATOR(register_js2cpp_callback_##func); \
+    inline void register_js2cpp_callback_##func(js_State* J) { OZZY_PROFILER_FUNCTION(); ank_register_callback_7<&func>(J, #func); }
+
+// Template function version of ANK_FUNCTION_UNIFIED
+// This template function handles the callback logic (extracted from macro)
+template<auto Func>
+inline void ank_function_unified_callback_impl(js_State *J) {
+    using func_ptr_type = std::decay_t<decltype(Func)>;
+    using traits = js_function_traits<func_ptr_type>;
+    using return_type = typename traits::return_type;
+
+    bvariant_map params = js_helpers::js_object_to_bvariant_map(J, 1);
+    constexpr bool is_void = std::is_void_v<return_type>;
+    js_helpers::js_invoke_and_push<is_void>(J, [&] () { return Func(params); });
+}
+
+// Template function to register unified callback
+template<auto Func>
+inline void ank_register_callback_unified(js_State *J, pcstr name) {
+    auto callback_impl = [] (js_State *J) { ank_function_unified_callback_impl<Func>(J); };
+    js_getglobal(J, name);
+    bool exists = J->iscallable(-1);
+    js_pop(J, 1);
+    if (!exists) {
+        REGISTER_GLOBAL_FUNCTION(J, callback_impl, name, 1);
+    }
+}
+
+#define ANK_FUNCTION_UNIFIED(func)                                                      \
+    func(const bvariant_map&);                                                          \
+    ANK_DECLARE_JSFUNCTION_ITERATOR(register_js2cpp_callback_##func);                   \
+    inline void register_js2cpp_callback_##func(js_State* J) {                          \
+        ank_register_callback_unified<&func>(J, #func);                                 \
+    }                                                                                   \
+    js_function_traits<decltype(&func)>::return_type func
+
+void js_register_game_functions(js_State *J);
+void js_register_sound_object(js_State* J);
+void js_register_empire_objects(js_State *J);
+void js_register_empire_object_proto(js_State* J);
+void js_register_empire_city_map_proto(js_State* J);
+void js_register_empire_city_proto(js_State* J);
+void js_register_empire_trader_proto(js_State* J);
+void js_register_mission_objects(js_State *J);
+void js_register_city_objects(js_State *J);
+void js_register_figure(js_State *J);
+void js_register_figure_trade_proto(js_State *J);
+void js_register_figure_transport_ship_proto(js_State *J);
+void js_register_figure_warship_proto(js_State *J);
+void js_register_figure_params(js_State *J);
+void js_register_building(js_State *J);
+void js_register_building_params(js_State *J);
+void js_register_imperial_visible_request(js_State *J);
+void js_register_house(js_State *J);
+void js_register_enemy_army(js_State *J);
+void js_register_temple_complex_building(js_State *J);
+void js_register_storage_yard(js_State *J);
+void js_register_dock(js_State *J);
+void js_register_monument(js_State *J);
+void js_register_debug_props_functions(js_State* J);
+js_Object *js_get_building_prototype(void);
+void js_register_ui_objects(js_State* J);
+int js_game_emit(js_State* J, pcstr event_name);
+
+void js_register_console_command(js_State *J);

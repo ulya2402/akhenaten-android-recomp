@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pharos Lighthouse — Akhenaten Wiki</title>
+  <link rel="stylesheet" href="../../../style.css" />
+  <style>
+    .bld-infobox {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.9rem 1.1rem;
+      margin: 1rem 0;
+    }
+    .bld-infobox h4 {
+      margin: 0 0 0.6rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--gold);
+    }
+    .bld-infobox dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.2rem 1rem;
+      margin: 0;
+    }
+    .bld-infobox dt { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; padding-top: 0.1rem; }
+    .bld-infobox dd { margin: 0; font-size: 0.85rem; color: var(--text); }
+    .bld-stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+    .bld-stat { text-align: center; }
+    .bld-stat .val { font-size: 1.3rem; font-weight: 700; color: var(--gold); display: block; }
+    .bld-stat .lbl { font-size: 0.7rem; color: var(--text-muted); }
+    .file-ref { display: inline-block; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.78rem; background: rgba(201,168,76,0.07); border: 1px solid rgba(201,168,76,0.2); border-radius: 2px; padding: 0.05rem 0.45rem; color: var(--gold); margin: 0 0.1rem; }
+    .bld-nav { display: flex; justify-content: space-between; margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; }
+    .bld-nav a { color: var(--gold); }
+    .dev-section { margin-top: 2.5rem; }
+    .dev-section h2 { color: var(--text-muted); font-size: 1rem; letter-spacing: 0.04em; text-transform: uppercase; border-color: rgba(255,255,255,0.08); }
+    details { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.75rem; }
+    summary { padding: 0.7rem 1rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; color: var(--text); list-style: none; display: flex; align-items: center; gap: 0.6rem; user-select: none; }
+    summary::-webkit-details-marker { display: none; }
+    summary::before { content: "▶"; font-size: 0.6rem; color: var(--gold); transition: transform 0.15s; flex-shrink: 0; }
+    details[open] > summary::before { transform: rotate(90deg); }
+    details[open] > summary { border-bottom: 1px solid var(--border); }
+    .details-body { padding: 1rem 1.1rem; font-size: 0.85rem; line-height: 1.6; }
+    .tag-cleo { font-size: 0.7rem; color: var(--gold); border: 1px solid rgba(201,168,76,0.35); border-radius: 2px; padding: 0.05rem 0.35rem; margin-left: 0.35rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="../../../index.html" class="nav-logo">Akhenaten</a>
+      <ul>
+        <li><a href="../../../about.html">About</a></li>
+        <li><a href="../../../devblog.html">Devblog</a></li>
+        <li><a href="../../index.html" class="active">Wiki</a></li>
+        <li><a href="../../../screenshots.html">Screenshots</a></li>
+        <li><a href="../../../downloads.html">Downloads</a></li>
+        <li><a href="../../../contributors.html">Contributors</a></li>
+        <li><a href="../../../contact.html">Join us</a></li>
+        <li><a href="../../../reportbug.html">Report Bug</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="wiki-layout">
+    <aside class="wiki-sidebar">
+      <div class="wiki-sidebar-section">
+        <div class="wiki-sidebar-title"><a href="index.html">← All Buildings</a></div>
+      </div>
+      <div class="wiki-sidebar-section">
+        <div class="wiki-sidebar-title">Monuments</div>
+        <ul>
+          <li><a href="monuments.html">Overview</a></li>
+          <li><a href="sphinx.html">Sphinx</a></li>
+          <li><a href="obelisk.html">Obelisk</a></li>
+          <li><a href="abu-simbel.html">Abu Simbel</a></li>
+          <li><a href="caesareum.html">Caesareum</a></li>
+          <li><a href="alexandria-library.html">Alexandria's Library</a></li>
+          <li><a href="pharos-lighthouse.html" class="active">Pharos Lighthouse</a></li>
+        </ul>
+      </div>
+      <div class="wiki-sidebar-section">
+        <div class="wiki-sidebar-title">On this page</div>
+        <ul>
+          <li><a href="#overview">Overview</a></li>
+          <li><a href="#placement">Placement</a></li>
+          <li><a href="#construction">Construction</a></li>
+          <li><a href="#missions">Missions</a></li>
+          <li><a href="#dev">Developer reference</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <div class="wiki-content">
+      <div class="wiki-breadcrumb">
+        <a href="../../index.html">Wiki</a> /
+        <a href="../index.html">Player Guide</a> /
+        <a href="index.html">Buildings</a> /
+        <a href="monuments.html">Monuments</a> /
+        Pharos Lighthouse
+      </div>
+
+      <h1>Pharos Lighthouse <span class="tag-cleo">Cleo</span></h1>
+
+      <p id="overview">
+        The <strong>Pharos Lighthouse</strong> is Alexandria’s three-tier beacon on
+        <strong>rocky ground</strong> (Pharos Island). Guilds:
+        <strong>Work Camp</strong> (clear), <strong>Stonemasons</strong> (marble tiers), and
+        <strong>Carpenters</strong> (scaffolding). <strong>Not</strong> Artisans.
+        Materials: imported <strong>white marble</strong> (~108) and <strong>timber</strong>.
+        Finished Pharos <strong>cannot be demolished</strong>.
+      </p>
+
+      <div class="bld-infobox">
+        <h4>Quick facts</h4>
+        <div class="bld-stat-row">
+          <div class="bld-stat"><span class="val">6×6</span><span class="lbl">Footprint</span></div>
+          <div class="bld-stat"><span class="val">~108</span><span class="lbl">Marble</span></div>
+          <div class="bld-stat"><span class="val">rock</span><span class="lbl">Terrain</span></div>
+          <div class="bld-stat"><span class="val">5</span><span class="lbl">Monument wt.</span></div>
+        </div>
+        <dl>
+          <dt>Cost (Normal)</dt>
+          <dd>8&nbsp;000 Db (VE 5k · Easy 6.5k · Hard 11k · VH 16k)</dd>
+          <dt>Guilds</dt>
+          <dd>Work Camp · Carpenters (scaffold) · Stonemasons</dd>
+          <dt>Type id</dt>
+          <dd><code>BUILDING_PHAROS_LIGHTHOUSE</code> (=228)</dd>
+        </dl>
+      </div>
+
+      <h2 id="placement">Placement</h2>
+      <ul>
+        <li>Entire 6×6 footprint must be <strong>rocky ground</strong> (all green). Not clear land / water.</li>
+        <li>Only one unfinished Pharos at a time (<code>#one_pharos_only</code>).</li>
+        <li>Finished: not demolishable (<code>#pharos_not_demolishable</code>).</li>
+        <li>Marble haul from a Storage Yard with ≥4 blocks in one yard (help).</li>
+      </ul>
+
+      <h2 id="construction">Construction</h2>
+      <ul>
+        <li>Work Camp peasants clear the rock pad.</li>
+        <li>Stonemasons: foundation → floor → square tier → octagonal tier → cupola.</li>
+        <li>Carpenters raise and later remove timber scaffolding.</li>
+        <li>Art packs: <code>LtHouse1</code>…<code>LtHouse9</code> (beacon <code>LtHouse10</code> optional).</li>
+      </ul>
+
+      <h2 id="missions">Missions</h2>
+      <p>
+        Consumer mission <strong>49</strong> (A Beacon of Light / Ptolemy's Alexandria) — with Library;
+        sandbox: <code>m_128_alexandria.js</code>.
+      </p>
+
+      <div class="dev-section" id="dev">
+        <h2>Developer reference</h2>
+        <details open>
+          <summary>Source files</summary>
+          <div class="details-body">
+            <ul>
+              <li><span class="file-ref">src/building/monument_pharos_lighthouse.{h,cpp}</span></li>
+              <li><span class="file-ref">src/scripts/building/pharos_lighthouse.js</span></li>
+              <li><span class="file-ref">src/window/window_pharos_lighthouse_info.cpp</span></li>
+              <li><span class="file-ref">src/scripts/city/monuments.js</span> — <code>MONUMENT_WEIGHTS[PHAROS]=8</code></li>
+              <li><span class="file-ref">tests/123_pharos_lighthouse_place.js</span></li>
+              <li>Art: <span class="file-ref">tools/pharos_lighthouse_stages/</span>; packs <code>LtHouse1..10</code></li>
+              <li>Help / history: <strong>489</strong> / <strong>487</strong>; foreman gr178:132–140</li>
+              <li>Congrats: <code>lighthouse_congratulations</code> (id 529)</li>
+              <li>Notes: <span class="file-ref">REMAKE_NOTES.md</span> §13.12</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+
+      <div class="bld-nav">
+        <a href="monuments.html">← Monuments overview</a>
+        <span><a href="alexandria-library.html">Library</a> · <a href="caesareum.html">Caesareum</a></span>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

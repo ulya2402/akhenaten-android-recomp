@@ -1,0 +1,252 @@
+#include "figure/figure.h"
+
+#include "graphics/image_groups.h"
+#include "grid/road_access.h"
+#include "core/calc.h"
+#include "figure_fireman.h"
+#include "sound/sound.h"
+#include "game/game_config.h"
+#include "building/building_house.h"
+#include "building/building_burning_ruin.h"
+#include "graphics/animation.h"
+#include "city/city.h"
+#include "city/city_recorded_paths.h"
+#include "figure/service.h"
+#include "grid/building.h"
+#include "js/js_register.h"
+
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_fireman);
+
+const figure_fireman_action_tokens_t ANK_CONFIG_ENUM(figure_fireman_action_tokens);
+
+void figure_fireman::on_create() {
+    figure_impl::on_create();
+}
+
+void figure_fireman::figure_before_action() {
+    building* b = home();
+    if (!b->is_valid() || !b->has_figure(0, id())) {
+        poof();
+    }
+}
+
+void figure_fireman::figure_action() { // doubles as fireman! not as policeman!!!
+    fight_fire();
+
+    building* b = home();
+    switch (base.action_state) {
+    case ACTION_0_FIREMAN_CREATED:
+        advance_action(ACTION_2_FIREMAN_ROAMING);
+        break;
+
+    case ACTION_3_FIREMAN_RETURNING:
+        if (do_returnhome(TERRAIN_USAGE_PREFER_ROADS)) {
+            building *h = home();
+            if (h && h->params().flags.keeps_visitor_paths) {
+                building *main = h->main();
+                if (main) {
+                    g_recorded_paths.handoff_to_building(base, main->id);
+                }
+            }
+        }
+        break;
+
+    case ACTION_1_FIREMAN_ENTERING_EXITING:
+        do_enterbuilding(true, home());
+        break;
+
+    case ACTION_2_FIREMAN_ROAMING:
+        do_roam(TERRAIN_USAGE_ROADS, ACTION_3_FIREMAN_RETURNING);
+        break;
+
+    case ACTION_4_FIREMAN_GOING_TO_FIRE:
+        if (do_goto(base.destination_tile, TERRAIN_USAGE_PREFER_ROADS, ACTION_5_FIREMAN_AT_FIRE)) {
+            base.wait_ticks = 50;
+            runtime_data().extinguish_ticks = 0;
+        }
+
+        if (base.direction == DIR_FIGURE_REROUTE) {
+            base.movement_ticks_watchdog++;
+            int next_direction = calc_general_direction(tile(), base.destination_tile);
+            int dir_grid_offset = tile().grid_offset() + map_grid_direction_delta(next_direction);
+            building *next_tile_b = building_at(dir_grid_offset);
+            building *next_b = destination();
+            auto clear_ruin_destination = [&] { if (next_b && next_b->type == BUILDING_BURNING_RUIN) { next_b->set_figure(3, 0); }};
+            if (next_tile_b && next_tile_b->type == BUILDING_BURNING_RUIN) {
+                clear_ruin_destination();
+                base.set_destination(next_tile_b);
+                advance_action(ACTION_5_FIREMAN_AT_FIRE);
+                runtime_data().extinguish_ticks = 0;
+            }
+
+            if (!next_b || next_b->state == BUILDING_STATE_UNUSED || next_b->type != BUILDING_BURNING_RUIN) {
+                clear_ruin_destination();
+                bool has_fire_around = fight_fire();
+                if (!has_fire_around) {
+                    advance_action(ACTION_3_FIREMAN_RETURNING);
+                }
+            }
+
+            if (base.movement_ticks_watchdog > 10) {
+                base.movement_ticks_watchdog = 0;
+                clear_ruin_destination();
+                route_remove();
+                advance_action(ACTION_3_FIREMAN_RETURNING);
+            }
+        }
+        break;
+
+    case ACTION_5_FIREMAN_AT_FIRE:
+        extinguish_fire();
+        break;
+
+    case ACTION_6_FIREMAN_GOING_TO_ENEMY:
+        //terrain_usage = TERRAIN_USAGE_ANY;
+        //if (!target_is_alive()) {
+        //    map_point road_tile;
+        //    if (map_closest_road_within_radius(b->tile.x(), b->tile.y(), b->size, 2, road_tile)) {
+        //        action_state = ACTION_3_FIREMAN_RETURNING;
+        //        destination_tile = road_tile;
+        //        route_remove();
+        //        roam_length = 0;
+        //    } else {
+        //        poof();
+        //    }
+        //}
+        //move_ticks(1);
+        //if (direction == DIR_FIGURE_NONE) {
+        //    figure* target = figure_get(target_figure_id);
+        //    destination_tile = target->tile;
+        //    route_remove();
+        //} else if (direction == DIR_FIGURE_REROUTE || direction == DIR_FIGURE_CAN_NOT_REACH) {
+        //    poof();
+        //}
+        assert(false && "should not happens");
+        advance_action(ACTION_3_FIREMAN_RETURNING);
+        break;
+    }
+}
+
+void figure_fireman::extinguish_fire() {
+    building* burn = destination();
+    int distance = calc_maximum_distance(tile(), burn->tile);
+    const bool is_valid = (burn->state == BUILDING_STATE_VALID || burn->state == BUILDING_STATE_MOTHBALLED) && burn->type == BUILDING_BURNING_RUIN;
+    if (is_valid && distance < 2) {
+        burn->dcast_burning_ruin()->extinguish();
+        g_sound.play_effect(SOUND_EFFECT_FIRE_SPLASH);
+    } else {
+        base.wait_ticks = 1;
+    }
+
+    base.attack_direction = calc_general_direction(tile(), burn->tile);
+    base.attack_direction = base.attack_direction % 8;
+
+    // OG leaves only when the wait is over and a whole fight_fire animation has played, even if the
+    // ruin went out earlier (walkers.c:919, the counter grows once per tick at 983).
+    auto& d = runtime_data();
+    base.wait_ticks--;
+    const bool animation_done = d.extinguish_ticks >= anim(animkeys().fight_fire).max_frames;
+    if (base.wait_ticks > 0 || !animation_done) {
+        d.extinguish_ticks++;
+        return;
+    }
+
+    base.wait_ticks_missile = 20;
+    advance_action(ACTION_3_FIREMAN_RETURNING);
+
+    if (!game_features::gameplay_change_fireman_returning) {
+        if (!fight_fire()) {
+            assert(false);
+            poof();
+        }
+    }
+}
+
+bool figure_fireman::fight_fire() {
+    const auto &burnings = building_burning_ruin::get_all();
+    if (burnings.size() <= 0) {
+        return false;
+    }
+
+    switch (base.action_state) {
+    case FIGURE_ACTION_149_CORPSE:
+    case ACTION_0_FIREMAN_CREATED:
+    case ACTION_1_FIREMAN_ENTERING_EXITING:
+    case ACTION_4_FIREMAN_GOING_TO_FIRE:
+    case ACTION_5_FIREMAN_AT_FIRE:
+        return false;
+    }
+
+    base.wait_ticks_missile++;
+    if (base.wait_ticks_missile < 20) {
+        return false;
+    }
+
+    auto result = building_burning_ruin::get_closest_from(tile());
+    int distance = calc_maximum_distance(tile(), result.second);
+    if (result.first > 0 && distance <= current_params().fire_detection_distance) {
+        building* ruin = building_get(result.first);
+        base.wait_ticks_missile = 0;
+        advance_action(ACTION_4_FIREMAN_GOING_TO_FIRE, result.second);
+        base.set_destination(result.first);
+        route_remove();
+        ruin->set_figure(3, base.id);
+        return true;
+    }
+
+    return false;
+}
+
+int figure_fireman::provide_service() {
+    building *firehouse = home();
+    const auto &params = current_params();
+    const bool og = !!game_features::gameplay_og_fireman;
+    const int og_amount = params.risk_reduction_amount > 0 ? params.risk_reduction_amount : 100;
+    const int remake_pct = params.risk_reduction_strength;
+
+    int houses_serviced = 0;
+    int min_happiness = 0;
+    int result = figure_provide_service(tile(), &base, [&](building *b, figure *f) {
+        b = b->main();
+
+        if (og) {
+            b->fire_risk = (int16_t)std::max(0, b->fire_risk - og_amount);
+            auto house = b->dcast_house();
+            if (house && house->house_population() > 0) {
+                houses_serviced++;
+            }
+        } else {
+            if (remake_pct >= 100) {
+                b->fire_risk = 0;
+            } else if (remake_pct > 0) {
+                b->fire_risk = (int16_t)std::max(0, b->fire_risk - (b->fire_risk * remake_pct / 100));
+            }
+            auto house = b->dcast_house();
+            if (house) {
+                min_happiness = std::max<short>(house->runtime_data().house_happiness, min_happiness);
+            }
+            if (firehouse) {
+                firehouse->buildings_served_this_month++;
+            }
+        }
+    });
+    base.min_max_seen = og ? (uint8_t)houses_serviced : (uint8_t)min_happiness;
+    return result;
+}
+
+void figure_fireman::update_animation() {
+    figure_impl::update_animation();
+
+    switch (action_state()) {
+    case ACTION_5_FIREMAN_AT_FIRE:
+        base.direction = base.attack_direction;
+        image_set_animation(animkeys().fight_fire);
+        break;
+
+    case ACTION_3_FIREMAN_RETURNING:
+    case ACTION_2_FIREMAN_ROAMING:
+    case ACTION_4_FIREMAN_GOING_TO_FIRE:
+        image_set_animation(animkeys().walk);
+        break;
+    }
+}

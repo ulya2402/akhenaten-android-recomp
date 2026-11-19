@@ -1,0 +1,152 @@
+log_info("akhenaten: mission 3 started")
+
+// Mission 3 — Nekhen (Hierakonpolis), "The First Pharaoh". Rank 0 (Village Elder). Tutorial.
+//
+// Goals:     population 1000, housing count 10, housing level modest apartment, plus the tutorial steps: 300 beer in
+//            storage yards and a tax collector built.
+// Start:     funds 3750, rescue loan 3750 (normal difficulty).
+// Gods:      Osiris, Ra, Bast.
+// Monuments: none.
+// Trade:     none (empire map off).
+// Enemies:   none.
+// Timeline:  300 beer stored — tax collector and personal mansion.
+//
+// Notes for developers:
+// - modest_houses_reached (10 modest homesteads) only drives the goal tooltip; it is not a victory step.
+// - Victory also waits a few days after the last tutorial step (victory_last_action_delay).
+
+mission3 {
+	map_file : "data/maps/m_003_nekhen.map"
+	start_message : "message_developing_culture"
+	selection_title : "Nekhen"
+	env {
+		has_animals : true
+		marshland_grow : default_marshland_grow
+	    tree_grow : default_tree_grow
+	}
+	player_rank : 0
+	initial_funds [7500, 5000, 3750, 2500, 2000]
+	rescue_loans [7500, 5000, 3750, 2500, 2000]
+
+	buildings [
+					BUILDING_ROADBLOCK, BUILDING_FIREHOUSE, BUILDING_ARCHITECT_POST, BUILDING_POLICE_STATION, BUILDING_VILLAGE_PALACE,
+					BUILDING_WATER_SUPPLY, BUILDING_APOTHECARY, BUILDING_PHYSICIAN, BUILDING_GRAIN_FARM, BUILDING_BARLEY_FARM, BUILDING_WORK_CAMP,
+					BUILDING_BOOTH, BUILDING_JUGGLER_SCHOOL, BUILDING_BANDSTAND, BUILDING_CONSERVATORY, BUILDING_BAZAAR, BUILDING_GRANARY, BUILDING_LOW_BRIDGE, BUILDING_FERRY,
+					BUILDING_CLAY_PIT, BUILDING_POTTERY_WORKSHOP, BUILDING_STORAGE_YARD,
+					BUILDING_TEMPLE_OSIRIS, BUILDING_SHRINE_OSIRIS, BUILDING_TEMPLE_RA, BUILDING_SHRINE_RA, BUILDING_TEMPLE_BAST, BUILDING_SHRINE_BAST, BUILDING_FESTIVAL_SQUARE,
+					BUILDING_SMALL_STATUE, BUILDING_MEDIUM_STATUE, BUILDING_LARGE_STATUE, BUILDING_GARDENS, BUILDING_PLAZA,
+					BUILDING_BREWERY_WORKSHOP
+				]
+
+	sounds {
+		briefing : "Voice/Mission/203_mission.mp3"
+		victory : "Voice/Mission/203_victory.mp3"
+	}
+
+	win_criteria {
+		population    {enabled : true, goal : 1000 }
+		housing_count {enabled : true, goal : 10 }
+		housing_level {enabled : true, goal : HOUSE_MODEST_APARTMENT }
+	}
+
+	vars {
+		beer_stored : 300
+		modest_houses_needed : 10
+		victory_last_action_delay : 3
+
+		beer_stored_handled : false
+		tax_collector_built : false
+		modest_houses_reached : false
+		last_action_time : 0
+		start_message_shown : false
+	}
+
+	goal_tooltip: function() {
+		if (!mission.beer_stored_handled) {
+			return "#mission3_brew_beer"
+		}
+
+		if (!mission.tax_collector_built) {
+			return "#build_tax_collector"
+		}
+
+		if (city.count_houses_at_least(HOUSE_MODEST_HOMESTEAD) < mission.modest_houses_needed) {
+			return "#reach_modest_houses_number"
+		}
+
+		return ""
+	}
+}
+
+[es=event_mission_start, mission=mission3]
+function mission3_on_start(ev) {
+	mission_show_start_message(mission, "message_developing_culture")
+	city.set_empire_available(-1)
+
+	if (mission.beer_stored_handled) {
+		city.use_building(BUILDING_TAX_COLLECTOR, true)
+		city.use_building(BUILDING_PERSONAL_MANSION, true)
+	}
+
+	city.set_advisor_available(ADVISOR_LABOR, 1)
+	city.set_advisor_available(ADVISOR_ENTERTAINMENT, 1)
+	city.set_advisor_available(ADVISOR_RELIGION, 1)
+	city.set_advisor_available(ADVISOR_FINANCIAL, 1)
+}
+
+[event=event_warehouse_filled, mission=mission3]
+function mission3_warehouse_beer_check(ev) {
+    if (mission.beer_stored_handled) {
+        return
+    }
+
+    var beer_amount = city.yards_stored(RESOURCE_BEER)
+    if (beer_amount < mission.beer_stored) {
+        return
+    }
+
+    mission.beer_stored_handled = true
+	mission.last_action_time = game.absolute_day
+
+	city.use_building(BUILDING_TAX_COLLECTOR, true)
+	city.use_building(BUILDING_PERSONAL_MANSION, true)
+
+	ui.popup_message("message_tutorial_finances")
+}
+
+[event=event_building_create, mission=mission3]
+function mission3_on_build_tax_collector(ev) {
+    if (mission.tax_collector_built) {
+        return
+    }
+
+	var is_tax_collector = city.building_is_tax_collector(ev.bid)
+    if (!is_tax_collector) {
+        return
+    }
+
+	mission.last_action_time = game.absolute_day
+    mission.tax_collector_built = true
+}
+
+[event=event_advance_day, mission=mission3]
+function mission3_handle_modest_houses() {
+	if (mission.modest_houses_reached) {
+		return
+	}
+
+	if (city.count_houses_at_least(HOUSE_MODEST_HOMESTEAD) < mission.modest_houses_needed) {
+		return
+	}
+
+	mission.modest_houses_reached = true
+}
+
+[event=event_update_victory_state, mission=mission3]
+function mission3_handle_victory_state(ev) {
+	city.victory.set_reason("beer_stored_handled", mission.beer_stored_handled)
+	city.victory.set_reason("tax_collector_built", mission.tax_collector_built)
+
+	var some_days_after_last_action = (game.absolute_day - mission.last_action_time) > mission.victory_last_action_delay
+	city.victory.set_reason("some_days_after_last_action", some_days_after_last_action)
+}

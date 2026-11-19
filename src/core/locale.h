@@ -1,0 +1,36 @@
+#pragma once
+
+#include "core/string.h"
+/**
+ * Language type
+ */
+enum {
+    LANGUAGE_UNKNOWN,
+    // Official Sierra versions
+    LANGUAGE_ENGLISH,
+    LANGUAGE_FRENCH,
+    LANGUAGE_GERMAN,
+    LANGUAGE_ITALIAN,
+    LANGUAGE_SPANISH,
+    // Translations done by other publishers
+    LANGUAGE_KOREAN,
+    LANGUAGE_POLISH,
+    LANGUAGE_PORTUGUESE,
+    LANGUAGE_RUSSIAN,
+    LANGUAGE_SWEDISH,
+    LANGUAGE_SIMPLIFIED_CHINESE,
+    LANGUAGE_TRADITIONAL_CHINESE
+};
+
+/**
+ * Determines language based on the language file
+ * @return Guessed language
+ */
+int locale_determine_language();
+pcstr locale_determine_language_short();
+
+/**
+ * Check whether to write the year before the 'AD' part or the other way around
+ * @return Boolean true if years should be written as "200 AD", false for "AD 200"
+ */
+int locale_year_before_ad(void);

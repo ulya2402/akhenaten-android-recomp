@@ -1,0 +1,124 @@
+#include "city/constants.h"
+#include "js/js_game.h"
+#include "game/game.h"
+#include "platform/renderer.h"
+#include "platform/screen.h"
+#include "platform/arguments.h"
+#include "platform/platform.h"
+#include "dev/debug.h"
+#include "core/profiler.h"
+#include "graphics/screen.h"
+#include "editor/tool.h"
+
+void ank_global_obj_bind_field(js_State *J, js_StringNode name, vec2i *ptr) {
+    J->newobject();
+    ank_global_obj_bind_field(J, js_intern("x"), &ptr->x);
+    ank_global_obj_bind_field(J, js_intern("y"), &ptr->y);
+    js_setproperty(J, -2, name);
+}
+
+void ank_global_obj_bind_field(js_State *J, js_StringNode name, tile2i *ptr) {
+    J->newobject();
+    ank_global_obj_bind_field(J, js_intern("x"), ptr->private_access(_X));
+    ank_global_obj_bind_field(J, js_intern("y"), ptr->private_access(_Y));
+    ank_global_obj_bind_field(J, js_intern("grid_offset"), ptr->private_access(_GRID_OFFSET));
+    ank_global_obj_bind_field(J, js_intern("abs_x"), ptr->private_access(_ABS_X));
+    ank_global_obj_bind_field(J, js_intern("abs_y"), ptr->private_access(_ABS_Y));
+    js_setproperty(J, -2, name);
+}
+
+ANK_GLOBAL_OBJECT(game, __game,
+    logo_show_patch_message,
+    mission_choice_open_scenario_id,
+    debug_properties,
+    debug_terrain_paint,
+    paused,
+    pause_allow,
+    tick_timer_ms);
+
+ANK_GLOBAL_OBJECT(g_screen, __screen,
+    width,
+    height,
+    dialog_offset);
+
+int __game_difficulty() { return game_difficulty(); }
+ANK_FUNCTION(__game_difficulty)
+
+void __game_decrease_difficulty() {
+    game.difficulty.decrease();
+}
+ANK_FUNCTION(__game_decrease_difficulty)
+
+void __game_increase_difficulty() {
+    game.difficulty.increase();
+}
+ANK_FUNCTION(__game_increase_difficulty)
+
+bool __game_is_fullscreen_only() { return g_render.is_fullscreen_only(); }
+ANK_FUNCTION(__game_is_fullscreen_only)
+
+void __editor_tool_deactivate() { editor_tool_deactivate(); }
+ANK_FUNCTION(__editor_tool_deactivate)
+
+int __game_debug_render_mode() { return debug_render_mode(); }
+ANK_FUNCTION(__game_debug_render_mode)
+
+void __game_set_debug_render_mode(int mode) { set_debug_render_mode((e_debug_render)mode); }
+ANK_FUNCTION_1(__game_set_debug_render_mode)
+
+pcstr __game_debug_render_mode_name() {
+    xstring name = debug_render_mode_name();
+    return name.empty() ? "" : name.c_str();
+}
+ANK_FUNCTION(__game_debug_render_mode_name)
+
+void __game_set_debug_render_mode_name(pcstr name) { set_debug_render_mode_name(name ? name : ""); }
+ANK_FUNCTION_1(__game_set_debug_render_mode_name)
+
+int display_options_video_modes_count() { return (int)get_video_modes().size(); }
+ANK_FUNCTION(display_options_video_modes_count)
+
+pcstr display_options_video_get_mode(int index) {
+    static thread_local bstring128 buf;
+    const auto modes = get_video_modes();
+    if (index < 0 || index >= (int)modes.size()) {
+        buf.clear();
+        return "";
+    }
+    buf = modes[index].str.c_str();
+    return buf.c_str();
+}
+ANK_FUNCTION_1(display_options_video_get_mode)
+
+bool __display_options_is_fullscreen() { return game.is_fullscreen(false); }
+ANK_FUNCTION(__display_options_is_fullscreen)
+
+xstring __display_options_video_driver_caption() {
+    return get_video_driver();
+}
+ANK_FUNCTION(__display_options_video_driver_caption)
+
+bool __platform_is_android() {
+    return platform.is_android();
+}
+ANK_FUNCTION(__platform_is_android)
+
+int __display_options_get_scale() {
+    return g_platform_screen.get_scale();
+}
+ANK_FUNCTION(__display_options_get_scale)
+
+int __display_options_set_scale(int pct) {
+    return g_platform_screen.scale_display(pct);
+}
+ANK_FUNCTION_1(__display_options_set_scale)
+
+void __display_options_save() {
+    arguments::store(g_args);
+}
+ANK_FUNCTION(__display_options_save)
+
+vec2i __display_options_get_window_size() {
+    return g_platform_screen.get_window_size();
+}
+ANK_FUNCTION(__display_options_get_window_size)

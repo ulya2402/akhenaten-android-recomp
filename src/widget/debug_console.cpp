@@ -1,0 +1,569 @@
+﻿#include "debug_console.h"
+
+#include "core/custom_span.hpp"
+#include "core/log.h"
+#include "graphics/screen.h"
+#include "graphics/graphics.h"
+#include "graphics/text.h"
+#include "building/destruction.h"
+#include "game/game.h"
+#include "dev/imgui_qconsole.h"
+#include "building/building.h"
+
+#include <SDL.h>
+#include <SDL_keyboard.h>
+#include "platform/renderer.h"
+
+#include "imgui.h"
+#include "graphics/elements/imui.h"
+#include "imgui_internal.h"
+#include "backends/imgui_impl_sdlrenderer2.h"
+#include "backends/imgui_impl_sdl2.h"
+#include "dev/debug.h"
+#include "editor/tool.h"
+#include "building/construction/build_planner.h"
+#include "graphics/view/view.h"
+#include "game/game_events.h"
+#include "input/keyboard.h"
+#include "input/keys.h"
+
+#if !defined(GAME_PLATFORM_ANDROID)
+
+dev::imgui_qconsole *_debug_console = nullptr;
+
+dev::imgui_qconsole &debug_console() {
+    if (!_debug_console) {
+        _debug_console = new dev::imgui_qconsole();
+    }
+    return *_debug_console;
+}
+
+static int game_debug_cli_guid = 0;
+void game_debug_cli_draw() {
+    SDL_Point platform_window_size;
+    SDL_GetWindowSize(g_render.window(), &platform_window_size.x, &platform_window_size.y);
+
+    debug_console().render("##console", game.debug_console, platform_window_size.x, platform_window_size.y * 0.33f);
+    game_debug_cli_guid = 0;
+}
+
+static float property_opt_float = 0.0f;
+static bool property_opt_enabled = false;
+void game_debug_set_property_opt(float opt) {
+    property_opt_float = opt;
+    property_opt_enabled = true;
+}
+
+void game_debug_show_property_value(pcstr field, const float &v, bool disabled) {
+    ImGui::InputFloat("##value", (float*)&v, property_opt_enabled ? property_opt_float : 1.0f);
+    property_opt_enabled = false;
+}
+
+void game_debug_show_property_value(pcstr field, const double &v, bool disabled) {
+    ImGui::InputDouble("##value", (double *)&v, 1.0f);
+}
+
+void game_debug_show_property_value(pcstr field, const int &v, bool disabled) {
+    ImGuiInputTextFlags_ flags = disabled ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None;
+    ImGui::InputInt("##value", (int*)&v, 1, 100, flags);
+}
+
+void game_debug_show_property_value(pcstr field, const e_move_type &v, bool disabled) {
+    ImGui::InputScalar(field, ImGuiDataType_S8, (void *)&v);
+}
+
+void game_debug_show_property_value(pcstr field, const int8_t &v, bool disabled) {
+    ImGui::InputScalar(field, ImGuiDataType_S8, (void *)&v);
+}
+
+void game_debug_show_property_value(pcstr field, const short &v, bool disabled) {
+    ImGui::InputScalar(field, ImGuiDataType_S16, (void *)&v);
+}
+
+void game_debug_show_property_value(pcstr field, const uint8_t &v, bool disabled) {
+    ImGui::InputScalar(field, ImGuiDataType_U8, (void *)&v);
+}
+
+void game_debug_show_property_value(pcstr field, const uint16_t &v, bool disabled) {
+    ImGui::InputScalar(field, ImGuiDataType_U16, (void *)&v);
+}
+
+void game_debug_show_property_value(pcstr field, const bool &v, bool disabled) {
+    ImGui::Checkbox("", (bool*)&v);
+}
+
+void game_debug_show_property_value(pcstr field, const pcstr v, bool disabled) {
+    ImGui::Text("%s", !!v ? v : "none");
+}
+
+void game_debug_show_property_value(pcstr field, const bstring32 &v, bool disabled) {
+    ImGui::Text("%s", !!v ? v.c_str() : "none");
+}
+
+void game_debug_show_property_value(pcstr field, const bstring64 &v, bool disabled) {
+    ImGui::Text("%s", !!v ? v.c_str() : "none");
+}
+
+void game_debug_show_property_value(pcstr field, const bstring256 &v, bool disabled) {
+    ImGui::Text("%s", !!v ? v.c_str() : "none");
+}
+
+void game_debug_show_property_value(pcstr field, const xstring &v, bool disabled) {
+    ImGui::Text("%s", !!v ? v.c_str() : "none");
+}
+
+void game_debug_show_property_value(pcstr field, const vec2i &v, bool disabled) {
+    ImGui::InputInt2(field, (int*)&v);
+}
+
+void game_debug_show_property_value(pcstr field, const tile2i &v, bool disabled) {
+    ImGui::InputInt2(field, (int*)&v);
+}
+
+void game_debug_show_property_value(pcstr field, const setting_variant &v, bool disabled) {
+    ImGuiInputTextFlags_ flags = disabled ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None;
+
+    switch (v.index()) {
+    case setting_bool: {
+            bool val = std::get<bool>(v);
+            if (ImGui::Checkbox("##value", &val)) {
+                if (!disabled) {
+                    const_cast<setting_variant&>(v) = val;
+                }
+            }
+            break;
+        }
+    case setting_float: {
+            float val = std::get<float>(v);
+            if (ImGui::InputFloat("##value", &val, 1.0f, 0.0f, "%.3f", flags)) {
+                if (!disabled) {
+                    const_cast<setting_variant&>(v) = val;
+                }
+            }
+            break;
+        }
+    case setting_vec2i: {
+            vec2i val = std::get<vec2i>(v);
+            if (ImGui::InputInt2("##value", (int*)&val, flags)) {
+                if (!disabled) {
+                    const_cast<setting_variant&>(v) = val;
+                }
+            }
+            break;
+        }
+    case setting_string: {
+            const xstring& str = std::get<xstring>(v);
+            if (disabled) {
+                ImGui::Text("%s", str.c_str());
+            } else {
+                char buffer[256];
+                strncpy(buffer, str.c_str(), sizeof(buffer) - 1);
+                buffer[sizeof(buffer) - 1] = '\0';
+                if (ImGui::InputText("##value", buffer, sizeof(buffer), flags)) {
+                    const_cast<setting_variant&>(v) = xstring(buffer);
+                }
+            }
+            break;
+        }
+    default:
+        ImGui::Text("unknown type");
+        break;
+    }
+}
+
+void game_debug_show_property_value(pcstr field, const std::function<void()> &f, bool disabled) {
+    if (ImGui::Button(field)) {
+        f();
+    }
+}
+
+void game_debug_show_property_value(pcstr field, const game_date_t& d, bool disabled) {
+    int v[2] = { d.year, d.month };
+    if (ImGui::InputInt2(field, v)) {
+        ((game_date_t&)d).year = v[0];
+        ((game_date_t&)d).month = v[1];
+    }
+}
+
+template<typename T>
+void game_debug_show_property_t(pcstr field, const T &v, bool disabled = false) {
+    ImGui::PushID(game_debug_cli_guid);
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_Bullet;
+    ImGui::TreeNodeEx("Field", flags, "%s", field);
+    ImGui::TableSetColumnIndex(1);
+    ImGui::SetNextItemWidth(-FLT_MIN);
+
+    if (disabled) {
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+    }
+
+    game_debug_show_property_value(field, v, disabled);
+
+    if (disabled) {
+        ImGui::PopItemFlag();
+    }
+    ImGui::NextColumn();
+    ImGui::PopID();
+    ++game_debug_cli_guid;
+}
+
+template<typename T>
+void game_debug_show_property_t(pcstr field, const T &v, xspan<pcstr> modes, bool disabled = false) {
+    ImGui::PushID(game_debug_cli_guid);
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_Bullet;
+    ImGui::TreeNodeEx("Field", flags, "%s", field);
+    ImGui::TableSetColumnIndex(1);
+    ImGui::SetNextItemWidth(-FLT_MIN);
+
+    if (disabled) {
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+    }
+
+    int item_current = v;
+    ImGui::Combo("combo", &item_current, modes.data(), modes.size());
+    const_cast<T&>(v) = item_current;
+
+    if (disabled) {
+        ImGui::PopItemFlag();
+    }
+    ImGui::NextColumn();
+    ImGui::PopID();
+    ++game_debug_cli_guid;
+}
+
+void game_debug_show_property_t(pcstr field, pcstr v) {
+    bstring256 _v(v);
+    game_debug_show_property_t(field, _v);
+}
+
+void game_debug_show_property(pcstr field, const int &v, bool disabled)  { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const uint8_t &v, xspan<pcstr> modes, bool disabled)  { game_debug_show_property_t(field, v, modes, disabled); }
+void game_debug_show_property(pcstr field, const float &v, bool disabled)  { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const double &v, bool disabled)  { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const e_move_type &v, bool disabled)  { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const int8_t &v, bool disabled)  { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const short &v, bool disabled) { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const uint8_t &v, bool disabled) { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const uint16_t &v, bool disabled) { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const bool &v, bool disabled) { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, pcstr v) { game_debug_show_property_t(field, v, true); }
+void game_debug_show_property(pcstr field, const bstring32 &v, bool disabled) { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const bstring64 &v, bool disabled) { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const bstring256 &v, bool disabled) { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const xstring &v, bool disabled) { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const vec2i &v, bool disabled) { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const tile2i &v, bool disabled) { game_debug_show_property_t(field, v, disabled); }
+void game_debug_show_property(pcstr field, const std::function<void()> &f, bool disabled)  { game_debug_show_property_t(field, f, disabled); }
+void game_debug_show_property(pcstr field, const game_date_t &d, bool disabled)  { game_debug_show_property_t(field, d, disabled); }
+void game_debug_show_property(pcstr field, const setting_variant &d, bool disabled)  { game_debug_show_property_t(field, d, disabled); }
+
+void game_debug_properties_draw() {
+    if (!game.debug_properties) {
+        return;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(430, 450), ImGuiCond_FirstUseEver);
+    if (!ui::Begin("Properties", &game.debug_properties)) {
+        ImGui::End();
+        return;
+    }
+
+    for (debug::PropertiesIterator *s = debug::PropertiesIterator::tail; s; s = s->next) {
+        s->func(/*header*/true);
+        if (s->next) {
+            ImGui::SameLine();
+        }
+    }
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
+    for (debug::PropertiesIterator *s = debug::PropertiesIterator::tail; s; s = s->next) {
+        ImGui::NewLine();
+        s->func(/*body*/false);
+    }
+    ImGui::PopStyleVar();
+
+    ImGui::End();
+
+    //g_debug_figure_id = 0;
+}
+
+void game_debug_terrain_paint_draw() {
+    // Detect open/close edges so we react to both the top-menu toggle and
+    // the ImGui window-close ('X'). On open: widen the camera scroll
+    // bounds by 20 world tiles so the painter can reach the off-map ring.
+    // On close: reset the bounds, which also snaps the camera back to the
+    // nearest allowed perimeter, and drop any active brush.
+    static bool s_prev_open = false;
+    const bool is_open = game.debug_terrain_paint;
+    if (is_open != s_prev_open) {
+        if (is_open) {
+            g_camera.set_extra_scroll_margin(36);
+        } else {
+            g_camera.set_extra_scroll_margin(0);
+            editor_tool_deactivate();
+        }
+        s_prev_open = is_open;
+    }
+
+    if (!is_open) {
+        return;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(220, 320), ImGuiCond_FirstUseEver);
+    if (!ui::Begin("Terrain Paint", &game.debug_terrain_paint)) {
+        ImGui::End();
+        return;
+    }
+
+    struct brush_def { int tool; pcstr label; };
+    static const brush_def brushes[] = {
+        { TOOL_GRASS,      "Land" },
+        { TOOL_TREES,      "Trees" },
+        { TOOL_WATER,      "Water" },
+        { TOOL_FLOODPLAIN, "Floodplain" },
+        { TOOL_REEDS,      "Reeds" },
+        { TOOL_ROCKS,      "Rocks" },
+        { TOOL_ORE,        "Orebearing rock" },
+        { TOOL_DUNES,      "Dunes" },
+        { TOOL_MEADOW,     "Meadow" },
+    };
+
+    const int active_tool = editor_tool_is_active() ? editor_tool_type() : -1;
+
+    for (const auto &b : brushes) {
+        const bool selected = (active_tool == b.tool);
+        if (selected) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+        }
+        if (ImGui::Button(b.label, ImVec2(-FLT_MIN, 0))) {
+            editor_tool_set_type(b.tool);
+            // selecting a brush cancels any pending building placement
+            g_city_planner.construction_cancel();
+        }
+        if (selected) {
+            ImGui::PopStyleColor();
+        }
+    }
+
+    ImGui::Separator();
+
+    int brush_size = editor_tool_brush_size();
+    if (ImGui::SliderInt("Brush size", &brush_size, 1, 5)) {
+        editor_tool_set_brush_size(brush_size);
+    }
+
+    ImGui::Separator();
+
+    if (ImGui::Button("Stop painting", ImVec2(-FLT_MIN, 0))) {
+        editor_tool_deactivate();
+    }
+
+    if (active_tool >= 0) {
+        ImGui::TextDisabled("Left-click/drag map to paint.");
+        ImGui::TextDisabled("Right-click to deactivate brush.");
+    } else {
+        ImGui::TextDisabled("Select a brush above to start.");
+    }
+
+    ImGui::End();
+}
+
+void game_debug_cli_message(pcstr msg) {
+    debug_console().println(msg);
+}
+
+namespace {
+logs::sink_handle debug_console_sink_handle = logs::invalid_sink;
+} // namespace
+
+void game_debug_cli_attach_log_sink() {
+    if (debug_console_sink_handle != logs::invalid_sink) {
+        return;
+    }
+    debug_console_sink_handle = logs::add_sink([](int, pcstr, pcstr message) {
+        game_debug_cli_message(message);
+    });
+}
+
+void game_imgui_overlay_init() {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+
+    // The game manages the mouse cursor itself via SDL_SetCursor (see platform/cursor.cpp,
+    // called every frame from input_cursor_update). The ImGui SDL2 backend also sets the SDL
+    // cursor every frame inside ImGui_ImplSDL2_NewFrame(). On Wayland these two fight each other
+    // and the cursor flickers between the in-game and system cursor several times per second
+    // (see https://github.com/dalerank/Akhenaten/issues/182). Tell ImGui to never touch the
+    // cursor so the game stays the sole owner of it.
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+
+    ImGui_ImplSDL2_InitForSDLRenderer(g_render.window(), g_render.renderer());
+    ImGui_ImplSDLRenderer2_Init(g_render.renderer());
+
+    debug_console().con.bind_command("close", [] (console_args &, console_output &) { game.debug_console = false; });
+    game.add_debug_ui_draw_handler([]() { game_debug_properties_draw(); });
+}
+
+void game_imgui_overlay_destroy() {
+    logs::remove_sink(debug_console_sink_handle);
+    debug_console_sink_handle = logs::invalid_sink;
+    ImGui_ImplSDLRenderer2_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+}
+
+void game_imgui_overlay_begin_frame() {
+    if (!game.debug_console) {
+        //return;
+    }
+
+    ImGui_ImplSDLRenderer2_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+    ImGui::NewFrame();
+}
+
+void game_imgui_overlay_draw() {
+    ImGui::Render();
+    ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), g_render.renderer());
+}
+
+bool game_imgui_overlay_handle_event(void *e) {
+    const SDL_Event *event = (const SDL_Event *)e;
+
+    if (event->type == SDL_KEYDOWN) {
+        int key = event->key.keysym.scancode;
+
+        if (key == SDL_SCANCODE_GRAVE) {
+            game_toggle_debug_console();
+        } else if (key == SDL_SCANCODE_F4) {
+            events::emit(event_debug_hotkey{ keyboard_t::get_key_from_scancode(key) });
+            return true;
+        }
+    }
+
+    if (event->type == SDL_TEXTINPUT && *event->text.text == '`') {
+        debug_console().skip_event = true;
+    }
+
+    if (debug_console().skip_event) {
+        debug_console().skip_event = false;
+        return false;
+    }
+
+    ImGui_ImplSDL2_ProcessEvent(event);
+
+    if (game.debug_console) {
+        return true;
+    }
+
+    ImGuiIO &io = ImGui::GetIO();
+    bool wants_capture = false;
+
+    switch (event->type) {
+    case SDL_MOUSEBUTTONDOWN:
+    case SDL_MOUSEBUTTONUP:
+    case SDL_MOUSEMOTION:
+    case SDL_MOUSEWHEEL:
+        wants_capture = io.WantCaptureMouse;
+        break;
+    case SDL_KEYDOWN:
+    case SDL_KEYUP:
+    case SDL_TEXTINPUT:
+    case SDL_TEXTEDITING:
+        wants_capture = io.WantCaptureKeyboard;
+        break;
+    default:
+        wants_capture = false;
+        break;
+    }
+
+    return wants_capture;
+}
+
+void game_toggle_debug_console() {
+    game.debug_console = !game.debug_console;
+    if (game.debug_console) {
+        debug_console().input.reclaim_focus = true;
+    }
+
+    static bool first_time = true;
+    if (first_time) {
+        first_time = false;
+        debug_console().load_command_history();
+    }
+}
+
+#endif //GAME_PLATFORM_ANDROID
+
+struct log_console_output : public console_output {
+    void write(pcstr text, size_t len) override {
+        if (text && len > 0) {
+            logs::info("[console] %s", std::string(text, len).c_str());
+        }
+    }
+};
+
+static log_console_output g_log_console_out;
+
+#if defined(GAME_PLATFORM_ANDROID)
+static dev::qconsole *g_android_qconsole = nullptr;
+static dev::qconsole &android_qconsole() {
+    if (!g_android_qconsole) {
+        g_android_qconsole = new dev::qconsole();
+    }
+    return *g_android_qconsole;
+}
+#endif
+
+static dev::qconsole &debug_qconsole_core() {
+#if !defined(GAME_PLATFORM_ANDROID)
+    return debug_console().con;
+#else
+    return android_qconsole();
+#endif
+}
+
+void bind_debug_command(pcstr cmd, console_command_fn f) {
+    debug_qconsole_core().bind_command(cmd, std::move(f));
+}
+
+void run_debug_command(pcstr line) {
+    if (!line || !*line) {
+        return;
+    }
+#if !defined(GAME_PLATFORM_ANDROID)
+    debug_qconsole_core().execute(line, debug_console());
+#else
+    debug_qconsole_core().execute(line, g_log_console_out);
+#endif
+}
+
+void bind_debug_console_var_int(pcstr var, int &ref) {
+    debug_qconsole_core().bind_cvar(var, ref);
+}
+
+void bind_debug_console_var_int8(pcstr var, int8_t &ref) {
+    debug_qconsole_core().bind_cvar(var, ref);
+}
+
+void bind_debug_console_var_int16(pcstr var, int16_t &ref) {
+    debug_qconsole_core().bind_cvar(var, ref);
+}
+
+void bind_debug_console_var_uint8(pcstr var, uint8_t &ref) {
+    debug_qconsole_core().bind_cvar(var, ref);
+}
+
+void bind_debug_console_var_float(pcstr var, float &ref) {
+    debug_qconsole_core().bind_cvar(var, ref);
+}
+
+void bind_debug_console_var_bool(pcstr var, bool &ref) {
+    debug_qconsole_core().bind_cvar(var, ref);
+}

@@ -1,0 +1,233 @@
+log_info("akhenaten: main menu started")
+
+function main_menu_dismiss_update(window) {
+	game.main_menu_update_dismissed = true
+	window.update_panel.enabled = false
+	window.update_game.enabled = false
+	window.new_version.enabled = false
+	window.recent_commits.enabled = false
+	window.update_later.enabled = false
+	window.update_status.enabled = false
+}
+
+function main_menu_show_update_state(window, state) {
+	if (game.main_menu_update_dismissed) {
+		return
+	}
+	if (state != UPDATER_AVAILABLE && state != UPDATER_DOWNLOADING && state != UPDATER_READY && state != UPDATER_FAILED) {
+		return
+	}
+	window.update_panel.enabled = true
+	window.update_game.enabled = true
+	window.update_game.readonly = false
+	window.update_game.text = (state == UPDATER_READY) ? "#main_menu_update_restart" : "#main_menu_update_now"
+	window.update_later.enabled = true
+	window.new_version.enabled = true
+	window.new_version.text = _eformat(__loc("#main_menu_new_build_date"), { date: __updater_remote_date() })
+	window.recent_commits.enabled = true
+
+	var status = ""
+	if (state == UPDATER_DOWNLOADING) {
+		status = "#main_menu_update_downloading"
+	} else if (state == UPDATER_READY) {
+		status = "#main_menu_update_ready"
+	} else if (state == UPDATER_FAILED) {
+		status = "#main_menu_update_failed"
+	}
+	window.update_status.text = status
+	window.update_status.enabled = status != ""
+}
+
+function main_menu_update_now(window) {
+	__updater_apply()
+}
+
+[es=window]
+window_main_menu {
+	ui {
+		background    : { type:"background", path:"pharaoh_unloaded/title_00001" }
+
+		continue_game : large_button({ pos:mbutton(0), size[256, 25], text[13, 5], font: FONT_MENU_BLACK_ON_LIGHT })
+		select_player : large_button({ pos:mbutton(1), size[256, 25], text[30, 0], font: FONT_MENU_BLACK_ON_LIGHT })
+		free_play     : large_button({ pos:mbutton(2), size[256, 25], text:"#main_menu_free_play", font: FONT_MENU_BLACK_ON_LIGHT })
+		show_records  : large_button({ pos:mbutton(3), size[256, 25], text[30, 5], font: FONT_MENU_BLACK_ON_LIGHT })
+		show_config   : large_button({ pos:mbutton(4), size[256, 25], text[2,  0], font: FONT_MENU_BLACK_ON_LIGHT })
+		show_mods     : large_button({ pos:mbutton(5), size[256, 25], text:"#main_menu_mods", font: FONT_MENU_BLACK_ON_LIGHT })
+		show_editor   : large_button({ pos:mbutton(6), size[256, 25], text:"#main_menu_editor", font: FONT_MENU_BLACK_ON_LIGHT })
+		quit_game     : large_button({ pos:mbutton(7), size[256, 25], text[30, 4], font: FONT_MENU_BLACK_ON_LIGHT })
+
+		discord 	  : image_button({ pos[sw(-100), sh(-50)], size[48, 48], icon_texture:"!discord", scale:0.75 })
+
+		patreon 	  : image_button({ pos[sw(-50), sh(-50)], size[48, 48], icon_texture:":patreon_48.png", scale:0.75 })
+		version_number: text({pos[18, sh(-30)], text: game.version, font: FONT_SMALL_PLAIN, color: 0xffb3b3b3})
+
+		update_panel  : outer_panel({ size[20, 27], enabled:false,
+			ui {
+				update_game : large_button({ pos[32, 16], size[256, 25], text:"#main_menu_update_now", enabled: false, font: FONT_MENU_BLACK_ON_LIGHT })
+				update_later : large_button({ pos[32, 48], size[256, 25], text:"#main_menu_update_later", enabled: false, font: FONT_MENU_BLACK_ON_LIGHT })
+				new_version : text({pos[18, 84], text: game.version, font: FONT_SMALL_PLAIN, enabled: false})
+				update_status : text({pos[18, 104], size[280, 20], text:"", font: FONT_SMALL_PLAIN, enabled: false})
+				recent_commits : text({pos[18, 124], size[280, 280], wrap:px(17), rich:true, text:"#main_menu_loading_commits", font: FONT_SMALL_PLAIN, enabled: false, clip_area: true})
+			}
+		})
+	}
+}
+
+function main_menu_button_width() {
+	var texts = [
+		__loc(13, 5), __loc(30, 0), __loc('#main_menu_free_play'), __loc(30, 5), __loc(2, 0),
+		__loc('#main_menu_mods'), __loc('#main_menu_editor'), __loc(30, 4)
+	]
+	var maxw = 0
+	for (var i = 0; i < texts.length; i++) {
+		var w = __ui_text_width(texts[i], FONT_MENU_BLACK_ON_LIGHT)
+		if (w > maxw) {
+			maxw = w
+		}
+	}
+	return (((maxw + 24) / 16 | 0) + 1) * 16
+}
+
+function main_menu_can_continue() {
+	var last_save = normalize_savegame_path_for_load(game_features.gameopt_last_save_filename)
+	var last_player = game_features.gameopt_last_player
+	if (!last_save || !last_player) {
+		return false
+	}
+	return __game_file_exists(last_save)
+}
+
+[es=(window_main_menu, continue_game)]
+function main_menu_continue_game(window) {
+	var last_save = normalize_savegame_path_for_load(game_features.gameopt_last_save_filename)
+    var last_player = game_features.gameopt_last_player
+    if (last_save && last_player) {
+        game_features.gameopt_player_name = last_player
+        if (__game_load_savegame(last_save)) {
+            ui.window_city_show()
+        }
+    }
+}
+
+[es=(window_main_menu, quit_game)]
+function main_menu_quit_game(window) {
+    ui.show_yesno("#popup_dialog_quit", function() {
+		emit event_request_exit{ value: true }
+	})
+}
+
+[es=(window_main_menu, show_editor)]
+function main_menu_start_editor(window) {
+    game.init_editor()
+}
+
+[es=event_show_main_menu]
+function main_menu_on_show(ev) {
+    if (ev.play_intro) {
+        __game_sound.play_intro()
+    }
+
+    game_mission_options_locked = false
+    window_scenario_selection.free_play = false
+    window_show_by_id("window_main_menu")
+}
+
+[es=(window_main_menu, select_player)]
+function main_menu_on_select_player(window) {
+	emit event_show_window{ id: "window_player_selection" }
+}
+
+[es=(window_main_menu, free_play)]
+function main_menu_on_free_play(window) {
+	// Port free-play: all campaign missions, no dynasty progress (e_scenario_selected).
+	window_scenario_selection.free_play = true
+	window_scenario_selection.individual_missions = true
+	window_scenario_selection.campaign_sub_dialog = -1
+	scenario.scmode = e_scenario_selected
+	window_show_by_id("window_scenario_selection")
+}
+
+[es=(window_main_menu, show_records)]
+function main_menu_on_show_records(window) {
+	emit event_show_window{ id: "records_window" }
+}
+
+[es=(window_main_menu, show_config)]
+function main_menu_on_show_config(window) {
+	emit event_show_window{ id: "window_features" }
+}
+
+[es=(window_main_menu, show_mods)]
+function main_menu_on_show_mods(window) {
+	emit event_show_window{ id: "mods_window" }
+}
+
+[es=(window_main_menu, discord)]
+function main_menu_on_discord(window) {
+	__platform_open_url("https://discord.gg/HS4njmBvpb")
+}
+
+[es=(window_main_menu, patreon)]
+function main_menu_on_patreon(window) {
+	__platform_open_url("https://www.patreon.com/imspinner")
+}
+
+[es=(window_main_menu, update_game)]
+function main_menu_on_update_game(window) {
+	main_menu_update_now(window_main_menu)
+}
+
+[es=(window_main_menu, update_later)]
+function main_menu_on_update_later(window) {
+	main_menu_dismiss_update(window_main_menu)
+}
+
+[es=(window_main_menu, init)]
+function main_menu_on_init(window) {
+    log_info("[test-marker] main_menu_shown")
+
+    __sound_city_stop()
+    __sound_city_init()
+
+    window.continue_game.readonly = !main_menu_can_continue()
+
+	// Non-EN labels are longer; grow the buttons to fit the widest one at init.
+	if (game.languages.current != 'en') {
+		var w = main_menu_button_width()
+		var x0 = Math.floor(sw(0) / 2 - w / 2)
+		var y0 = Math.floor(sh(0) / 2 - 100)
+		var ids = ['continue_game', 'select_player', 'free_play', 'show_records', 'show_config', 'show_mods', 'show_editor', 'quit_game']
+		for (var i = 0; i < ids.length; i++) {
+			window[ids[i]].size = { x: w, y: 25 }
+			window[ids[i]].pos = { x: x0, y: y0 + 40 * i }
+		}
+	}
+
+	if (!game.main_menu_commits_requested && !game.is_integral_tests && github_is_active() && __updater_state() != UPDATER_OFF) {
+		game.main_menu_commits_requested = true
+		github_get_recent_commits_async("dalerank", "Akhenaten")
+	}
+	main_menu_show_update_state(window, __updater_state())
+}
+
+[es=(window_main_menu, update_recent_commits)]
+function main_menu_on_update_recent_commits(window) {
+	window.recent_commits.text = window.commits
+	window.recent_commits.enabled = true
+}
+
+[es=(window_main_menu, update_state)]
+function main_menu_on_update_state(window) {
+	main_menu_show_update_state(window, window.updater_state)
+}
+
+[es=event_updater_state_changed]
+function main_menu_on_updater_state_changed(ev) {
+	emit window_main_menu.update_state{ updater_state: ev.state }
+}
+
+[es=event_github_recent_commits_loaded]
+function main_menu_download_recent_commits(ev) {
+	log_info("main_menu_download_recent_commits")
+	emit window_main_menu.update_recent_commits{ commits: ev.commits }
+}

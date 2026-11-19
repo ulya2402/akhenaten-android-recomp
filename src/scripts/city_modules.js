@@ -1,0 +1,16 @@
+log_info("akhenaten: load city modules started")
+
+import city.planner
+import city.kingdome
+import city.finance
+import city.ratings
+import city.festival
+import city.local_cults
+import city.floods
+import city.food_supply
+import city.monuments
+import city.warnings
+import city.labor
+import city.sounds
+import city.victory
+import city.problems

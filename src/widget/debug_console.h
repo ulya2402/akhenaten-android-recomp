@@ -1,0 +1,83 @@
+#pragma once
+
+#include "core/string.h"
+#include "core/core.h"
+#include "core/custom_span.hpp"
+
+#include "figure/figure.h"
+#include "dev/debug.h"
+
+#include <functional>
+#include "core/settings_vars.h"
+#include "game/simulation_time.h"
+
+void bind_debug_command(pcstr cmd, console_command_fn f);
+void run_debug_command(pcstr line);
+void bind_debug_console_var_int(pcstr var, int &ref);
+void bind_debug_console_var_int8(pcstr var, int8_t &ref);
+void bind_debug_console_var_int16(pcstr var, int16_t &ref);
+void bind_debug_console_var_uint8(pcstr var, uint8_t &ref);
+void bind_debug_console_var_float(pcstr var, float &ref);
+void bind_debug_console_var_bool(pcstr var, bool &ref);
+
+#if !defined(GAME_PLATFORM_ANDROID)
+
+void game_debug_cli_draw();
+void game_debug_properties_draw();
+void game_debug_terrain_paint_draw();
+void game_debug_cli_message(pcstr msg);
+void game_debug_cli_attach_log_sink();
+void game_imgui_overlay_init();
+void game_imgui_overlay_destroy();
+void game_imgui_overlay_begin_frame();
+void game_imgui_overlay_draw();
+bool game_imgui_overlay_handle_event(void *event);
+void game_toggle_debug_console();
+
+void game_debug_show_property(pcstr field, const int &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const uint8_t &v, xspan<pcstr> modes, bool disabled = false);
+void game_debug_show_property(pcstr field, const float &v, bool disabled = false);
+void game_debug_set_property_opt(float opt);
+void game_debug_show_property(pcstr field, const double &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const e_move_type &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const int8_t &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const short &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const uint8_t &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const uint16_t &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const bool &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const pcstr v);
+void game_debug_show_property(pcstr field, const bstring32 &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const bstring64 &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const bstring256 &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const xstring &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const vec2i &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const tile2i &v, bool disabled = false);
+void game_debug_show_property(pcstr field, const std::function<void()> &f, bool disabled = false);
+void game_debug_show_property(pcstr field, const game_date_t &f, bool disabled = false);
+void game_debug_show_property(pcstr field, const setting_variant &d, bool disabled = false);
+
+#else
+
+inline void game_debug_cli_draw() {}
+inline void game_debug_properties_draw() {}
+inline void game_debug_terrain_paint_draw() {}
+inline void game_debug_cli_message(pcstr) {}
+inline void game_debug_cli_attach_log_sink() {}
+inline void game_imgui_overlay_draw() {}
+inline void game_debug_show_property(...) {}
+inline void game_imgui_overlay_begin_frame() {}
+inline void game_debug_show_property(pcstr, pcstr, bool disabled = false) {}
+inline void game_debug_show_property(pcstr field, const setting_variant &, bool disabled = false) {}
+inline void game_debug_show_property(pcstr, const xstring &, bool disabled = false) {}
+inline void game_debug_show_property(pcstr, const bstring256 &, bool disabled = false) {}
+inline void game_debug_show_property(pcstr, const bstring32 &, bool disabled = false) {}
+inline void game_imgui_overlay_init() {}
+inline bool game_imgui_overlay_handle_event(...) { return false; }
+inline void game_toggle_debug_console() {}
+inline void game_imgui_overlay_destroy() {}
+
+#endif //GAME_PLATFORM_ANDROID
+
+
+
+

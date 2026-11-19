@@ -1,0 +1,88 @@
+#pragma once
+
+#include "building/building.h"
+#include "graphics/elements/tooltip.h"
+#include "core/vec2i.h"
+#include "city_overlay_fwd.h"
+#include "core/xstring.h"
+#include "core/svector.h"
+#include "core/tokenum.h"
+
+extern const token_holder<e_overlay, OVERLAY_NONE, OVERLAY_SIZE> e_overlay_tokens;
+extern const token_holder<e_column_type, COLUMN_TYPE_RISK, COLUMN_TYPE_SIZE> e_column_type_tokens;
+
+class figure;
+class building;
+struct painter;
+
+inline bool show_figure_none(const figure *f) { return false; }
+using overlay_list = std::array<struct city_overlay *, OVERLAY_SIZE>;
+
+struct tooltips_t {
+    xstring key;
+    svector<xstring, 8> values;
+};
+ANK_CONFIG_STRUCT(tooltips_t, key, values)
+
+struct building_tooltips_t {
+    e_building_type building_type;
+    svector<xstring, 10> tooltips;
+};
+ANK_CONFIG_STRUCT(building_tooltips_t, building_type, tooltips)
+
+struct city_overlay {
+    e_overlay id;
+    building_id current_building_id;
+    xstring current_tooltip;
+    int current_column_height = COLUMN_TYPE_NONE;
+    int current_column_color = COLUMN_COLOR_NONE;
+    color current_color_mask = COLOR_MASK_NONE;
+    bool current_show_figure = false;
+    bool current_show_building = false;
+
+    svector<e_figure_type, 10> walkers;
+    svector<e_building_type, 10> buildings;
+    std::unordered_map<xstring, tooltips_t> tooltips;
+    svector<building_tooltips_t, 10> building_tooltips;
+    e_column_type column_type = COLUMN_TYPE_NONE;
+    animation_t column_anim;
+    xstring title_text;
+    xstring es_name;
+
+    city_overlay(e_overlay t);
+
+    virtual bool show_figure(const figure *f) const;
+    virtual int get_column_height(const building *b) const;
+    virtual e_column_color get_column_color(const building *b) const;
+    virtual void get_tooltip(tooltip_context *c, tile2i tile, xstring &tooltip);
+    virtual void get_tooltip_for_building(tooltip_context* c, const building* b, xstring& tooltip);
+    virtual bool draw_custom_footprint(vec2i pixel, tile2i point, painter &ctx) const { return false; }
+    virtual void draw_custom_top(vec2i pixel, tile2i point, painter &ctx) const;
+    virtual void draw_building_footprint(painter &ctx, vec2i pos, tile2i tile, int image_offset) const;
+    virtual bool show_building(const building *b) const;
+    virtual color color_mask_building(const building *b) const;
+    virtual e_overlay get_type() const { return OVERLAY_NONE; }
+    virtual void draw_building_top(vec2i pixel, tile2i tile, painter &ctx) const;
+    virtual void draw_overlay_building_column(building *b, vec2i pixel, tile2i tile, painter &ctx) const;
+
+    xstring title() const;
+    color color_mask_building_def(const building *b) const;
+    const tooltips_t& get_tooltips(const xstring &level) const;
+    void draw_overlay_column(e_column_color c, vec2i pixel, int height, int column_style, painter &ctx) const;
+    bool is_drawable_farm_corner(tile2i tile) const;
+    bool is_drawable_building_corner(tile2i tile, tile2i main, int size) const;
+    bool is_drawable_farmhouse(tile2i tile, int map_orientation) const;
+    void draw_flattened_footprint_anysize(vec2i pos, int size_x, int size_y, int image_offset, color color_mask, painter &ctx) const;
+    void draw_flattened_footprint_building(const building *b, vec2i pos, int image_offset, color color_mask, painter &ctx) const;
+
+    static city_overlay *get(e_overlay e);
+    static overlay_list &overlays();
+};
+ANK_CONFIG_STRUCT(city_overlay, id, walkers, buildings, column_type, column_anim, tooltips, building_tooltips)
+
+template<e_overlay TYPE>
+struct city_overlay_t : public city_overlay {
+    virtual e_overlay get_type() const override { return TYPE; }
+
+    city_overlay_t() : city_overlay(TYPE) {}
+};

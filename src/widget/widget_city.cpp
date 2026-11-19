@@ -1,0 +1,2053 @@
+#include "widget/widget_city.h"
+
+#include "graphics/image.h"
+#include "graphics/graphics.h"
+#include "graphics/view/lookup.h"
+#include "graphics/view/view.h"
+#include "grid/property.h"
+#include "grid/grid.h"
+#include "widget/city/building_ghost.h"
+#include "widget/city/flat_draw.h"
+#include "overlays/city_overlay.h"
+#include "graphics/image_groups.h"
+#include "building/building_static_params.h"
+#include "building/building_bridge.h"
+#include "building/building_temple_complex.h"
+#include "building/construction/build_planner.h"
+#include "building/monument_pyramid_ramp.h"
+#include "city/city_finance.h"
+#include "city/city_warnings.h"
+#include "city/object_info.h"
+#include "core/calc.h"
+#include "core/string.h"
+#include "figure/formation_batalion.h"
+#include "game/game_events.h"
+#include "graphics/text.h"
+#include "graphics/window.h"
+#include "grid/bridge.h"
+#include "grid/building.h"
+#include "grid/figure.h"
+#include "grid/image.h"
+#include "grid/terrain.h"
+#include "window/window_info.h"
+#include "grid/road_access.h"
+#include "grid/routing/routing.h"
+#include "input/scroll.h"
+#include "input/keyboard.h"
+#include "game/game_config.h"
+#include "io/gamefiles/lang.h"
+#include "core/log.h"
+#include "platform/renderer.h"
+#include "scenario/scenario.h"
+#include "scenario/invasion_auto_resolve.h"
+#include "sound/sound_city.h"
+#include "sound/effect.h"
+#include "sound/sound.h"
+#include "editor/tool.h"
+#include "widget/city/ornaments.h"
+#include "widget/city/tile_draw.h"
+#include "widget/widget_minimap.h"
+#include "window/window_building_info.h"
+#include "window/window_city.h"
+#include "window/window_city_military.h"
+#include "window/window_city_warship.h"
+#include "window/window_city_transport.h"
+#include "figuretype/figure_war_ship.h"
+#include "figuretype/figure_transport_ship.h"
+#include "figuretype/figure_enemy_transport.h"
+#include "figuretype/figure_enemy_warship.h"
+#include "building/building_warship_wharf.h"
+#include "building/building_transport_wharf.h"
+#include "grid/water.h"
+#include "game/game.h"
+#include "core/threading.h"
+#include "building/building.h"
+#include <SDL.h>
+#ifdef main
+#  undef main
+#endif
+#include "city/city_buildings.h"
+#include "dev/debug.h"
+#include "graphics/elements/tooltip.h"
+#include <future>
+#include "city/city_figures.h"
+#include "input/mouse.h"
+#include "core/profiler.h"
+#include "js/js_register.h"
+#include "js/js_struct.h"
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <utility>
+
+struct city_view_postrender_ev {
+    int reserved = 0;
+};
+ANK_REGISTER_STRUCT_WRITER(city_view_postrender_ev, reserved)
+
+screen_city_t g_screen_city;
+
+// Flat-pass workers draw the advanced water frame but must not write the image grid;
+// the main thread stores the queued frames once the workers have joined.
+struct water_frame_queue_t {
+    struct entry {
+        int grid_offset;
+        int image_id;
+    };
+    std::array<entry, GRID_SIZE_TOTAL> entries;
+    std::atomic<int> count{0};
+
+    void clear() { count.store(0, std::memory_order_relaxed); }
+
+    void push(int grid_offset, int image_id) {
+        const int index = count.fetch_add(1, std::memory_order_relaxed);
+        if (index < (int)entries.size()) {
+            entries[index] = {grid_offset, image_id};
+        }
+    }
+
+    void apply() {
+        const int n = std::min(count.load(std::memory_order_relaxed), (int)entries.size());
+        for (int i = 0; i < n; i++) {
+            map_image_set(entries[i].grid_offset, entries[i].image_id);
+        }
+        clear();
+    }
+};
+static water_frame_queue_t g_water_frame_queue;
+
+void screen_city_t::apply_water_frames() {
+    g_water_frame_queue.apply();
+}
+
+int screen_city_t::pending_water_frames() const {
+    return g_water_frame_queue.count.load(std::memory_order_relaxed);
+}
+
+void set_city_clip_rectangle(painter &ctx) {
+    OZZY_PROFILER_FUNCTION();
+    vec2i view_pos = g_camera.offset;
+    vec2i view_size = g_camera.size_pixels;
+    graphics_set_clip_rectangle(view_pos, view_size);
+}
+
+void screen_city_t::update_zoom_level(painter &ctx) {
+    OZZY_PROFILER_FUNCTION();
+    vec2i offset = g_camera.camera_position;
+
+    if (g_zoom.update_value(&offset)) {
+        g_camera.refresh_viewport();
+        g_camera.go_to_pixel(offset, true);
+        sound_city_decay_views();
+    }
+}
+
+void screen_city_t::scroll_map(const mouse* m) {
+    vec2i delta = g_scroll.get_delta(m, scroll_t::type::city);
+    if (delta.x || delta.y) {
+        const screen_tile before = g_camera.tile_internal;
+        g_camera.scroll(delta.x, delta.y);
+        // OG halves the views once per scrolled tile (city_view.c); pixel scrolling would halve them every
+        // frame and keep the city silent while the camera moves.
+        if (g_camera.tile_internal != before) {
+            sound_city_decay_views();
+        }
+    }
+}
+
+static tile2i city_planner_cursor_tile_from_mouse() {
+    const mouse &m = mouse::get();
+    if (is_in_construction_buttons_region({m.x, m.y})) {
+        return tile2i::invalid;
+    }
+    return g_screen_city.update_city_view_coords({m.x, m.y});
+}
+
+// Runs before any render command of the frame, so the city draw only reads planner state.
+// An isolated-figure snapshot without overlay never drew the planner, so it skips the update too.
+static void city_planner_frame_update(int selected_figure_id) {
+    if (selected_figure_id && !g_city.overlay()) {
+        return;
+    }
+    g_city_planner.update(city_planner_cursor_tile_from_mouse());
+}
+
+tile2i screen_city_t::update_city_view_coords(vec2i pixel) {
+    if (!g_camera.contains_pixel(pixel)) {
+        return tile2i::invalid;
+    }
+
+    vec2i screen = g_camera.pixel_to_screentile(pixel);
+    if (screen.x != -1 && screen.y != -1) {
+        g_camera.set_selected_view_tile(screen);
+        return g_camera.screen_to_tile(screen);
+    }
+
+    return tile2i::invalid;
+}
+
+int screen_city_t::input_coords_in_city(int x, int y) {
+    vec2i view_pos = g_camera.offset;
+    vec2i view_size = g_camera.size_pixels;
+
+    x -= view_pos.x;
+    y -= view_pos.y;
+
+    return (x >= 0 && x < view_size.x && y >= 0 && y < view_size.y);
+}
+
+static void draw_TEST(vec2i pixel, tile2i point, painter &ctx) {
+    int grid_offset = point.grid_offset();
+
+    // NO grid_offset outside of the valid map area can be accessed -- the ones passed through here will ALWAYS be set
+    // to -1. so it's impossible to draw outside the map with these!
+    if (grid_offset == -1)
+        return;
+    //    int tx = MAP_X(grid_offset);
+    //    int ty = MAP_Y(grid_offset);
+    //    if (tx==40 && ty==44)
+    //        return ImageDraw::isometric_footprint_from_drawtile(image_id_from_group(GROUP_TERRAIN_GARDEN), x, y,
+    //        COLOR_CHANNEL_RED);
+    const auto &params = building_static_params::get(BUILDING_GARDENS);
+    const auto &anim = params.base_img();
+    if (map_grid_inside_map_area(grid_offset, 1)) {
+        auto& command = ImageDraw::create_command(ctx, render_command_t::ert_drawtile);
+        command.image_id = anim;
+        command.pixel = pixel;
+        command.mask = COLOR_CHANNEL_GREEN;
+        command.location = SOURCE_LOCATION;
+        return;
+    }
+}
+
+void draw_tile_boxes(vec2i pixel, tile2i point) {
+    if (map_property_is_draw_tile(point.grid_offset())) {
+        int tile_size = map_property_multi_tile_size(point.grid_offset());
+        debug_draw_tile_box(pixel.x, pixel.y, tile_size, tile_size);
+    }
+};
+
+void update_tile_coords(vec2i pixel, tile2i tile, painter &ctx) {
+    g_camera.record_mappoint_pixelcoord(tile, pixel);
+}
+
+void screen_city_t::clear_current_tile() {
+    current_tile = tile2i::invalid;
+    selected_tile = tile2i::invalid;
+}
+
+void screen_city_t::draw_figures_on_flat_tiles(vec2i pixel, tile2i tile, painter &ctx) {
+    OZZY_PROFILER_FUNCTION();
+    auto figures = map_figures_in_row(tile);
+
+    for (const auto &f : figures) {
+        const figure_static_params &params = figure_static_params::get(f.f->type);
+        if (!params.render_on_flat_tiles) {
+            continue;
+        }
+
+        if (f.f->main_cached_pos.x < (pixel.x - TILE_WIDTH_PIXELS) || f.f->main_cached_pos.x >(pixel.x + TILE_WIDTH_PIXELS)) {
+            continue;
+        }
+
+        if (selected_figure_id && f.f->id != selected_figure_id) {
+            continue;
+        }
+
+        if (!selected_figure_id) {
+            int highlight = (f.f->formation_id > 0) && (f.f->formation_id == highlighted_formation);
+            f.f->draw(ctx, highlight);
+        } else {
+            f.f->draw(ctx, 0);
+        }
+    }
+}
+
+void screen_city_t::draw_postrender_building_effects(vec2i pixel, tile2i tile, painter &ctx) {
+    OZZY_PROFILER_FUNCTION();
+    int grid_offset = tile.grid_offset();
+
+    int building_id = map_building_at(grid_offset);
+
+    color color_mask = force_mask;
+    building *b = building_get(building_id);
+
+    if (building_id && b->is_valid()) {
+        if (city_flat_should_flatten_building(*b)) {
+            return;
+        }
+        building_impl *bi = b->dcast();
+        bi->draw_postrender_effects(ctx, pixel, tile, color_mask);
+    }
+}
+
+void screen_city_t::draw_building_road_access_marker(painter &ctx) {
+    if (!game_features::gameui_show_building_road_access.to_bool()) {
+        return;
+    }
+
+    // Ghost placement draws its own marker; info window already highlights via waypoints.
+    if (g_city_planner.build_type != BUILDING_NONE) {
+        return;
+    }
+    if (g_window_manager.window_is("window_building_info")) {
+        return;
+    }
+    if (!current_tile.valid()) {
+        return;
+    }
+
+    building *b = building_at(current_tile);
+    if (!b || !b->is_valid()) {
+        return;
+    }
+
+    building *m = b->main();
+    if (!m || !building_type_hover_road_access(m->type)) {
+        return;
+    }
+
+    building_road_ports ports = building_road_ports_stored(*m);
+    if (!ports.valid) {
+        int variant = 0;
+        if (building_static_params::get(m->type).flags.is_temple_complex) {
+            auto complex = m->dcast_temple_complex();
+            variant = complex ? complex->runtime_data().variant : 0;
+        }
+        const bool assume = building_type_ghost_assume_occupied(m->type);
+        ports = building_road_ports_preview(m->tile, m->type, m->size, m->orientation, variant, assume);
+    }
+    if (!ports.valid) {
+        return;
+    }
+
+    const color mask = map_routing_distance(ports.tile) > 0 ? COLOR_MASK_AMBER : COLOR_MASK_AMBER_40;
+    vec2i pixel = g_camera.lookup_tile_to_pixel(ports.tile);
+    build_planner::draw_building_ghost(ctx, image_id_from_group(GROUP_TERRAIN_OVERLAY_COLORED) + 23, pixel, mask);
+}
+
+void screen_city_t::draw_recorded_delivery_paths(painter &ctx) {
+    if (!game_features::gameui_show_delivery_paths.to_bool()) {
+        return;
+    }
+    if (!(keyboard_t::modifiers() & KEY_MOD_ALT)) {
+        return;
+    }
+    if (g_city_planner.build_type != BUILDING_NONE) {
+        return;
+    }
+
+    building *src = nullptr;
+    if (g_window_manager.window_is("window_building_info")) {
+        building_id bid = common_info_window::get_object_info().bid;
+        if (bid) {
+            building *b = building_get(bid);
+            if (b && b->is_valid()) {
+                src = b->main();
+            }
+        }
+    } else if (current_tile.valid()) {
+        building *b = building_at(current_tile);
+        if (b && b->is_valid()) {
+            src = b->main();
+        }
+    }
+    if (!src) {
+        return;
+    }
+
+    src->draw_usable_paths(ctx);
+}
+
+void screen_city_t::draw_figures(vec2i pixel, tile2i tile, painter &ctx, [[maybe_unused]] bool force) {
+    OZZY_PROFILER_FUNCTION();
+    auto figures = map_figures_in_row(tile);
+
+    static constexpr int k_figure_pair_x_pad = 48;
+    const int row_x0 = pixel.x - TILE_WIDTH_PIXELS;
+    const int row_x1 = pixel.x + TILE_WIDTH_PIXELS;
+    const auto figure_x_overlaps_tile_band = [row_x0, row_x1](const figure *fig) {
+        int lo = fig->main_cached_pos.x;
+        int hi = lo;
+        if (fig->has_cart()) {
+            lo = std::min(lo, fig->cart_cached_pos.x);
+            hi = std::max(hi, fig->cart_cached_pos.x);
+            lo -= k_figure_pair_x_pad;
+            hi += k_figure_pair_x_pad;
+        }
+        return hi >= row_x0 && lo <= row_x1;
+    };
+
+    for (const auto &f : figures) {
+        const figure_static_params &params = figure_static_params::get(f.f->type);
+        if (params.render_on_flat_tiles) {
+            continue; // Skip figures that render on flat tiles
+        }
+
+        const bool allow_main = !selected_figure_id || f.f->id == selected_figure_id;
+        const int highlight = (f.f->formation_id > 0) && (f.f->formation_id == highlighted_formation);
+
+        if (!f.draw_cart) {
+            if (!figure_x_overlaps_tile_band(f.f)) {
+                continue;
+            }
+            if (!allow_main) {
+                continue;
+            }
+            f.f->draw(ctx, highlight);
+        } else {
+            if (allow_main && figure_x_overlaps_tile_band(f.f)) {
+                f.f->draw(ctx, highlight);
+            }
+
+            if (!figure_x_overlaps_tile_band(f.f)) {
+                continue;
+            }
+            f.f->draw_cart_sprite(ctx, f.f->cart_cached_pos, 0);
+        }
+    }
+}
+
+void screen_city_t::draw_figures_overlay(vec2i pixel, tile2i tile, painter &ctx) {
+    int grid_offset = tile.grid_offset();
+    auto figures = map_figures_in_row(tile);
+
+    for (const auto &f : figures) {
+        const figure_static_params &params = figure_static_params::get(f.f->type);
+        if (params.render_on_flat_tiles) {
+            continue; // Skip figures that render on flat tiles
+        }
+
+        if (!g_city.overlay()->show_figure(f.f)) {
+            continue;
+        }
+
+        if (f.f->is_main_drawn != 0) {
+            continue;
+        }
+
+        if (f.f->main_cached_pos.x < (pixel.x - TILE_WIDTH_PIXELS) || f.f->main_cached_pos.x >(pixel.x + TILE_WIDTH_PIXELS)) {
+            continue;
+        }
+
+        if (!selected_figure_id) {
+            int highlight = f.f->formation_id > 0 && f.f->formation_id == highlighted_formation;
+            f.f->draw(ctx, highlight);
+        } else if (f.f->id == selected_figure_id) {
+            f.f->draw(ctx, 0);
+        }
+    }
+}
+
+void screen_city_t::draw_isometric_mark_sound(int building_id, int grid_offset, color& color_mask, int direction,
+  vec2i pixel) {
+    OZZY_PROFILER_FUNCTION()
+    if (building_id) {
+        building *b = building_get(building_id);
+        if (!!game_features::gameui_visual_feedback_on_delete && drawing_building_as_deleted(b)) {
+            color_mask = COLOR_MASK_RED;
+        }
+
+        if (!game.redraw_read_only) {
+            sound_city_mark_building_view(b, direction);
+            if (!!game_features::gameplay_enhanced_city_ambient) {
+                if (const int channel = sound_city_building_channel(b)) {
+                    sound_city_ambient_note(channel, pixel);
+                }
+            }
+        }
+    } else if (!game.redraw_read_only) {
+        int terrain = map_terrain_get(grid_offset);
+        sound_city_mark_terrain_view(terrain, grid_offset, direction);
+    }
+}
+
+void screen_city_t::draw_without_overlay(painter &ctx, int selected_figure_id) {
+    OZZY_PROFILER_FUNCTION();
+    highlighted_formation = 0;
+
+    city_flat_prepare_draw();
+
+    // Transport embark pick: draw clears this every frame, so re-resolve here
+    // (handle_input alone cannot stick a highlight across the draw pass).
+    if (g_window_manager.window_is("window_city_transport")
+        && window_city_transport_pick_mode() == TRANSPORT_PICK_FORMATION
+        && current_tile.valid()) {
+        int fid = formation_batalion_at(current_tile);
+        if (fid <= 0) {
+            fid = formation_batalion_at_building(current_tile.grid_offset());
+        }
+        if (fid > 0) {
+            formation *fm = formation_get(fid);
+            if (fm && fm->in_use && fm->own_batalion && !fm->in_distant_battle) {
+                highlighted_formation = fid;
+            }
+        }
+    } else if (!!game_features::gameui_highlight_legions) {
+        // Get the battalion ID at the current tile position (if any)
+        highlighted_formation = formation_batalion_at(current_tile);
+
+        // If a formation exists but it's currently in a distant battle, don't highlight it
+        // (formations in distant battles should not be highlighted on the main city map)
+        if (highlighted_formation > 0) {
+            formation *fm = formation_get(highlighted_formation);
+            if (!fm || fm->in_distant_battle) {
+                highlighted_formation = 0;
+            }
+        }
+    }
+
+    // Store the selected figure ID for use throughout the rendering process
+    // This allows other parts of the rendering to know which figure is currently selected
+    this->selected_figure_id = selected_figure_id;
+
+    render_ctx.init();
+
+    // Mark tiles for deletion if the deletion tool is active at the current tile
+    // This ensures that buildings/tiles marked for deletion are visually indicated
+    g_city_planner.ghost_mark_deleting(current_tile);
+
+    // Clear previous frame's rendering state
+    // Reset all tile render flags and clear the command buffer for image drawing operations
+    map_render_clear();
+    ImageDraw::clear_render_commands();
+
+    g_camera.clear_mappoint_pixelcoord();
+
+    // Rebuild the coordinate mapping by iterating through all valid visible map tiles
+    // This updates the pixel positions for each tile based on the current camera view
+    g_camera.foreach_valid_map_tile(ctx, update_tile_coords);
+
+    // Sort all figures by their Y coordinate for proper depth ordering
+    // This ensures figures are drawn in the correct order (back-to-front) for isometric rendering
+    map_figure_sort_by_y();
+
+    // PHASE 1+2: Draw flat + terrain height. Split by rows across threads when beneficial.
+    const int total_rows = g_camera.size_tiles.y + 21;
+    const size_t num_threads = game.mt.get_thread_count();
+    const size_t num_blocks = (num_threads > 0 && total_rows > 1)
+        ? std::min(num_threads, static_cast<size_t>(total_rows))
+        : 0;
+
+    if (num_blocks <= 1) {
+        g_camera.foreach_valid_map_tile(ctx,
+            [this](vec2i pixel, tile2i tile, painter& ctx) { draw_isometric_flat(pixel, tile, ctx); },
+            [this](vec2i pixel, tile2i tile, painter& ctx) { draw_figures_on_flat_tiles(pixel, tile, ctx); },
+            draw_ornaments_flat
+        );
+        g_water_frame_queue.apply();
+        g_camera.foreach_valid_map_tile(ctx,
+            [this](vec2i pixel, tile2i tile, painter& ctx) { draw_isometric_terrain_height(pixel, tile, ctx); }
+        );
+    } else {
+        OZZY_PROFILER_SECTION(_, "draw_isometric_flat_parallel")
+        const size_t block_size = total_rows / num_blocks;
+        const size_t remainder = total_rows % num_blocks;
+        auto block_start = [&](size_t blk) {
+            return static_cast<int>(blk * block_size + (blk < remainder ? blk : remainder));
+        };
+
+        ImageDraw::prepare_parallel_render_blocks(num_blocks);
+        hvector<std::future<void>, 32> futures;
+
+        for (size_t blk = 0; blk < num_blocks; blk++) {
+            const int y_start = block_start(blk);
+            const int y_end = block_start(blk + 1);
+            futures.push_back(game.mt.submit_task([this, &ctx, y_start, y_end, blk]() {
+                painter worker_ctx = ctx;
+                worker_ctx.command_buffer = &ImageDraw::parallel_block_commands(blk);
+                worker_ctx.subcommand_buffer = &ImageDraw::parallel_block_subcommands(blk);
+                g_camera.foreach_valid_map_tile_rows(worker_ctx, y_start, y_end,
+                    [this](vec2i pixel, tile2i tile, painter& ctx) { draw_isometric_flat(pixel, tile, ctx); },
+                    [this](vec2i pixel, tile2i tile, painter& ctx) { draw_figures_on_flat_tiles(pixel, tile, ctx); },
+                    draw_ornaments_flat
+                );
+            }));
+        }
+
+        for (auto& f : futures) {
+            f.wait();
+        }
+        futures.clear();
+
+        // The height pass reads these tiles back, as it did when the flat pass wrote in place.
+        g_water_frame_queue.apply();
+
+        for (size_t blk = 0; blk < num_blocks; blk++) {
+            const int y_start = block_start(blk);
+            const int y_end = block_start(blk + 1);
+            futures.push_back(game.mt.submit_task([this, &ctx, y_start, y_end, blk]() {
+                painter worker_ctx = ctx;
+                worker_ctx.command_buffer = &ImageDraw::parallel_block_commands(blk);
+                worker_ctx.subcommand_buffer = &ImageDraw::parallel_block_subcommands(blk);
+                g_camera.foreach_valid_map_tile_rows(worker_ctx, y_start, y_end,
+                    [this](vec2i pixel, tile2i tile, painter& ctx) { draw_isometric_terrain_height(pixel, tile, ctx); }
+                );
+            }));
+        }
+
+        for (auto &f : futures) {
+            f.wait();
+        }
+        ImageDraw::merge_block_commands_into_global(ImageDraw::parallel_block_commands(),
+            ImageDraw::parallel_block_subcommands());
+    }
+
+    ImageDraw::apply_render_commands(ctx, "draw_flat");
+
+    // PHASE 4: Draw height-based elements (buildings, decorations, and figures)
+    // This includes buildings with height, animated decorations, and all figures (people, animals, etc.)
+    // These are drawn after flat terrain so they appear on top
+    // Pyramid carpenter ramps: resolve OG ramp-link before parallel row blocks.
+    pyramid_ramp_prepare_frame_links();
+    if (num_blocks <= 1) {
+        g_camera.foreach_valid_map_tile(ctx,
+            [this] (vec2i pixel, tile2i tile, painter& ctx) { draw_isometric_nonterrain_height(pixel, tile, ctx); },
+            [this] (vec2i pixel, tile2i tile, painter &ctx) { draw_ornaments_and_animations_height(pixel, tile, ctx); },
+            [this] (vec2i pixel, tile2i tile, painter &ctx) { draw_figures(pixel, tile, ctx, false); }
+        );
+    } else {
+        OZZY_PROFILER_SECTION(_, "draw_isometric_nonterrain_height_parallel")
+        const size_t block_size = total_rows / num_blocks;
+        const size_t remainder = total_rows % num_blocks;
+        auto block_start = [&](size_t blk) {
+            return static_cast<int>(blk * block_size + (blk < remainder ? blk : remainder));
+        };
+
+        ImageDraw::prepare_parallel_render_blocks(num_blocks);
+        hvector<std::future<void>, 32> futures;
+
+        for (size_t blk = 0; blk < num_blocks; blk++) {
+            const int y_start = block_start(blk);
+            const int y_end = block_start(blk + 1);
+            futures.push_back(game.mt.submit_task([this, &ctx, y_start, y_end, blk]() {
+                painter worker_ctx = ctx;
+                worker_ctx.command_buffer = &ImageDraw::parallel_block_commands()[blk];
+                worker_ctx.subcommand_buffer = &ImageDraw::parallel_block_subcommands()[blk];
+                g_camera.foreach_valid_map_tile_rows(worker_ctx, y_start, y_end,
+                    [this] (vec2i pixel, tile2i tile, painter& ctx) { draw_isometric_nonterrain_height(pixel, tile, ctx); },
+                    [this] (vec2i pixel, tile2i tile, painter &ctx) { draw_ornaments_and_animations_height(pixel, tile, ctx); },
+                    [this] (vec2i pixel, tile2i tile, painter &ctx) { draw_figures(pixel, tile, ctx, false); }
+                );
+            }));
+        }
+
+        for (auto &f : futures) {
+            f.wait();
+        }
+        ImageDraw::merge_block_commands_into_global(ImageDraw::parallel_block_commands(),
+            ImageDraw::parallel_block_subcommands());
+    }
+
+    // Apply all render commands from phase 4
+    ImageDraw::apply_render_commands(ctx, "draw_height_based_tiles");
+
+    // Draw the city planner overlay (construction previews, ghost buildings) if no figure is selected
+    // When a figure is selected, we skip the planner drawing to avoid visual clutter
+    if (!selected_figure_id) {
+        g_city_planner.draw(ctx);
+    }
+
+    draw_building_road_access_marker(ctx);
+    draw_recorded_delivery_paths(ctx);
+    js_event(city_view_postrender_ev{}, "city_view", "postrender");
+
+    // PHASE 5: post-processing of tiles that require special handling after all main elements are drawn
+    g_camera.foreach_valid_map_tile(ctx,
+        [this] (vec2i pixel, tile2i tile, painter &ctx) { draw_postrender_building_effects(pixel, tile, ctx); }
+    );
+
+    ImageDraw::apply_render_commands(ctx, "draw_post_processing_tile");
+
+    // PHASE 6: Draw debug overlays on top of everything else
+    // These debug elements should be visible above all game elements for debugging purposes
+    g_debug.prepare_render_handlers();
+    g_camera.foreach_valid_map_tile(ctx, draw_debug_tile);
+    debug_draw_figures(ctx);
+
+    ImageDraw::apply_render_commands(ctx, "draw_debug_tile");
+
+    draw_current_select_tile(ctx);
+
+    // Finalize the rendering by completing any remaining render operations
+    // This ensures all graphics commands are flushed and the frame is ready
+    ImageDraw::finalize_render(ctx);
+
+    draw_screen_space_effects(ctx);
+    g_debug.draw_render_handlers(ctx);
+}
+
+void screen_city_t::draw_current_select_tile(painter &ctx) {
+    (void)ctx;
+    if (!game_features::gameui_show_current_select_tile.to_bool()) {
+        return;
+    }
+
+    if (!current_tile.valid()) {
+        return;
+    }
+
+    vec2i pixel = g_camera.lookup_tile_to_pixel(current_tile);
+    debug_draw_tile_box(pixel.x, pixel.y, COLOR_NULL, COLOR_BLACK);
+}
+
+void screen_city_t::add_screen_space_effect(screen_space_effect_cb *effect) {
+    if (!effect) {
+        return;
+    }
+    if (std::find(screen_space_effects.begin(), screen_space_effects.end(), effect) != screen_space_effects.end()) {
+        return;
+    }
+    screen_space_effects.push_back(effect);
+}
+
+void screen_city_t::draw_screen_space_effects(painter &ctx) {
+    OZZY_PROFILER_FUNCTION();
+    for (auto *effect : screen_space_effects) {
+        effect(ctx);
+    }
+}
+
+void screen_city_t::debug_draw_figures(painter &ctx) {
+    OZZY_PROFILER_FUNCTION();
+    for (auto &f : map_figures()) {
+        f->draw_debug(ctx);
+    }
+}
+
+void screen_city_t::draw_isometric_flat(vec2i pixel, tile2i tile, painter &ctx) {
+    OZZY_PROFILER_FUNCTION();
+    // black tile outside of map
+    const bool is_tree = map_terrain_is(tile, TERRAIN_TREE);
+    const bool is_water = map_terrain_is(tile, TERRAIN_WATER);
+    const bool outside_map = is_tree && is_water;
+    if (!tile.valid() || outside_map) {
+        auto& command = ImageDraw::create_command(ctx, render_command_t::ert_drawtile);
+        command.image_id = image_id_from_group(GROUP_TERRAIN_UGLY_GRASS);
+        command.pixel = pixel;
+        command.mask = COLOR_MASK_NONE;
+        command.location = SOURCE_LOCATION;
+        return;
+    }
+
+    int building_id = map_building_at(tile);
+
+    color color_mask = COLOR_MASK_NONE;
+    bool deletion_tool = (g_city_planner.build_type == BUILDING_CLEAR_LAND && g_city_planner.end == tile);
+    if (deletion_tool || map_property_is_deleted(tile)) {
+        color_mask = COLOR_MASK_RED;
+    }
+
+    building *tile_building = building_id > 0 ? building_get(building_id) : nullptr;
+    const bool flatten = tile_building && city_flat_should_flatten_building(*tile_building);
+    // animations.flat: one full-building sprite from main type params (finished only;
+    // unfinished monuments return 0 from city_flat_building_texture_id).
+    const int flat_img = (flatten && tile_building) ? city_flat_building_texture_id(*tile_building) : 0;
+    // Multi-part complexes: skip part feet when the finished flat sprite is in use.
+    // Unfinished monuments return flat_img 0 ? parts keep construction feet.
+    if (flat_img > 0 && tile_building && !tile_building->is_main()) {
+        map_render_set(tile, 0);
+        return;
+    }
+
+    {
+        OZZY_PROFILER_SECTION(_, "draw_isometric_flat")
+        if (!map_property_is_draw_tile(tile)) {
+            // Keep force_draw_flat_tile under flatten (booth plaza, under-construction
+            // monument partials). Iso tops stay off; force_draw_height is in height pass.
+            bool force_tile_draw = false;
+            if (building_id > 0 && tile_building) {
+                building_impl *b = tile_building->dcast();
+                force_tile_draw = b->force_draw_flat_tile(ctx, tile, pixel, color_mask);
+            }
+
+            if (!force_tile_draw) {
+                return;
+            }
+        }
+    }
+
+    vec2i view_pos = g_camera.offset;
+    vec2i view_size = g_camera.size_pixels;
+    int direction = SOUND_DIRECTION_CENTER;
+    if (pixel.x < view_pos.x + 100) {
+        direction = SOUND_DIRECTION_LEFT;
+    } else if (pixel.x > view_pos.x + view_size.x - 100) {
+        direction = SOUND_DIRECTION_RIGHT;
+    }
+
+    draw_isometric_mark_sound(building_id, tile.grid_offset(), color_mask, direction, pixel);
+
+    const int stored_image_id = map_image_at(tile);
+    int image_id = stored_image_id;
+    if (render_ctx.advance_water_animation) {
+        if (image_id >= render_ctx.image_id_water_first && image_id <= render_ctx.image_id_water_last) {
+            image_id++; // wrong, but eh
+            if (image_id > render_ctx.image_id_water_last) {
+                image_id = render_ctx.image_id_water_first;
+            }
+        }
+
+        if (image_id >= render_ctx.image_id_deepwater_first && image_id <= render_ctx.image_id_deepwater_last) {
+            image_id += 15;
+
+            if (image_id > render_ctx.image_id_deepwater_last) {
+                image_id -= 90;
+            }
+        }
+        if (image_id != stored_image_id) {
+            g_water_frame_queue.push(tile.grid_offset(), image_id);
+        }
+    }
+
+    if (map_property_is_constructing(tile)) {
+        image_id = image_id_from_group(GROUP_TERRAIN_OVERLAY_FLAT);
+    } else if (flat_img > 0 && map_property_is_draw_tile(tile)) {
+        // Main only (parts returned above). force_draw partials keep map_image.
+        image_id = flat_img;
+    }
+
+    const bool is_green_tile = map_terrain_is(tile, TERRAIN_PLANER_FUTURE);
+    if (is_green_tile && (color_mask == COLOR_MASK_NONE)) {
+        color_mask = COLOR_MASK_GREEN;
+    }
+
+    if (!flatten && render_ctx.is_raised_cliff_ground(image_id)) {
+        map_render_set(tile, RENDER_RAISED_TILE);
+        return;
+    }
+
+    const image_t* img = image_get(image_id);
+    if (!img) {
+        return;
+    }
+
+    {
+        OZZY_PROFILER_SECTION(_, "ert_drawtile")
+        auto &command = ImageDraw::create_command(ctx, render_command_t::ert_drawtile);
+        command.image_id = image_id;
+        command.pixel = pixel;
+        command.mask = color_mask;
+    }
+
+    // Flat view: keep footprint sprite, skip alt ghost and iso tops.
+    if (!flatten) {
+        OZZY_PROFILER_SECTION(_, "ert_drawtile_alt")
+        int image_alt_value = map_image_alt_at(tile);
+        int image_alt_id = (image_alt_value & 0x00ffffff);
+        uint8_t image_alt_alpha = ((image_alt_value & 0xff000000) >> 24);
+        if (image_alt_id > 0 && image_alt_alpha > 0) {
+            auto &command = ImageDraw::create_subcommand(ctx, render_command_t::ert_drawtile);
+            command.image_id = image_alt_id;
+            command.pixel = pixel;
+            command.mask = (0x00ffffff | (image_alt_alpha << 24));
+            command.flags = ImgFlag_Alpha;
+            command.location = SOURCE_LOCATION;
+        }
+    }
+
+    map_render_set(tile, (!flatten && img->isometric_top_height > 0) ? RENDER_TALL_TILE : 0);
+}
+
+void screen_city_t::draw_isometric_nonterrain_height(vec2i pixel, tile2i tile, color mask, painter &ctx) {
+    color save = force_mask;
+    force_mask = mask;
+    draw_isometric_nonterrain_height(pixel, tile, ctx);
+    force_mask = save;
+}
+
+void screen_city_t::draw_isometric_nonterrain_height(vec2i pixel, tile2i tile, painter &ctx) {
+    OZZY_PROFILER_FUNCTION()
+
+    int grid_offset = tile.grid_offset();
+    // black tile outside of map
+    if (grid_offset < 0) {
+        auto& command = ImageDraw::create_command(ctx, render_command_t::ert_drawtile);
+        command.image_id = image_id_from_group(GROUP_TERRAIN_BLACK);
+        command.pixel = pixel;
+        command.mask = COLOR_BLACK;
+        command.location = SOURCE_LOCATION;
+        return;
+    }
+
+    int building_id = map_building_at(grid_offset);
+
+    color color_mask = force_mask;
+    bool deletion_tool = (g_city_planner.build_type == BUILDING_CLEAR_LAND && g_city_planner.end == tile);
+    if (deletion_tool || map_property_is_deleted(tile) || drawing_building_as_deleted(building_id)) {
+        color_mask = COLOR_MASK_RED;
+    }
+
+    building *tile_building = building_id > 0 ? building_get(building_id) : nullptr;
+    const bool flatten = tile_building && city_flat_should_flatten_building(*tile_building);
+
+    if (!map_property_is_draw_tile(grid_offset)) {
+        bool force_draw_tile = false;
+        if (building_id > 0 && tile_building) {
+            building_impl *b = tile_building->dcast();
+            // Flat view: keep force_draw_height.
+            // Booth/bandstand no-op under flatten; skip force_draw_top (iso top bleed).
+            force_draw_tile = b->force_draw_height_tile(ctx, tile, pixel, color_mask);
+            if (!flatten) {
+                b->force_draw_top_tile(ctx, tile, pixel, color_mask);
+            }
+        }
+
+        if (!force_draw_tile) {
+            return;
+        }
+    }
+
+    if (flatten) {
+        // No RENDER_TALL_TILE / iso tops under flat view.
+        return;
+    }
+
+    if (map_render_isu(grid_offset, RENDER_RAISED_TILE)) {
+        draw_raised_cliff_ground(pixel, map_image_at(grid_offset), color_mask, ctx);
+        return;
+    }
+
+    bool tall_flat_tile = map_render_isu(grid_offset, RENDER_TALL_TILE);
+    bool tall_flat_tile_drawn = map_render_isu(grid_offset, RENDER_TALL_TILE_DRAWN);
+    bool should_draw = building_id > 0 || (tall_flat_tile && !tall_flat_tile_drawn);
+    if (!should_draw) {
+        return;
+    }
+
+    int image_id = map_image_at(grid_offset);
+    if (tall_flat_tile) {
+        {
+            auto& command = ImageDraw::create_command(ctx, render_command_t::ert_drawtile_top);
+            command.image_id = image_id;
+            const image_t* img = image_get(image_id);
+            int offset_y = image_iso_top_offset_y(img);
+            command.pixel = pixel - vec2i{ 0, offset_y };
+            command.mask = color_mask;
+            command.use_sort_pixel = true;
+            command.sort_pixel = pixel;
+            command.location = SOURCE_LOCATION;
+        }
+
+        int image_alt_value = map_image_alt_at(grid_offset);
+        int image_alt_id = (image_alt_value & 0x00ffffff);
+        uint8_t image_alt_alpha = ((image_alt_value & 0xff000000) >> 24);
+        if (image_alt_id > 0 && image_alt_alpha > 0) {
+            auto& command = ImageDraw::create_subcommand(ctx, render_command_t::ert_drawtile_top);
+            const image_t *img = image_get(image_alt_id);
+            int offset_y = image_iso_top_offset_y(img);
+            command.image_id = image_alt_id;
+            command.pixel = pixel;
+            command.mask = (0x00ffffff | (image_alt_alpha << 24));
+            command.flags = ImgFlag_Alpha;
+            command.location = SOURCE_LOCATION;
+        }
+        return;
+    }
+}
+
+void screen_city_t::draw_isometric_terrain_height(vec2i pixel, tile2i tile, painter &ctx) {
+    OZZY_PROFILER_FUNCTION();
+    // black tile outside of map
+    if (!tile.valid()) {
+        auto& command = ImageDraw::create_command(ctx, render_command_t::ert_drawtile);
+        command.image_id = image_id_from_group(GROUP_TERRAIN_BLACK);
+        command.pixel = pixel;
+        command.mask = COLOR_BLACK;
+        command.location = SOURCE_LOCATION;
+        return;
+    }
+
+    if (!map_property_is_draw_tile(tile)) {
+        return;
+    }
+
+    bool tall_flat_tile = map_render_is(tile.grid_offset(), RENDER_TALL_TILE);
+    if (!tall_flat_tile) {
+        return;
+    }
+
+    const bool non_terrain = map_terrain_is(tile, TERRAIN_TREE | TERRAIN_ROCK | TERRAIN_BUILDING | TERRAIN_ELEVATION | TERRAIN_WALL | TERRAIN_GATEHOUSE);
+    if (non_terrain) {
+        return;
+    }
+
+    map_render_set(tile, 0);
+    color color_mask = COLOR_MASK_NONE;
+    bool deletion_tool = (g_city_planner.build_type == BUILDING_CLEAR_LAND && g_city_planner.end == tile);
+    if (deletion_tool || map_property_is_deleted(tile)) {
+        color_mask = COLOR_MASK_RED;
+    }
+
+    map_render_add(tile.grid_offset(), RENDER_TALL_TILE_DRAWN);
+    {
+        int image_id = map_image_at(tile);
+        auto& command = ImageDraw::create_command(ctx, render_command_t::ert_drawtile_top);
+        const image_t *img = image_get(image_id);
+        int offset_y = image_iso_top_offset_y(img) - 1;
+        command.image_id = image_id;
+        command.pixel = pixel - vec2i(0, offset_y );
+        command.mask = color_mask;
+        command.use_sort_pixel = true;
+        command.sort_pixel = pixel;
+        command.location = SOURCE_LOCATION;
+    }
+
+    {
+        int image_alt_value = map_image_alt_at(tile);
+        int image_alt_id = (image_alt_value & 0x00ffffff);
+        uint8_t image_alt_alpha = ((image_alt_value & 0xff000000) >> 24);
+        if (image_alt_id > 0 && image_alt_alpha > 0) {
+            auto &command = ImageDraw::create_subcommand(ctx, render_command_t::ert_drawtile_top);
+            command.image_id = image_alt_id;
+            const image_t *img = image_get(image_alt_id);
+            int offset_y = image_iso_top_offset_y(img) - 1;
+            command.pixel = pixel - vec2i(0, offset_y);
+            command.mask = (0x00ffffff | (image_alt_alpha << 24));
+            command.flags = ImgFlag_Alpha;
+            command.location = SOURCE_LOCATION;
+        }
+    }
+}
+
+void screen_city_t::draw_ornaments_and_animations_height(vec2i point, tile2i tile, painter &ctx) {
+    OZZY_PROFILER_FUNCTION();
+    int grid_offset = tile.grid_offset();
+
+    // Bridges are terrain+sprite (no building_id); draw before the building early-out.
+    if (map_is_bridge(grid_offset)) {
+        city_draw_bridge(point, tile, ctx);
+        return;
+    }
+
+    // tile must contain image draw data
+    if (!map_property_is_draw_tile(grid_offset)) {
+        return;
+    }
+
+
+    building *b = building_at(grid_offset);
+    if (b->type == 0 || b->state == BUILDING_STATE_UNUSED) {
+        return;
+    }
+
+    if (city_flat_should_skip_tall_ornaments(*b)) {
+        return;
+    }
+
+    // draw in red if necessary
+    int color_mask = force_mask;
+    if (drawing_building_as_deleted(b) || map_property_is_deleted(grid_offset)) {
+        color_mask = COLOR_MASK_RED;
+    }
+
+    // Anchor for create_subcommand (pyramid bricks/stairs, plague skull, ).
+    // draw_isometric_nonterrain_height often creates no parent (non-tall map
+    // image)  then subcommands attach to the *previous* tile and sort with its
+    // pixel. That shows up as crushed/mis-layered sprites on the left viewport
+    // edge when a tall monument is partially off-screen. ert_none draws nothing.
+    {
+        auto &anchor = ImageDraw::create_command(ctx, render_command_t::ert_none);
+        anchor.pixel = point;
+        anchor.use_sort_pixel = true;
+        anchor.sort_pixel = point;
+        anchor.location = SOURCE_LOCATION;
+    }
+
+    b->dcast()->draw_ornaments_and_animations_height(ctx, point, tile, color_mask);
+}
+
+void screen_city_t::draw_ornaments_overlay(vec2i pixel, tile2i point, painter &ctx) {
+    int grid_offset = point.grid_offset();
+    int x = pixel.x;
+    int y = pixel.y;
+    int b_id = map_building_at(grid_offset);
+
+    if (b_id) {
+        const building *b = building_at(grid_offset);
+        if (g_city.overlay()->show_building(b)) {
+            color save = force_mask;
+            force_mask = g_city.overlay()->color_mask_building_def(b);
+            draw_ornaments_and_animations_height(pixel, point, ctx);
+            force_mask = save;
+        }
+    } else {
+        draw_ornaments_and_animations_height(pixel, point, ctx);
+    }
+}
+
+
+void screen_city_t::draw_with_overlay(painter &ctx, int selected_figure_id) {
+    OZZY_PROFILER_FUNCTION();
+    // Both draw paths own this field: leaving a previous figure in it would hide every other
+    // walker in the overlay view (draw_figures_overlay honours it).
+    this->selected_figure_id = selected_figure_id;
+    city_flat_prepare_draw();
+
+    const auto overlay = g_city.overlay();
+    if (!overlay) {
+        return;
+    }
+
+    render_ctx.init();
+    map_render_clear();
+    ImageDraw::clear_render_commands();
+
+    g_city_planner.ghost_mark_deleting(current_tile);
+    g_camera.foreach_valid_map_tile(ctx, update_tile_coords);
+
+    map_figure_sort_by_y();
+    g_camera.foreach_valid_map_tile(ctx, draw_isometrics_overlay_flat);
+
+    ImageDraw::apply_render_commands(ctx, "draw_isometrics_overlay_flat");
+
+    g_camera.foreach_valid_map_tile(ctx,
+        draw_isometrics_overlay_height,
+        [this] (vec2i pixel, tile2i tile, painter &ctx) { draw_ornaments_overlay(pixel, tile, ctx); },
+        [this] (vec2i pixel, tile2i tile, painter &ctx) { draw_figures_overlay(pixel, tile, ctx); }
+    );
+
+    ImageDraw::apply_render_commands(ctx, "draw_ornaments_figures_overlay");
+
+    g_city_planner.draw(ctx);
+
+    draw_building_road_access_marker(ctx);
+    draw_recorded_delivery_paths(ctx);
+    js_event(city_view_postrender_ev{}, "city_view", "postrender");
+
+    ImageDraw::apply_render_commands(ctx, "draw_city_planer_overlay");
+
+    // finally, draw these on top of everything else
+    g_debug.prepare_render_handlers();
+    g_camera.foreach_valid_map_tile(ctx, draw_debug_tile);
+    debug_draw_figures(ctx);
+
+    ImageDraw::apply_render_commands(ctx, "debug_draw_figures");
+
+    draw_current_select_tile(ctx);
+
+    ImageDraw::finalize_render(ctx);
+
+    draw_screen_space_effects(ctx);
+    g_debug.draw_render_handlers(ctx);
+}
+
+void screen_city_t::draw(painter &ctx) {
+    OZZY_PROFILER_FUNCTION();
+    update_zoom_level(ctx);
+    set_render_scale(ctx, g_zoom.get_scale());
+    set_city_clip_rectangle(ctx);
+
+    city_planner_frame_update(0);
+    if (g_city.overlay()) {
+        draw_with_overlay(ctx, 0);
+    } else {
+        draw_without_overlay(ctx, 0);
+    }
+
+    graphics_reset_clip_rectangle();
+    set_render_scale(ctx, 1.0f);
+}
+
+// figure_id 0 draws the scene the player sees; a non-zero id isolates that one walker for the
+// figure-info icons. Follows draw() in honouring the active overlay, so a snapshot cannot show
+// a different city than the main view.
+void screen_city_t::draw_for_figure(painter &ctx, int figure_id) {
+    set_city_clip_rectangle(ctx);
+    const bool was_read_only = std::exchange(game.redraw_read_only, true);
+
+    city_planner_frame_update(figure_id);
+    if (g_city.overlay()) {
+        draw_with_overlay(ctx, figure_id);
+    } else {
+        draw_without_overlay(ctx, figure_id);
+    }
+
+    game.redraw_read_only = was_read_only;
+    graphics_reset_clip_rectangle();
+}
+
+// INPUT HANDLING
+
+static void build_move(tile2i tile) {
+    if (!g_city_planner.in_progress)
+        return;
+    g_city_planner.construction_update(tile);
+}
+
+static void build_end(void) {
+    if (g_city_planner.in_progress) {
+        if (g_city_planner.build_type != BUILDING_NONE)
+            g_sound.play_effect(SOUND_EFFECT_BUILD);
+
+        g_city_planner.construction_finalize();
+    }
+}
+
+static bool has_confirmed_construction(tile2i ghost, tile2i point, int range_size) {
+    if (!ghost.valid() || !point.valid() || ghost.grid_offset() <= 0)
+        return false;
+
+    // Allow 1 tile tolerance around building footprint for touch interactions
+    const int margin = 1;
+    for (int dy = -margin; dy < range_size + margin; dy++) {
+        for (int dx = -margin; dx < range_size + margin; dx++) {
+            if (ghost == point.shifted(dx, dy))
+                return true;
+        }
+    }
+    return false;
+}
+
+bool screen_city_t::allow_building_info(tile2i tile) {
+    int allow = true;
+    if (!g_window_manager.window_is("window_city")) {
+        allow = false;
+    }
+
+    window_city_show();
+
+    if (!tile.valid()) {
+        allow = false;
+    }
+
+    return allow;
+}
+
+bool screen_city_t::handle_legion_click(tile2i tile) {
+    if (!tile.valid()) {
+        return false;
+    }
+
+    int formation_id = formation_batalion_at(tile);
+    if (formation_id <= 0) {
+        // Search surrounding tiles (2-tile radius) where standard bearer / flag stands
+        for (int dy = -2; dy <= 2; dy++) {
+            for (int dx = -2; dx <= 2; dx++) {
+                int fid = formation_batalion_at(tile.shifted(dx, dy));
+                if (fid > 0) {
+                    formation_id = fid;
+                    break;
+                }
+            }
+            if (formation_id > 0) break;
+        }
+    }
+
+    if (formation_id <= 0) {
+        formation_id = formation_batalion_at_building(tile.grid_offset());
+    }
+
+    if (formation_id > 0 && !formation_get(formation_id)->in_distant_battle) {
+        window_city_military_show(formation_id);
+        return true;
+    }
+
+    return false;
+}
+
+void screen_city_t::confirm_construction_placement() {
+    logs::info("[build-btn] confirm_place enter type=%d progress=%d drag=%d sel=%d(%d,%d) cur=%d(%d,%d)",
+               (int)g_city_planner.build_type, g_city_planner.in_progress ? 1 : 0, g_city_planner.draggable() ? 1 : 0,
+               selected_tile.grid_offset(), selected_tile.x(), selected_tile.y(), current_tile.grid_offset(),
+               current_tile.x(), current_tile.y());
+
+    if (!g_city_planner.build_type) {
+        logs::info("[build-btn] confirm_place abort: no build_type");
+        return;
+    }
+
+    if (g_city_planner.draggable() && g_city_planner.in_progress) {
+        logs::info("[build-btn] confirm_place branch=drag_finalize");
+        if (selected_tile.valid()) {
+            build_move(selected_tile);
+        }
+        build_end();
+        clear_current_tile();
+        logs::info("[build-btn] confirm_place exit type=%d progress=%d", (int)g_city_planner.build_type,
+                   g_city_planner.in_progress ? 1 : 0);
+        return;
+    }
+
+    tile2i place = selected_tile.valid() ? selected_tile : current_tile;
+    if (!place.valid()) {
+        logs::info("[build-btn] confirm_place abort: invalid tile sel_valid=%d cur_valid=%d",
+                   selected_tile.valid() ? 1 : 0, current_tile.valid() ? 1 : 0);
+        return;
+    }
+
+    logs::info("[build-btn] confirm_place branch=start_move_end tile=%d(%d,%d) was_progress=%d", place.grid_offset(),
+               place.x(), place.y(), g_city_planner.in_progress ? 1 : 0);
+    if (!g_city_planner.in_progress)
+        g_city_planner.construction_start(place);
+    build_move(place);
+    build_end();
+    clear_current_tile();
+    logs::info("[build-btn] confirm_place exit type=%d progress=%d", (int)g_city_planner.build_type,
+               g_city_planner.in_progress ? 1 : 0);
+}
+
+void screen_city_t::handle_touch_scroll(const touch_t * t, bool fore_capture_input) {
+    struct holder_capture_input {
+        holder_capture_input(screen_city_t& s, const touch_t *t, bool h) : screen(s), touch(t), hold(h) {
+            if (hold && t->has_started) {
+                screen.capture_input = true;
+            }
+        }
+
+        ~holder_capture_input() {
+            if (hold && touch->has_ended) {
+                screen.capture_input = false;
+            }
+        }
+
+        screen_city_t &screen;
+        const touch_t *touch = nullptr;
+        bool hold = false;
+    };
+
+    holder_capture_input capture_holder(*this, t, fore_capture_input);
+
+    if (g_city_planner.build_type) {
+        if (t->has_started) {
+            vec2i view_pos = g_camera.offset;
+            vec2i view_size = g_camera.size_pixels;
+            g_scroll.set_custom_margins(view_pos, view_size);
+        }
+        if (t->has_ended) {
+            g_scroll.restore_margins();
+        }
+
+        return;
+    }
+    g_scroll.restore_margins();
+
+    if (!capture_input) {
+        return;
+    }
+
+    int was_click = g_touch.latest()->was_click();
+    if (t->has_started || was_click) {
+        g_scroll.drag_start(scroll_t::drag_source::touch);
+        return;
+    }
+
+    if (!t->not_click()) {
+        return;
+    }
+
+    if (t->has_ended) {
+        g_scroll.drag_end();
+    }
+}
+
+static void handle_touch_zoom(const touch_t * first, const touch_t * last) {
+    if (first->not_click())
+        g_zoom.handle_touch(first, last, g_zoom.get_percentage());
+
+    if (first->has_ended || last->has_ended)
+        g_zoom.end_touch();
+}
+
+void screen_city_t::handle_first_touch(tile2i tile) {
+    const touch_t* first = g_touch.earliest();
+    e_building_type type = g_city_planner.build_type;
+
+    if (first->was_click()) {
+        if (handle_legion_click(tile) || handle_warship_click(tile) || handle_transport_click(tile)) {
+            return;
+        }
+
+        if (type == BUILDING_NONE && allow_building_info(tile)) {
+            g_scroll.drag_end();
+            capture_input = false;
+            events::emit(event_show_tile_info{ tile, false, SOURCE_LOCATION });
+            return;
+        }
+    }
+
+    handle_touch_scroll(first, false);
+
+    if (!input_coords_in_city(first->current_point.x, first->current_point.y) || type == BUILDING_NONE)
+        return;
+
+    if (g_city_planner.draggable()) {
+        if (!g_city_planner.in_progress) {
+            if (first->has_started) {
+                g_city_planner.construction_start(tile);
+                new_start_grid_offset = 0;
+            }
+        } else {
+            if (first->has_started) {
+                if (selected_tile.grid_offset() != tile.grid_offset()) {
+                    new_start_grid_offset = tile.grid_offset();
+                }
+            }
+            if (first->not_click() && new_start_grid_offset) {
+                new_start_grid_offset = 0;
+                selected_tile.set(0);
+                g_city_planner.construction_cancel();
+                g_city_planner.construction_start(tile);
+            }
+            build_move(tile);
+            if (selected_tile.grid_offset() != tile.grid_offset())
+                selected_tile.set(0);
+
+            if (first->has_ended) {
+                if (selected_tile == tile) {
+                    build_end();
+                    clear_current_tile();
+                    new_start_grid_offset = 0;
+                } else {
+                    selected_tile = tile;
+                }
+            }
+        }
+        return;
+    }
+
+    int size = building_static_params::get(type).building_size;
+    if (type == BUILDING_STORAGE_YARD) {
+        size = 3;
+    }
+
+    if (first->was_click() && first->has_ended && capture_input
+        && has_confirmed_construction(selected_tile, tile, size)) {
+        g_city_planner.construction_start(selected_tile);
+        build_move(selected_tile);
+        build_end();
+        clear_current_tile();
+    } else if (first->has_ended) {
+        selected_tile = tile;
+    }
+}
+
+static void handle_last_touch(void) {
+    const touch_t* last = g_touch.latest();
+    if (!last->in_use)
+        return;
+
+    if (last->not_click()) {
+        handle_touch_zoom(g_touch.earliest(), last);
+    }
+}
+
+void screen_city_t::handle_touch() {
+    const touch_t* first = g_touch.earliest();
+    if (!first->in_use) {
+        g_scroll.restore_margins();
+        return;
+    }
+
+    if (g_city_planner.build_type && (first->has_started || first->has_ended)) {
+        logs::info("[build-btn] CITY touch leaked start=(%d,%d) cur=(%d,%d) started=%d ended=%d click=%d",
+          first->start_point.x, first->start_point.y, first->current_point.x, first->current_point.y,
+          first->has_started, first->has_ended, first->was_click());
+    }
+
+    if (!g_city_planner.in_progress || input_coords_in_city(first->current_point.x, first->current_point.y)) {
+        current_tile = update_city_view_coords(first->current_point);
+    }
+
+    if (g_city_planner.build_type && !g_city_planner.in_progress) {
+        g_city_planner.update_hover(current_tile);
+    }
+
+    if (first->has_started && input_coords_in_city(first->current_point.x, first->current_point.y)) {
+        capture_input = true;
+        g_scroll.restore_margins();
+    }
+
+    handle_last_touch();
+    handle_first_touch(current_tile);
+
+    if (first->has_ended) {
+        capture_input = false;
+    }
+
+    g_city_planner.draw_as_constructing = false;
+}
+
+void screen_city_t::military_map_click(int legion_formation_id, tile2i tile) {
+    if (!tile.valid()) {
+        window_city_show();
+        return;
+    }
+
+    formation *m = formation_get(legion_formation_id);
+    if (m->in_distant_battle || m->cursed_by_seth) {
+        return;
+    }
+
+    int other_formation_id = formation_batalion_at_building(tile.grid_offset());
+    if (other_formation_id && other_formation_id == legion_formation_id) {
+        formation_batalion_return_home(m);
+    } else if (invasion_auto_resolve_target_blocked(tile)) {
+        // March onto a frozen pending wave  blocked; reposition elsewhere OK.
+        events::emit(event_city_warning{ "#warning_auto_resolve_orders_blocked" });
+    } else {
+        formation_batalion_move_to(m, tile);
+        g_sound.speech_play_file("Wavs/WEAPON.WAV", 255);
+    }
+
+    window_city_show();
+}
+
+void screen_city_t::handle_input_military(const mouse *m, const hotkeys *h, int legion_formation_id) {
+    current_tile = update_city_view_coords(*m);
+
+    if (!g_camera.sidebar_collapsed && widget_minimap_handle_mouse(m)) {
+        return;
+    }
+
+    if (m->is_touch) {
+        const touch_t* t = g_touch.earliest();
+        if (!t->in_use) {
+            return;
+        }
+
+        handle_touch_scroll(t, true);
+    }
+
+    scroll_map(m);
+
+    if (m->right.went_up || h->escape_pressed) {
+        capture_input = false;
+        g_warning_manager.clear_all();
+        window_city_show();
+        return;
+    }
+
+    current_tile = update_city_view_coords(*m);
+
+    const bool m_left_down = (!m->is_touch && m->left.went_down);
+    const auto* early_touch = g_touch.earliest();
+    const bool m_has_touch = (m->is_touch && m->left.went_up && early_touch->was_click());
+
+    if (m_left_down || m_has_touch) {
+        const tile2i tile = current_tile;
+        military_map_click(legion_formation_id, tile);
+    }
+}
+
+bool screen_city_t::handle_warship_click(tile2i tile) {
+    if (!tile.valid()) {
+        return false;
+    }
+
+    int figure_id = map_figure_id_get(tile);
+    while (figure_id > 0) {
+        figure *f = ::figure_get(figure_id);
+        if (f->state == FIGURE_STATE_ALIVE && smart_cast<figure_warship>(f)) {
+            window_city_warship_show(figure_id);
+            return true;
+        }
+        figure_id = (figure_id != f->next_figure) ? f->next_figure : 0;
+    }
+    return false;
+}
+
+void screen_city_t::warship_map_click(int warship_figure_id, tile2i tile) {
+    if (!tile.valid()) {
+        window_city_show();
+        return;
+    }
+
+    figure *f = ::figure_get(warship_figure_id);
+    if (!f || f->state != FIGURE_STATE_ALIVE) {
+        window_city_show();
+        return;
+    }
+
+    figure_warship *w = smart_cast<figure_warship>(f);
+    if (!w) {
+        window_city_show();
+        return;
+    }
+
+    int target_id = map_figure_id_get(tile);
+    while (target_id > 0) {
+        figure *target = ::figure_get(target_id);
+        if (target->state == FIGURE_STATE_ALIVE
+            && (smart_cast<figure_enemy_transport>(target) || smart_cast<figure_enemy_warship>(target))) {
+            w->attack_target(target_id);
+            window_city_show();
+            return;
+        }
+        target_id = (target_id != target->next_figure) ? target->next_figure : 0;
+    }
+
+    // If the click landed on a warship wharf, route there to moor.
+    int bid = map_building_at(tile);
+    if (bid > 0) {
+        building *b = ::building_get(bid);
+        if (b && b->is_valid()) {
+            building_warship_wharf *wharf = b->dcast_warship_wharf();
+            if (wharf) {
+                tile2i dock = wharf->get_water_access_tiles().point_a;
+                if (dock.valid()) {
+                    w->move_to_wharf(wharf->id(), dock);
+                    window_city_show();
+                    return;
+                }
+            }
+        }
+    }
+
+    if (!tile.valid()
+        || !map_terrain_is(tile, TERRAIN_WATER | TERRAIN_DEEPWATER)
+        || map_terrain_is(tile, TERRAIN_BUILDING)) {
+        window_city_show();
+        return;
+    }
+
+    w->move_to_tile(tile);
+    window_city_show();
+}
+
+bool screen_city_t::handle_transport_click(tile2i tile) {
+    if (!tile.valid()) {
+        return false;
+    }
+
+    int figure_id = map_figure_id_get(tile);
+    while (figure_id > 0) {
+        figure *f = ::figure_get(figure_id);
+        if (f->state == FIGURE_STATE_ALIVE && smart_cast<figure_transport_ship>(f)) {
+            window_city_transport_show(figure_id, TRANSPORT_PICK_MOVE);
+            return true;
+        }
+        figure_id = (figure_id != f->next_figure) ? f->next_figure : 0;
+    }
+    return false;
+}
+
+void screen_city_t::transport_map_click(int transport_figure_id, int pick_mode, tile2i tile) {
+    if (!tile.valid()) {
+        highlighted_formation = 0;
+        window_city_show();
+        return;
+    }
+
+    figure *f = ::figure_get(transport_figure_id);
+    if (!f || f->state != FIGURE_STATE_ALIVE) {
+        highlighted_formation = 0;
+        window_city_show();
+        return;
+    }
+
+    figure_transport_ship *ship = smart_cast<figure_transport_ship>(f);
+    if (!ship) {
+        highlighted_formation = 0;
+        window_city_show();
+        return;
+    }
+
+    switch (pick_mode) {
+    case TRANSPORT_PICK_FORMATION: {
+        int formation_id = formation_batalion_at(tile);
+        if (formation_id <= 0) {
+            formation_id = formation_batalion_at_building(tile.grid_offset());
+        }
+        if (formation_id > 0) {
+            formation *fm = formation_get(formation_id);
+            if (fm && fm->in_use && fm->own_batalion && !fm->in_distant_battle) {
+                ship->embark_formation(formation_id);
+            }
+        }
+        highlighted_formation = 0;
+        window_city_show();
+        return;
+    }
+    case TRANSPORT_PICK_LANDING: {
+        // map_water_is_point_inside() is bounds-only; require real navigable water.
+        auto is_nav_water = [](tile2i t) {
+            return t.valid()
+                && map_terrain_is(t, TERRAIN_WATER | TERRAIN_DEEPWATER)
+                && !map_terrain_is(t, TERRAIN_BUILDING);
+        };
+
+        tile2i land_order = tile2i::invalid;
+        tile2i water = tile;
+        if (!is_nav_water(water)) {
+            land_order = tile;
+            static const vec2i dirs[] = {
+                {0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1}, {-1, -1}, {-1, 0}, {-1, 1}
+            };
+            auto has_shore = [](tile2i water_tile) {
+                for (const vec2i &d : dirs) {
+                    tile2i land = water_tile.shifted(d);
+                    if (!land.valid()) {
+                        continue;
+                    }
+                    if (map_terrain_is(land, TERRAIN_WATER | TERRAIN_DEEPWATER)) {
+                        continue;
+                    }
+                    if (map_terrain_is(land, TERRAIN_BUILDING | TERRAIN_WALL | TERRAIN_ROCK | TERRAIN_ELEVATION)) {
+                        continue;
+                    }
+                    return true;
+                }
+                return false;
+            };
+            water = tile2i::invalid;
+            tile2i fallback = tile2i::invalid;
+            for (const vec2i &dir : dirs) {
+                tile2i cand = tile.shifted(dir);
+                if (!is_nav_water(cand)) {
+                    continue;
+                }
+                if (!fallback.valid()) {
+                    fallback = cand;
+                }
+                if (has_shore(cand)) {
+                    water = cand;
+                    break;
+                }
+            }
+            if (!water.valid()) {
+                water = fallback;
+            }
+        }
+        if (water.valid() && land_order.valid()) {
+            ship->sail_to_landing(water, land_order);
+        }
+        highlighted_formation = 0;
+        window_city_show();
+        return;
+    }
+    case TRANSPORT_PICK_MOVE:
+    default: {
+        int bid = map_building_at(tile);
+        if (bid > 0) {
+            building *b = ::building_get(bid);
+            if (b && b->is_valid()) {
+                building_transport_wharf *wharf = b->dcast_transport_wharf();
+                if (wharf) {
+                    tile2i dock = wharf->get_water_access_tiles().point_a;
+                    if (dock.valid()) {
+                        ship->move_to_wharf(wharf->id(), dock);
+                        highlighted_formation = 0;
+                        window_city_show();
+                        return;
+                    }
+                }
+            }
+        }
+
+        if (tile.valid()
+            && map_terrain_is(tile, TERRAIN_WATER | TERRAIN_DEEPWATER)
+            && !map_terrain_is(tile, TERRAIN_BUILDING)) {
+            ship->move_to_tile(tile);
+        }
+        highlighted_formation = 0;
+        window_city_show();
+        return;
+    }
+    }
+}
+
+void screen_city_t::handle_input_transport(const mouse *m, const hotkeys *h, int transport_figure_id, int pick_mode) {
+    current_tile = update_city_view_coords(*m);
+
+    if (!g_camera.sidebar_collapsed && widget_minimap_handle_mouse(m)) {
+        return;
+    }
+
+    if (m->is_touch) {
+        const touch_t* t = g_touch.earliest();
+        if (!t->in_use) {
+            return;
+        }
+
+        handle_touch_scroll(t, true);
+    }
+
+    scroll_map(m);
+
+    if (m->right.went_up || h->escape_pressed) {
+        capture_input = false;
+        highlighted_formation = 0;
+        g_warning_manager.clear_all();
+        window_city_show();
+        return;
+    }
+
+    figure *f = ::figure_get(transport_figure_id);
+    if (!f || f->state != FIGURE_STATE_ALIVE || !smart_cast<figure_transport_ship>(f)) {
+        capture_input = false;
+        highlighted_formation = 0;
+        window_city_show();
+        return;
+    }
+
+    // Re-resolve tile after scroll so highlight/click match the cursor.
+    current_tile = update_city_view_coords(*m);
+
+    // Highlight own battalions while picking a company to embark.
+    if (pick_mode == TRANSPORT_PICK_FORMATION) {
+        highlighted_formation = 0;
+        if (current_tile.valid()) {
+            int fid = formation_batalion_at(current_tile);
+            if (fid <= 0) {
+                fid = formation_batalion_at_building(current_tile.grid_offset());
+            }
+            if (fid > 0) {
+                formation *fm = formation_get(fid);
+                if (fm && fm->in_use && fm->own_batalion && !fm->in_distant_battle) {
+                    highlighted_formation = fid;
+                }
+            }
+        }
+    }
+
+    const bool m_left_down = (!m->is_touch && m->left.went_down);
+    const auto* early_touch = g_touch.earliest();
+    const bool m_has_touch = (m->is_touch && m->left.went_up && early_touch->was_click());
+
+    if (m_left_down || m_has_touch) {
+        transport_map_click(transport_figure_id, pick_mode, current_tile);
+    }
+}
+
+void screen_city_t::handle_input_warship(const mouse *m, const hotkeys *h, int warship_figure_id) {
+    current_tile = update_city_view_coords(*m);
+
+    if (!g_camera.sidebar_collapsed && widget_minimap_handle_mouse(m)) {
+        return;
+    }
+
+    if (m->is_touch) {
+        const touch_t* t = g_touch.earliest();
+        if (!t->in_use) {
+            return;
+        }
+
+        handle_touch_scroll(t, true);
+    }
+
+    scroll_map(m);
+
+    if (m->right.went_up || h->escape_pressed) {
+        capture_input = false;
+        g_warning_manager.clear_all();
+        window_city_show();
+        return;
+    }
+
+    figure *f = ::figure_get(warship_figure_id);
+    if (!f || f->state != FIGURE_STATE_ALIVE || !smart_cast<figure_warship>(f)) {
+        capture_input = false;
+        window_city_show();
+        return;
+    }
+
+    current_tile = update_city_view_coords(*m);
+
+    const bool m_left_down = (!m->is_touch && m->left.went_down);
+    const auto* early_touch = g_touch.earliest();
+    const bool m_has_touch = (m->is_touch && m->left.went_up && early_touch->was_click());
+
+    if (m_left_down || m_has_touch) {
+        const tile2i tile = current_tile;
+        warship_map_click(warship_figure_id, tile);
+    }
+}
+
+void screen_city_t::handle_mouse(const mouse* m) {
+    current_tile = update_city_view_coords(*m);
+
+    if (g_city_planner.build_type && !g_city_planner.in_progress) {
+        g_city_planner.update_hover(current_tile);
+    }
+
+    const float old_zoom_target = g_zoom.ftarget();
+    painter ctx = game.painter();
+    g_zoom.handle_mouse(m);
+    if (!ctx.view->can_update(g_zoom.ftarget())) {
+        g_zoom.set_scale(old_zoom_target);
+    }
+
+    if (game.debug_terrain_paint && editor_tool_is_active() && current_tile.valid()) {
+        if (m->left.went_down) {
+            editor_tool_start_use(current_tile);
+            editor_tool_update_use(current_tile);
+        } else if (m->left.is_down || editor_tool_is_in_use()) {
+            editor_tool_update_use(current_tile);
+        }
+        if (m->left.went_up) {
+            editor_tool_end_use(current_tile);
+        }
+        if (m->right.went_up) {
+            editor_tool_deactivate();
+        }
+        return;
+    }
+
+    g_city_planner.draw_as_constructing = false;
+    if (m->left.went_down) {
+        if (handle_legion_click(current_tile) || handle_warship_click(current_tile) || handle_transport_click(current_tile)) {
+            return;
+        }
+
+        g_city_planner.construction_start(current_tile);
+
+        build_move(current_tile);
+    } else if (m->left.is_down || g_city_planner.in_progress) {
+        build_move(current_tile);
+    }
+
+    if (m->left.went_up) {
+        build_end();
+    }
+
+    if (!!game_features::gameopt_middle_mouse_camera_pan
+        && m->middle.went_down && input_coords_in_city(m->x, m->y) && !g_city_planner.build_type) {
+        g_scroll.drag_start(scroll_t::drag_source::middle_mouse_pan);
+    }
+
+    bool action_in_warnings = false;
+    if (g_warning_manager.has_warnings()) {
+        action_in_warnings = g_warning_manager.handle_mouse(m);
+    }
+
+    if (m->right.went_up && !action_in_warnings) {
+        if (g_city_planner.construction_active()) {
+            g_city_planner.construction_cancel();
+        } else {
+            // Ctrl+RMB raises one building while flat view is On (no build tool).
+            // Empty / invalid tile must fall through to building info.
+            bool raised = false;
+            const bool ctrl = (SDL_GetModState() & KMOD_CTRL) != 0;
+            if (ctrl && city_flat_view_active() && !g_city_planner.build_type
+                && input_coords_in_city(m->x, m->y) && current_tile.valid()) {
+                building *b = building_at(current_tile);
+                if (b && city_flat_building_alive(*b)) {
+                    building *main_b = b->main();
+                    if (main_b && city_flat_building_alive(*main_b)) {
+                        city_flat_toggle_raised(main_b->id);
+                        city_flat_prepare_draw();
+                        raised = true;
+                    }
+                }
+            }
+            if (!raised && allow_building_info(current_tile)) {
+                events::emit(event_show_tile_info{ current_tile, false, SOURCE_LOCATION });
+            }
+        }
+    }
+
+    if (m->middle.went_up) {
+        g_scroll.drag_end();
+    }
+}
+void screen_city_t::handle_escape(const hotkeys *h) {
+    if (!h->escape_pressed) {
+        return;
+    }
+
+    if (g_city_planner.build_type) {
+        g_city_planner.construction_cancel();
+        return;
+    }
+
+    events::emit(event_exit_to_menu_requested{ 0 });
+}
+
+void screen_city_t::handle_input(const mouse* m, const hotkeys* h) {
+    scroll_map(m);
+
+    if (m->is_touch) {
+        handle_touch();
+    } else {
+        handle_mouse(m);
+    }
+
+    handle_escape(h);
+}
+
+xstring screen_city_t::get_overlay_tooltip(tooltip_context *c, tile2i tile) {
+    const auto overlay = g_city.overlay();
+    if (!overlay) {
+        return {};
+    }
+
+    xstring tooltip;
+    auto *city_overlay_ptr = (city_overlay *)overlay;
+    const int building_id = map_building_at(tile);
+
+    if (building_id) {
+        // JS handlers decide relevance (houses vs walls vs ferries, etc.).
+        city_overlay_ptr->get_tooltip_for_building(c, building_get(building_id), tooltip);
+    }
+
+    // Tile-map overlays (irrigation, hide cliffs, bridges, desirability) use
+    // get_tooltip on bare land  do not require a building id.
+    if (!tooltip) {
+        city_overlay_ptr->get_tooltip(c, tile, tooltip);
+    }
+
+    return tooltip;
+}
+
+static const figure* get_figure_at_mouse(vec2i mouse_pos) {
+    tile2i tile = g_screen_city.update_city_view_coords(mouse_pos);
+
+    if (!tile.valid()) {
+        return figure_get(0);
+    }
+
+    vec2i center_pos = g_camera.lookup_tile_to_pixel(tile) + vec2i{ HALF_TILE_WIDTH_PIXELS, HALF_TILE_HEIGHT_PIXELS };
+    const int radius = 30;
+
+    grid_tiles tiles = map_grid_get_tiles(tile.shifted(-1, -1), tile.shifted(1, 1));
+    figure* closest_figure = figure_get(0);
+    float closest_dist_sq = radius * radius;
+
+    for (const auto &t : tiles) {
+        int figure_id = map_figure_id_get(t);
+        while (figure_id > 0) {
+            figure *f = figure_get(figure_id);
+            if (f && f->state != FIGURE_STATE_DEAD && f->action_state != FIGURE_ACTION_149_CORPSE) {
+                float dist_sq = center_pos.dist_sq(f->main_cached_pos);
+                if (dist_sq < closest_dist_sq) {
+                    closest_dist_sq = dist_sq;
+                    closest_figure = f;
+                }
+            }
+            figure_id = (figure_id != f->next_figure) ? f->next_figure : 0;
+        }
+    }
+
+    return closest_figure;
+}
+
+void screen_city_t::draw_tooltip(tooltip_context* c) {
+    if (game_features::gameopt_tooltips_mode.to_int() == e_tooltip_mode_none) {
+        return;
+    }
+
+    if (!g_window_manager.window_is("window_city")) {
+        return;
+    }
+
+    if (!current_tile.valid()) {
+        return;
+    }
+
+    // Check for figure with debug info under mouse
+    const figure* f = get_figure_at_mouse(c->mpos);
+    f->draw_tooltip(c);
+
+    if (g_city.overlay()) {
+        c->high_priority = 1;
+        c->text = get_overlay_tooltip(c, current_tile);
+    }
+
+    int building_id = map_building_at(current_tile);
+    if (building_id) {
+        building_impl *b = building_get(building_id)->dcast();
+        b->draw_tooltip(c);
+    }
+}

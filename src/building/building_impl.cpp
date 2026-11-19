@@ -1,0 +1,658 @@
+#include "building_impl.h"
+
+#include "building/building.h"
+#include "city/object_info.h"
+#include "grid/building_tiles.h"
+#include "grid/terrain.h"
+#include "city/city_warnings.h"
+#include "grid/road_access.h"
+#include "city/city.h"
+#include "grid/image.h"
+#include "grid/building.h"
+#include "grid/water.h"
+#include "graphics/image.h"
+#include "widget/city/ornaments.h"
+#include "core/object_property.h"
+#include "core/archive.h"
+#include "grid/floodplain.h"
+#include "building/destruction.h"
+#include "figure/figure.h"
+#include "figuretype/figure_cartpusher.h"
+#include "figure/route.h"
+#include "building/building_storage.h"
+#include "graphics/elements/tooltip.h"
+#include "grid/enemy_strength.h"
+#include "grid/tiles.h"
+#include "sound/sound.h"
+#include "js/js_register.h"
+#include "js/js_struct.h"
+#include "game/game_config.h"
+#include "game/game_events.h"
+#include "graphics/graphics.h"
+
+#include <algorithm>
+#include <cmath>
+
+struct building_ev { building_id bid; };
+ANK_REGISTER_STRUCT_WRITER(building_ev, bid)
+
+struct building_tooltip_ev { building_id bid; int mx, my; };
+ANK_REGISTER_STRUCT_WRITER(building_tooltip_ev, bid, mx, my)
+
+struct add_resource_ev { building_id bid; int resource; int amount; int fid; };
+ANK_REGISTER_STRUCT_WRITER(add_resource_ev, bid, resource, amount, fid)
+
+struct produced_resources_ev { building_id bid; int resource; int amount; };
+ANK_REGISTER_STRUCT_WRITER(produced_resources_ev, bid, resource, amount)
+
+using namespace render_cmd;
+
+template<typename T>
+void building_impl::es_t(const T &ev, pcstr func) const {
+    js_event(ev, current_params().name, func);
+}
+
+void building_impl::on_create(int orientation) {
+    es(__func__);
+}
+
+void building_impl::on_place(int orientation, int variant) {
+    const auto &p = current_params();
+
+    base.fire_proof = p.fire_proof;
+    base.damage_proof = p.damage_proof;
+
+    base.output_resource_second_rate = p.output_resource_second_rate;
+
+    on_place_update_tiles(orientation, variant);
+    seed_default_overlays();
+    update_animation();
+    update_graphic();
+}
+
+void building_impl::on_place_update_tiles(int orientation, int variant) {
+    map_building_tiles_add(id(), tile(), base.size, base_img(), TERRAIN_BUILDING);
+}
+
+void building_impl::on_before_collapse() {
+    es(__func__);
+}
+
+void building_impl::on_destroy() {
+    es(__func__);
+}
+
+void building_impl::on_place_checks() {
+    es(__func__);
+}
+
+void building_impl::update_graphic() {
+    if (current_params().flags.work_anim) {
+        set_animation(base.play_animation ? animkeys().work : animkeys().none);
+    }
+
+    es(__func__);
+
+    base.minimap_anim = anim("minimap");
+}
+
+void building_impl::remove_dead_figures() {
+    for (int i = 0; i < base.max_figures; i++) {
+        figure *f = this->get_figure(i);
+        if (f->state != FIGURE_STATE_ALIVE) {
+            base.figure_ids[i] = 0;
+        }
+    }
+}
+
+void building_impl::on_post_load() {
+    const auto &p = current_params();
+    base.output = p.output;
+    base.input = p.input;
+    base.setup_static_flags();
+    seed_default_overlays();
+    update_animation();
+    update_graphic();
+    remove_dead_figures();
+}
+
+void building_impl::spawn_figure() {
+    es(__func__);
+}
+
+void building_impl::update_day() {
+    update_animation();
+    update_graphic();
+    remove_dead_figures();
+
+    es(__func__);
+}
+
+void building_impl::update_month() {
+    es(__func__);
+}
+
+void building_impl::update_year() {
+    es(__func__);
+}
+
+figure *building_impl::get_figure_in_slot(int slot) {
+    return figure_get(get_figure_id(slot));
+}
+
+bool building_impl::has_figure_of_type(int i, e_figure_type _type) const { return base.has_figure_of_type(i, _type); }
+
+figure *building_impl::create_figure_with_destination(e_figure_type _type, building *destination, e_figure_action created_action, e_building_slot slot) {
+    figure *f = create_figure_generic(_type, created_action, slot, DIR_4_BOTTOM_LEFT);
+    f->set_destination(destination->id);
+    f->set_direction(figure_find_best_road_direction(f->tile, destination->tile));
+
+    base.set_figure(slot, f->id); // warning: this overwrites any existing figure!
+    return f;
+}
+
+figure *building_impl::create_roaming_figure(e_figure_type _type, e_figure_action created_action, e_building_slot slot) {
+    figure *f = create_figure_generic(_type, created_action, slot, base.figure_roam_direction);
+
+    f->set_destination(nullptr);
+
+    base.set_figure(slot, f->id); // warning: this overwrites any existing figure!
+    f->init_roaming_from_building(base.figure_roam_direction);
+    f->set_home(base.id);
+
+    base.figure_roam_direction += 2;
+    if (base.figure_roam_direction > 6) {
+        base.figure_roam_direction = 0;
+    }
+
+    return f;
+}
+
+figure *building_impl::create_figure_generic(e_figure_type _type, e_figure_action created_action, e_building_slot slot, int created_dir) {
+    figure *f = figure_create(_type, base.road_access, created_dir);
+    f->action_state = created_action;
+    f->set_home(base.id);
+    base.set_figure(slot, f);
+
+    return f;
+}
+
+figure *building_impl::create_cartpusher(e_resource resource_id, int quantity, e_figure_action created_action, e_building_slot slot) {
+    figure *f = create_figure_generic(FIGURE_CART_PUSHER, created_action, slot, DIR_4_BOTTOM_LEFT);
+    auto cart = ::smart_cast<figure_cartpusher>(f);
+    if (!cart) {
+        return f;
+    }
+
+    cart->load_resource(resource_id, quantity);
+    cart->set_destination(nullptr);
+
+    base.set_figure(slot, cart->id()); // warning: this overwrites any existing figure!
+    if (!!game_features::gameplay_change_cart_speed_depends_quntity) {
+        f->progress_inside_speed = std::clamp(quantity / 400, 0, 2);
+    }
+    cart->base.wait_ticks = (short)figure_cartpusher::destination_wait_threshold();
+
+    return f;
+}
+
+figure *building_impl::common_spawn_goods_output_cartpusher(int min_carry, int max_carry) {
+    if (has_figure_of_type(BUILDING_SLOT_CARTPUSHER, FIGURE_CART_PUSHER)) {
+        return nullptr;
+    }
+
+    if (!base.has_road_access) {
+        return nullptr;
+    }
+
+    int stored_resources = stored_amount(base.output.resource);
+    if (stored_resources >= min_carry) {
+        const int carry_cap = std::min(max_carry, UNITS_PER_LOAD);
+        int amounts_to_carry = std::min<int>(stored_resources, carry_cap);
+        amounts_to_carry -= amounts_to_carry % 100; // remove pittance
+
+        figure *f = create_cartpusher(base.output.resource, amounts_to_carry, (e_figure_action)ACTION_20_CARTPUSHER_INITIAL, BUILDING_SLOT_CARTPUSHER);
+        consume_resource(base.output.resource, amounts_to_carry);
+        produced_resources(base.output.resource, f->get_carrying_amount());
+        return f;
+    }
+
+    return nullptr;
+}
+
+int building_impl::get_figures_number(e_figure_type ftype) const {
+    int figures_this_yard = 0;
+    for (int i = 0; i < MAX_FIGURES; i++) {
+        figure *f = figure_get(i);
+        if (f->is_alive() && f->has_type(ftype) && f->has_home(&base)) {
+            figures_this_yard++;
+        }
+    }
+
+    return figures_this_yard;
+}
+
+figure *building_impl::get_figure(int slot) { return base.get_figure(slot); }
+
+const figure *building_impl::get_figure(int slot) const { return base.get_figure(slot); }
+
+building_id building_impl::id() const { return base.id; }
+
+tile2i building_impl::tile() const { return base.tile; }
+
+int building_impl::ready_production() const {
+    const auto &p = current_params();
+    if (!!game_features::gameplay_rebalance_workshop_output && !p.production_rate_dcy.value.empty()) {
+        return p.production_rate_dcy.get();
+    }
+    // OG spawn_industry: every finished cycle ships one 100-unit load, whatever the building.
+    if (!game_features::gameplay_change_industry_remake_rates) {
+        return 100;
+    }
+    return p.production_rate;
+}
+
+int building_impl::tilex() const { return base.tile.x(); }
+
+int building_impl::tiley() const { return base.tile.y(); }
+
+int building_impl::size() const { return base.size; }
+
+e_building_type building_impl::type() const { return base.type; }
+
+int building_impl::figure_spawn_timer() const {
+    int pct_workers = worker_percentage();
+    if (pct_workers <= 0) {
+        return -1;
+    }
+
+    const bool boost = game_features::gameplay_enhanced_walker_spawn_boost.to_bool();
+    if (pct_workers >= 100) {
+        return 0;
+    } else if (pct_workers >= 75) {
+        return boost ? 0 : 1;
+    } else if (pct_workers >= 50) {
+        return boost ? 1 : 3;
+    } else if (pct_workers >= 25) {
+        return boost ? 3 : 7;
+    }
+    return boost ? 7 : 15;
+}
+
+int building_impl::num_workers() const { return base.num_workers; }
+
+bool building_impl::has_road_access() const { return base.has_road_access; }
+
+short building_impl::distance_from_entry() const { return base.distance_from_entry; }
+
+int building_impl::road_network() const { return base.road_network_id; }
+
+bool building_impl::draw_ornaments_and_animations_height(painter &ctx, vec2i point, tile2i tile, color color_mask) {
+    if (current_params().flags.draw_normal_anim) {
+        draw_normal_anim(ctx, point, tile, color_mask);
+    } else if (!base.anim.key) {
+        int image_id = map_image_at(tile.grid_offset());
+        building_draw_normal_anim(ctx, point, &base, tile, image_id, color_mask);
+    } else {
+        draw_normal_anim(ctx, point, tile, color_mask);
+    }
+
+    for (const auto &a : base.anims) {
+        if (a.valid()) {
+            draw_normal_anim(ctx, a, point, tile, color_mask);
+        }
+    }
+
+    if (base.has_plague) {
+        int skull_img = image_id_from_group(GROUP_PLAGUE_SKULL);
+
+        ImageDraw::generic_sub(ctx, ImageId{skull_img}, Pixel{vec2i{point.x + 18, point.y - 32}}, Mask{color_mask});
+    }
+
+    if (current_params().flags.draw_normal_anim) {
+        return true;
+    }
+
+    draw_overlay_anims(ctx, point, color_mask);
+
+    return false;
+}
+
+void building_impl::draw_usable_paths(painter &ctx) {
+    (void)ctx;
+    es(__func__);
+}
+
+bool building_impl::is_enemies_nearby() const {
+    if (g_city.figures.total_invading_enemies() > 0) {
+        if (map_enemy_strength_get(base.tile) > 0) {
+            // building can't work when enemy nearby
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void building_impl::update_animation() {
+    base.play_animation = !is_enemies_nearby() && base.main()->num_workers > 0;
+    es(__func__);
+}
+
+// OG building_count_update: active while it has workers; an always_work building (the shrines) has none and is
+// active with a road on an axis tile within road_access_distance.
+void building_impl::update_count() const {
+    const auto& params = current_params();
+    const bool active
+      = params.always_work ? map_has_road_access_nearby(base.tile, params.road_access_distance) : base.num_workers > 0;
+    g_city.buildings.increase_count(base.type, active);
+}
+
+void building_impl::update_map_orientation(int orientation) {
+}
+
+e_sound_channel_city building_impl::sound_channel() const {
+    return current_params().sound_channel;
+}
+
+void building_impl::draw_normal_anim(painter &ctx, vec2i pixel, tile2i tile, color mask) {
+    if (!base.play_animation) {
+        return;
+    }
+
+    draw_normal_anim(ctx, base.anim, pixel, tile, mask);
+}
+
+void building_impl::draw_normal_anim(painter &ctx, const animation_context &ranim, vec2i pixel, tile2i tile, color mask) {
+    if (!ranim.valid()) {
+        return;
+    }
+
+    vec2i pos = pixel + ranim.pos;
+    ImageDraw::generic_sub(ctx, ImageId{ranim.start_frame() + ranim.current_frame()}, Pixel{pos}, Mask{mask}, Flags{ranim.flags});
+}
+
+void building_impl::draw_tooltip(tooltip_context *c) const {
+    es_t(building_tooltip_ev{ base.id, c->mpos.x, c->mpos.y }, __func__);
+}
+
+void building_impl::bind_dynamic(io_buffer *iob, size_t version) {
+    verify_no_crash(base.output.resource == current_params().output.resource);
+}
+
+const auto& get_properties() {
+    static const svector<bproperty, 16> bproperties = {
+        { tags().stored, xstring("*"),
+            [] (building &b, const xstring &name) {
+                e_resource res = resource_type(name);
+                return bvariant(b.stored_amount(res));
+            }
+        },
+
+        { tags().text, xstring("*"),
+            [] (building &b, const xstring &name) {
+                 int id = atoi(name.c_str());
+                 const auto &m = building_static_params::get(b.type).meta;
+                 return bvariant(ui::str(m.text_id, id));
+            }
+        },
+
+        { tags().building, tags().name, [] (building &b, const xstring &) { return bvariant(b.cls_name()); }},
+        { tags().building, tags().num_workers, [] (building &b, const xstring &) { return bvariant(b.num_workers); }},
+        { tags().model, tags().laborers, [] (building &b, const xstring &) { return bvariant(b.max_workers); }},
+        { tags().building, tags().output_resource, [] (building &b, const xstring &) { return bvariant(resource_name(b.output.resource)); }},
+        { tags().building, tags().second_output_resource, [] (building &b, const xstring &) { return bvariant(resource_name(b.output.resource_second)); }},
+        { tags().building, tags().first_material, [] (building &b, const xstring &) { return bvariant(resource_name(b.input.resource)); }},
+        { tags().building, tags().first_material_stored, [] (building &b, const xstring &) { return bvariant(b.stored_amount(b.input.resource)); }},
+        { tags().building, tags().second_material, [] (building &b, const xstring &) { return bvariant(resource_name(b.input.resource_second)); }},
+        { tags().building, tags().second_material_stored, [] (building &b, const xstring &) { return bvariant(b.stored_amount(b.input.resource_second)); }},
+        { tags().farm, tags().fertility, [] (building &b, const xstring &) { return bvariant(map_get_fertility_for_farm(b.tile.grid_offset())); }},
+    };
+    return bproperties;
+}
+
+void building_impl::consume_resource(e_resource r, int16_t amount) {
+    if (r == RESOURCE_GOLD) {
+        base.deben_storage = (uint16_t)std::max(0, (int)base.deben_storage - amount);
+        return;
+    }
+    base.consume_resource(r, amount);
+}
+
+void building_impl::store_resource(e_resource r, int16_t amount) {
+    if (r == RESOURCE_GOLD) {
+        base.deben_storage = (uint16_t)std::min(0xffff, (int)base.deben_storage + amount);
+        return;
+    }
+    base.store_resource(r, amount);
+}
+
+bool building_impl::add_resource(e_resource resource, int amount, figure_id fid) {
+    const int before = stored_amount(resource);
+    es_t(add_resource_ev{ id(), (int)resource, amount, (int)fid }, __func__);
+    return stored_amount(resource) != before;
+}
+
+void building_impl::produced_resources(e_resource resource, int amount) {
+    events::emit(event_produced_resources{ resource, amount });
+    es_t(produced_resources_ev{ id(), (int)resource, amount }, __func__);
+}
+
+const resource_value& building_impl::stored_first() const {
+    return base.stored_first();
+}
+
+resource_value &building_impl::stored_first() {
+    return base.stored_first();
+}
+
+bvariant building_impl::get_property(const xstring &domain, const xstring &name) const {
+    if (domain == tags().building) {
+        auto result = archive_helper::get(base, name, true);
+        if (result) {
+            return result.value();
+        }
+    }
+
+    // Then try properties from get_properties()
+    static const xstring wildname("*");
+    for (const auto &prop : get_properties()) {
+        if (prop.domain != domain) {
+            continue;
+        }
+
+        if (prop.name == name || prop.name == wildname) {
+            return prop.handler(base, name);
+        }
+    }
+
+    return bvariant();
+}
+
+bool building_impl::set_property(const xstring &domain, const xstring &name, const bvariant &value) {
+    if (domain == tags().building) {
+        return archive_helper::set(base, name, value, true);
+    }
+
+    return false;
+}
+
+int building_impl::get_orientation() const {
+    return base.orientation;
+}
+
+building_impl *building_impl::next() { return base.next()->dcast(); }
+bool building_impl::has_next() const { return base.has_next(); }
+building_impl *building_impl::main() { return base.main()->dcast(); }
+const building_impl *building_impl::main() const { return base.main()->dcast(); }
+bool building_impl::is_main() const { return base.is_main(); }
+bool building_impl::has_figure(int slot) { return base.has_figure(slot); }
+bool building_impl::is_valid() const { return base.is_valid(); }
+e_building_state building_impl::state() const { return base.state; }
+int building_impl::worker_percentage() const { return base.worker_percentage(); }
+int building_impl::max_workers() const { return base.max_workers; }
+
+void building_impl::check_labor_problem() {
+    const bool unstaffed_service = (base.houses_covered <= 0 && base.labor_category != LABOR_CATEGORY_INVALID);
+    const bool unstaffed_other = (base.labor_category == LABOR_CATEGORY_INVALID && base.num_workers <= 0);
+    if (unstaffed_service || unstaffed_other) {
+        base.show_on_problem_overlay = 2;
+    }
+}
+
+void building_impl::common_spawn_labor_seeker(int min_houses) {
+    if (g_city.population.current <= 0) {
+        return;
+    }
+
+    if (!!game_features::gameplay_change_global_labour) {
+        // If it can access kingdome
+        base.houses_covered = std::min(300, base.distance_from_entry ? 2 * min_houses : 0);
+        return;
+    }
+
+    if (base.houses_covered > min_houses) {
+        return;
+    }
+
+    if (has_figure(BUILDING_SLOT_LABOR_SEEKER)) { // no figure slot available!
+        return;
+    }
+
+    create_roaming_figure(FIGURE_LABOR_SEEKER, (e_figure_action)ACTION_125_ROAMER_ROAMING, BUILDING_SLOT_LABOR_SEEKER);
+}
+
+int building_impl::get_figure_id(int i) const { return base.get_figure_id(i); }
+int building_impl::need_resource_amount(e_resource r) const { return base.need_resource_amount(r); }
+
+void building_impl::es(pcstr es_name) const {
+    es_t(building_ev{ base.id }, es_name);
+}
+
+void building_impl::destroy_by_poof(bool clouds) {
+    building* b = base.main();
+    if (clouds) {
+        figure_create_explosion_cloud(b->tile, b->size);
+        g_sound.play_effect(SOUND_EFFECT_EXPLOSION);
+    }
+
+    do {
+        map_building_tiles_remove(b->id, b->tile);
+        b->state = BUILDING_STATE_UNUSED;
+        map_tiles_update_region_empty_land(true, b->tile, b->tile.shifted(b->size - 1, b->size - 1));
+        if (b->next_part_building_id < 1) {
+            return;
+        }
+
+        b = b->next();
+    } while (true);
+}
+
+bool building_impl::common_spawn_roamer(e_figure_type type, int min_houses, e_figure_action created_action) {
+    if (common_spawn_figure_trigger(min_houses)) {
+        create_roaming_figure(type, created_action, BUILDING_SLOT_SERVICE);
+        return true;
+    }
+    return false;
+}
+
+bool building_impl::common_spawn_figure_trigger(int min_houses, int slot) {
+    check_labor_problem();
+    if (!has_road_access()) {
+        return false;
+    }
+
+    if (main() == this) { // only spawn from the main building
+        common_spawn_labor_seeker(min_houses);
+    }
+
+    if (has_figure(slot)) {
+        return false;
+    }
+
+    int spawn_delay = figure_spawn_timer();
+    if (spawn_delay == -1) {
+        return false;
+    }
+
+    base.figure_spawn_delay++;
+    if (base.figure_spawn_delay > spawn_delay) {
+        base.figure_spawn_delay = 0;
+        return true;
+    }
+
+    return false;
+}
+
+void building_impl::set_water_access_tiles(const water_access_tiles &tiles) {
+    base.tiles[0] = tiles.point_a.grid_offset();
+    base.tiles[1] = tiles.point_b.grid_offset();
+}
+
+water_access_tiles building_impl::get_water_access_tiles() const {
+    return { tile2i(base.tiles[0]), tile2i(base.tiles[1]) };
+}
+
+water_access_tiles building_impl::get_water_output_tiles() const {
+    return {};
+}
+
+tile2i building_impl::access_tile() const {
+    return base.road_access;
+}
+
+void building_impl::highlight_waypoints() { // highlight the 4 routing tiles for roams from this building
+    map_clear_highlights();
+    if (has_road_access()) {
+        map_highlight_set(base.road_access, HIGHLIGHT_RED);
+    }
+
+    int hx, hy;
+    hx = tilex();
+    hy = tiley() - 8;
+    map_grid_bound(&hx, &hy);
+    tile2i road_tile = map_closest_road_within_radius(tile2i(hx, hy), 1, 6);
+    if (road_tile.valid()) {
+        map_highlight_set(road_tile, HIGHLIGHT_BLUE);
+    }
+
+    hx = tilex() + 8;
+    hy = tiley();
+    map_grid_bound(&hx, &hy);
+    road_tile = map_closest_road_within_radius(tile2i(hx, hy), 1, 6);
+    if (road_tile.valid()) {
+        map_highlight_set(road_tile, HIGHLIGHT_BLUE);
+    }
+
+    hx = tilex();
+    hy = tiley() + 8;
+    map_grid_bound(&hx, &hy);
+    road_tile = map_closest_road_within_radius(tile2i(hx, hy), 1, 6);
+    if (road_tile.valid()) {
+        map_highlight_set(road_tile, HIGHLIGHT_BLUE);
+    }
+
+    hx = tilex() - 8;
+    hy = tiley();
+    map_grid_bound(&hx, &hy);
+    road_tile = map_closest_road_within_radius(tile2i(hx, hy), 1, 6);
+    if (road_tile.valid()) {
+        map_highlight_set(road_tile, HIGHLIGHT_BLUE);
+    }
+
+    es(__func__);
+}
+
+void building_impl::on_tick(bool refresh_only) {
+    tick_sprite_anims(refresh_only);
+
+    if (base.anim.ticks()) {
+        base.anim.update(refresh_only);
+    }
+
+    for (auto &anim : base.anims) {
+        if (anim.ticks()) {
+            anim.update(refresh_only);
+        }
+    }
+}

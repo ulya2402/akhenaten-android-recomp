@@ -1,0 +1,29 @@
+#include "city/city_kingdome_relations.h"
+
+#include "city/city.h"
+#include "core/profiler.h"
+#include "js/js_game.h"
+#include "js/js_global_object.h"
+
+void ank_global_obj_bind_field(js_State *J, js_StringNode name, e_rating_change *ptr) {
+    J->bind_property(name, reinterpret_cast<uint8_t *>(ptr));
+}
+
+ANK_GLOBAL_OBJECT(g_city.kingdome, __city_kingdome,
+    salary_rank,
+    salary_amount,
+    player_rank,
+    player_name,
+    campaign_player_name,
+    kingdom_change,
+    kingdom_salary_penalty,
+    kingdom_milestone_penalty,
+    kingdom_ignored_request_penalty,
+    personal_savings,
+    campaign_carry_personal_savings,
+    donate_amount,
+    months_since_gift,
+    gift_overdose_penalty,
+    rating,
+    rating_cap);
+

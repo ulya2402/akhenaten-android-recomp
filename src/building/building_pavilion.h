@@ -1,0 +1,49 @@
+#pragma once
+
+#include "building/building_entertainment.h"
+
+struct pavilion_preview_offset {
+    vec2i stand, stand_b, stand_e, booth;
+    int stand_b_img = 0, stand_e_img = 0;
+};
+ANK_CONFIG_STRUCT(pavilion_preview_offset, stand, stand_b, stand_e, booth, stand_b_img, stand_e_img);
+
+class building_pavilion : public building_entertainment {
+public:
+    BUILDING_METAINFO(BUILDING_PAVILLION, building_pavilion, building_entertainment)
+
+    struct preview : building_planer_renderer {
+        virtual void setup_preview_graphics(build_planner &planer) const override;
+        virtual void ghost_preview(build_planner &p, painter &ctx, tile2i tile, tile2i end, vec2i pixel) const override;
+    };
+
+    struct static_params : public building_static_params {
+        int dancer_tile = 0;
+        int booth_tile = 0;
+        int musician_tile_s = 0;
+        int musician_tile_e = 0;
+
+        svector<pavilion_preview_offset, 8> preview_dir;
+        svector<venue_place_offset, 8> place_dir;
+
+        void archive_load(archive arch);
+    } BUILDING_STATIC_DATA_T;
+
+    virtual void on_create(int orientation) override;
+    virtual void update_day() override;
+    virtual void on_post_load() override;
+    virtual void update_month() override;
+    virtual void on_place_update_tiles(int orientation, int variant) override;
+    virtual building_pavilion *dcast_pavilion() override { return this; }
+    virtual e_sound_channel_city sound_channel() const override { return SOUND_CHANNEL_CITY_PAVILION; }
+    virtual bool draw_ornaments_and_animations_height(painter &ctx, vec2i point, tile2i tile, color color_mask) override;
+    virtual void update_sprite_anims() override;
+    virtual void on_undo() override;
+    virtual void update_map_orientation(int map_orientation) override;
+    virtual bool get_route_citizen_land_type(int grid_offset, int &land_result) const override;
+    virtual bool target_route_tile_blocked(int grid_offset) const override;
+
+    virtual void spawn_figure() override;
+    virtual void update_count() const override;
+};
+ANK_CONFIG_STRUCT(building_pavilion::static_params, preview_dir, place_dir);

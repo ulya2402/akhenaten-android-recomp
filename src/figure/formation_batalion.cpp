@@ -1,0 +1,272 @@
+#include "formation_batalion.h"
+
+#include "game/game_events.h"
+#include "city/military.h"
+#include "city/city_warnings.h"
+#include "core/calc.h"
+#include "figure/enemy_army.h"
+#include "figuretype/figure_soldier.h"
+#include "figure/route.h"
+#include "grid/building.h"
+#include "grid/figure.h"
+#include "grid/grid.h"
+#include "grid/routing/routing.h"
+#include "scenario/distant_battle.h"
+#include "building/building_fort.h"
+
+bool formation_batalion_recruits_needed(void) {
+    for (int i = 1; i < MAX_FORMATIONS; i++) {
+        formation* m = formation_get(i);
+        if (m->in_use && m->own_batalion && m->batalion_recruit_type != BATALION_RECRUIT_NONE) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void formation_batalion_update_recruit_status(building* b) {
+    formation* m = formation_get(b->formation_id);
+    m->batalion_recruit_type = BATALION_RECRUIT_NONE;
+    if (!m->is_at_fort || m->cursed_by_seth || m->num_figures == m->max_figures) {
+        return;
+    }
+
+    if (m->num_figures < m->max_figures) {
+        building_fort *fort = b->dcast_fort();
+        e_figure_type type = fort->runtime_data().figure_type;
+        if (type == FIGURE_INFANTRY)
+            m->batalion_recruit_type = BATALION_RECRUIT_INFANTRY;
+        else if (type == FIGURE_ARCHER)
+            m->batalion_recruit_type = BATALION_RECRUIT_ARCHER;
+        else if (type == FIGURE_FCHARIOTEER)
+            m->batalion_recruit_type = BATALION_RECRUIT_CHARIOTEER;
+
+    } else { // too many figures
+        int too_many = m->num_figures - m->max_figures;
+        for (int i = formation::max_figures_count - 1; i >= 0 && too_many > 0; i--) {
+            if (m->figures[i]) {
+                figure_get(m->figures[i])->action_state = ACTION_2_SOLDIER_RETURNING_TO_BARRACKS;
+                too_many--;
+            }
+        }
+        g_formations.calculate_figures();
+    }
+}
+
+void formation_batalion_change_layout(formation* m, e_formation_layout new_layout) {
+    // Mop-up OK during pending: combat target filters skip frozen waves.
+    if (new_layout == FORMATION_MOP_UP && m->layout != FORMATION_MOP_UP)
+        m->prev.layout = m->layout;
+
+    m->layout = new_layout;
+}
+
+void formation_batalion_restore_layout(formation* m) {
+    if (m->layout == FORMATION_MOP_UP)
+        m->layout = m->prev.layout;
+}
+
+static int prepare_to_move(formation* m) {
+    if (m->months_very_low_morale || m->months_low_morale > 1) {
+        return 0;
+    }
+
+    if (m->months_low_morale == 1) {
+        formation_change_morale(m, 10); // yay, we can move!
+    }
+
+    return 1;
+}
+
+void formation_batalion_move_to(formation* m, tile2i tile) {
+    map_routing_calculate_distances(m->home);
+    if (map_routing_distance(tile) <= 0) {
+        return; // unable to route there
+    }
+
+    if (tile == m->home) {
+        return; // use formation_legion_return_home
+    }
+
+    if (m->cursed_by_seth) {
+        return;
+    }
+
+    m->standard_tile = tile;
+    m->is_at_fort = 0;
+
+    if (m->morale <= 20) {
+        events::emit(event_city_warning{ "#company_morale_too_low" });
+    }
+
+    for (int i = 0; i < formation::max_figures_count && m->figures[i]; i++) {
+        figure* f = figure_get(m->figures[i]);
+        
+        if (f->action_state == FIGURE_ACTION_149_CORPSE || f->in_attack()) {
+            continue;
+        }
+
+        if (prepare_to_move(m)) {
+            figure_soldier *soldier = f->dcast_soldier();
+            // m->figures[] also holds the standard bearer (not a soldier); dcast
+            // returns null for it -> guard to avoid a crash. The standard follows
+            // m->standard_tile on its own.
+            if (soldier) {
+                soldier->base.alternative_location_index = 0;
+                soldier->going_to_standard();
+                soldier->base.route_remove();
+            }
+        }
+    }
+}
+
+void formation_batalion_return_home(formation* m) {
+    map_routing_calculate_distances(m->home);
+    if (map_routing_distance(m->tile) <= 0)
+        return; // unable to route home
+
+    if (m->cursed_by_seth) {
+        return;
+    }
+
+    // Charioteers: OG legion_return_to_fort — charge home (action 0x13).
+    // Other companies: OG formation_legion_to_standard — walk to fort spots.
+    const bool chariot_charge = (m->figure_type == FIGURE_FCHARIOTEER);
+    if (chariot_charge) {
+        m->standard_tile = m->home;
+        m->is_at_fort = false;
+        m->layout = FORMATION_COLUMN;
+    } else {
+        m->is_at_fort = true;
+        formation_batalion_restore_layout(m);
+    }
+
+    for (int i = 0; i < formation::max_figures_count && m->figures[i]; i++) {
+        figure* f = figure_get(m->figures[i]);
+        if (f->action_state == FIGURE_ACTION_149_CORPSE || f->in_attack()) {
+            continue;
+        }
+
+        if (prepare_to_move(m)) {
+            figure_soldier *soldier = f->dcast_soldier();
+            if (!soldier) {
+                continue;
+            }
+            if (chariot_charge) {
+                soldier->start_charging();
+            } else {
+                f->action_state = ACTION_1_SOLDIER_GOING_TO_FORT;
+                f->route_remove();
+            }
+        }
+    }
+}
+
+int formation_batalion_curse() {
+    formation* best_legion = 0;
+    int best_legion_weight = 0;
+    for (int i = 1; i < MAX_FORMATIONS; i++) {
+        formation* m = formation_get(i);
+        if (m->in_use && m->own_batalion) {
+            int weight = m->num_figures;
+            if (m->figure_type == FIGURE_STANDARD_BEARER)
+                weight *= 2;
+
+            if (weight > best_legion_weight) {
+                best_legion_weight = weight;
+                best_legion = m;
+            }
+        }
+    }
+    if (!best_legion)
+        return 0;
+
+    for (int i = 0; i < formation::max_figures_count; i++) {
+        if (best_legion->figures[i] > 0)
+            figure_get(best_legion->figures[i])->action_state = ACTION_2_SOLDIER_RETURNING_TO_BARRACKS;
+    }
+
+    best_legion->cursed_by_seth = 96;
+    g_formations.calculate_figures();
+    return 1;
+}
+
+formation_id formation_batalion_at(tile2i tile) {
+    figure_id fid = map_figure_foreach_until(tile.grid_offset(), TEST_SEARCH_FORMATION);
+    if (fid <= 0) {
+        return 0;
+    }
+    figure *f = figure_get(fid);
+    return f ? f->formation_id : 0;
+}
+
+int formation_batalion_at_building(int grid_offset) {
+    int building_id = map_building_at(grid_offset);
+    if (building_id > 0) {
+        building* b = building_get(building_id);
+        if (b->state == BUILDING_STATE_VALID && (b->is_fort() || b->type == BUILDING_FORT_GROUND))
+            return b->formation_id;
+    }
+    return 0;
+}
+
+void formations_t::batalions_update() {
+    for (int i = 1; i < MAX_FORMATIONS; i++) {
+        formation* m = formation_get(i);
+        if (!m->in_use || !m->batalion_id) {
+            continue;
+        }
+
+        formation_decrease_monthly_counters(m);
+        if (g_city.figures.total_invading_enemies() <= 0) {
+            formation_clear_monthly_counters(m);
+        }
+
+        for (int n = 0; n < formation::max_figures_count; n++) {
+            if (figure_get(m->figures[n])->in_attack()) {
+                formation_record_fight(m);
+            }
+        }
+
+        if (m->has_low_morale()) {
+            // flee back to fort
+            for (int n = 0; n < formation::max_figures_count; n++) {
+                if (m->figures[n] == 0) {
+                    continue;
+                }
+                figure_soldier* soldier = figure_get(m->figures[n])->dcast_soldier();
+                if (soldier) {
+                    soldier->goback_to_fort();
+                }
+            }
+
+        } else if (m->layout == FORMATION_MOP_UP) {
+            if ((enemy_army_total_enemy_formations() + g_city.figures.rioters + g_city.figures.attacking_natives) > 0) {
+                for (int n = 0; n < formation::max_figures_count; n++) {
+                    if (m->figures[n] != 0) {
+                        figure* f = figure_get(m->figures[n]);
+                        if (!f->in_attack() && f->action_state != FIGURE_ACTION_149_CORPSE) {
+                            f->action_state = ACTION_6_SOLDIER_MOPPING_UP;
+                        }
+                    }
+                }
+            } else {
+                formation_batalion_restore_layout(m);
+            }
+        }
+    }
+}
+
+void formation_batalion_decrease_damage(void) {
+    for (int i = 1; i < MAX_FIGURES; i++) {
+        figure* f = figure_get(i);
+        if (f->state == FIGURE_STATE_ALIVE && ::smart_cast<figure_soldier>(f)) {
+            if (f->action_state == ACTION_0_SOLDIER_AT_REST) {
+                if (f->damage) {
+                    f->damage--;
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,102 @@
+log_info("akhenaten: mods started")
+
+// Read by C++ (g_mods_config); the script API is the separate mods object below.
+mods_config {
+    mods_list [
+        {
+            name : "pharaoh_german_voices"
+            desc : "German voices for the game"
+            version : "1.0.0"
+            author : "dalerank"
+            url : "https://github.com/dalerank/Akhenaten/releases/download/mods/pharaoh_german_voices.sgx"
+            email : "dalerankn8@gmail.com"
+        }
+
+        {
+            name : "pharaoh_french_voices"
+            desc : "French voices for the game"
+            version : "1.0.0"
+            author : "dalerank"
+            url : "https://github.com/dalerank/Akhenaten/releases/download/mods/pharaoh_french_voices.sgx"
+            email : "dalerankn8@gmail.com"
+        }
+
+        {
+            name : "pharaoh_spanish_voices"
+            desc : "Spanish voices for the game"
+            version : "1.0.0"
+            author : "dalerank"
+            url : "https://github.com/dalerank/Akhenaten/releases/download/mods/pharaoh_spanish_voices.sgx"
+            email : "dalerankn8@gmail.com"
+        }
+
+        {
+            name : "pharaoh_polish_voices"
+            desc : "Polish voices for the game"
+            version : "1.0.0"
+            author : "dalerank"
+            url : "https://github.com/dalerank/Akhenaten/releases/download/mods/pharaoh_polish_voices.sgx"
+            email : "dalerankn8@gmail.com"
+        }
+
+        {
+            name : "pharaoh_italian_voices"
+            desc : "Italian voices for the game"
+            version : "1.0.0"
+            author : "dalerank"
+            url : "https://github.com/dalerank/Akhenaten/releases/download/mods/pharaoh_italian_voices.sgx"
+            email : "dalerankn8@gmail.com"
+        }
+
+        {
+            name : "pharaoh_russian_voices"
+            desc : "Russian voices for the game"
+            version : "1.0.0"
+            author : "dalerank"
+            url : "https://github.com/dalerank/Akhenaten/releases/download/mods/pharaoh_russian_voices.sgx"
+            email : "dalerankn8@gmail.com"
+        }
+
+        {
+            name : "pharaoh_sounds_pack"
+            desc : "Custom walker speech (Voice/Walker); required for figure phrase audio"
+            version : "1.31.0"
+            author : "dalerank"
+            url : "https://github.com/dalerank/Akhenaten/releases/download/mods/pharaoh_sounds_pack.sgx"
+            email : "dalerankn8@gmail.com"
+        }
+
+        {
+            name : "pharaoh_custom_mainmenu"
+            desc : "Custom main menu graphics"
+            version : "1.0.0"
+            author : "dalerank"
+            url : "https://github.com/dalerank/Akhenaten/releases/download/mods/pharaoh_custom_mainmenu.sgx"
+            email : "dalerankn8@gmail.com"
+        }
+
+        {
+            name : "pharaoh_well_info_trainer"
+            desc : "Well info trainer"
+            version : "1.0.0"
+            author : "dalerank"
+            url : "https://github.com/dalerank/Akhenaten/releases/download/mods/pharaoh_well_info_trainer.sgx"
+            email : "dalerankn8@gmail.com"
+        }
+    ]
+}
+
+mods {
+    count : __mods_count
+    name : __mods_name
+    display_name : __mods_display_name
+    enabled : __mods_enabled
+    broken : __mods_broken
+    download_progress : __mods_download_progress
+    downloaded : __mods_downloaded
+    download_mod_async : __mods_download_mod_async
+    download_info_async : __mods_download_info_async
+    toggle : __mods_toggle
+    remount : __mods_remount
+    inupdate : __mods_inupdate
+}

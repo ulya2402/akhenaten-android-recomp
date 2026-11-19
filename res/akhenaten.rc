@@ -1,0 +1,4 @@
+#include "version.rc"
+
+// Lowest id is the application icon (taskbar, Explorer). IDI_ICON1 is not defined here.
+1 ICON "akhenaten.ico"

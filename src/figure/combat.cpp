@@ -1,0 +1,617 @@
+#include "combat.h"
+
+#include "core/calc.h"
+#include "city/city_figures.h"
+#include "figure/formation.h"
+#include "figure/movement.h"
+#include "figure/route.h"
+#include "figuretype/figure_enemy_transport.h"
+#include "figuretype/figure_plagued_citizen.h"
+#include "figuretype/figure_soldier.h"
+#include "figuretype/figure_robber.h" // ACTION_10_ROBBER_FLEEING
+#include "game/difficulty.h"
+#include "game/resource.h"
+#include "grid/figure.h"
+#include "grid/point.h"
+#include "sound/sound.h"
+#include "game/game_events.h"
+#include "scenario/invasion_auto_resolve.h"
+
+int attack_is_same_direction(int dir1, int dir2) {
+    if (dir1 == dir2)
+        return 1;
+
+    int dir2_off = dir2 <= 0 ? 7 : dir2 - 1;
+    if (dir1 == dir2_off)
+        return 1;
+
+    dir2_off = dir2 >= 7 ? 0 : dir2 + 1;
+    if (dir1 == dir2_off)
+        return 1;
+
+    return 0;
+}
+
+int figure_combat_get_target_for_soldier(tile2i tile, int max_distance) {
+    int figure_id = 0;
+    int min_distance = 10000;
+    for (figure *f: map_figures()) {
+        if (!f->is_valid()) {
+            continue;
+        }
+
+        if (f->is_dead()) {
+            continue;
+        }
+
+        if (invasion_auto_resolve_figure_immune(f)) {
+            continue;
+        }
+
+        // Embarked transport cargo is invisible / off-grid — not a land target.
+        if (!f->is_visible()) {
+            continue;
+        }
+
+        if (f->is_enemy() || f->is_criminal()) {
+            int distance = calc_maximum_distance(tile, f->tile);
+            if (distance <= max_distance) {
+                if (f->targeted_by_figure_id) {
+                    distance *= 2; // penalty
+                }
+
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    figure_id = f->id;
+                }
+            }
+        }
+    }
+    if (figure_id)
+        return figure_id;
+
+    for (figure *f: map_figures()) {
+        if (!f->is_valid()) {
+            continue;
+        }
+
+        if (f->is_dead()) {
+            continue;
+        }
+
+        if (invasion_auto_resolve_figure_immune(f)) {
+            continue;
+        }
+
+        if (!f->is_visible()) {
+            continue;
+        }
+
+        if (f->is_enemy() || f->is_criminal()) {
+            return f->id;
+        }
+    }
+    return 0;
+}
+
+int figure_combat_get_target_for_enemy(tile2i tile) {
+    int min_figure_id = 0;
+    int min_distance = 10000;
+    for (figure* f: map_figures()) {
+        if (!f->is_valid() || f->is_dead()) {
+            continue;
+        }
+
+        if (!f->targeted_by_figure_id && ::smart_cast<figure_soldier>(f)) {
+            int distance = calc_maximum_distance(tile, f->tile);
+            if (distance < min_distance) {
+                min_distance = distance;
+                min_figure_id = f->id;
+            }
+        }
+    }
+
+    if (min_figure_id) {
+        return min_figure_id;
+    }
+
+    // no 'free' soldier found, take first one
+    for (figure* f: map_figures()) {
+        if (!f->is_valid() || f->is_dead()) {
+            continue;
+        }
+
+        if (::smart_cast<figure_soldier>(f)) {
+            return f->id;
+        }
+    }
+
+    return 0;
+}
+
+static bool figure_is_enemy_transport_ship(e_figure_type type) {
+    switch (type) {
+    case FIGURE_ENEMY_TRANSPORT:
+    case FIGURE_ENEMY_EGYPTIAN_TRANSPORT_SHIP:
+    case FIGURE_ENEMY_BARBARIAN_TRANSPORT_SHIP:
+    case FIGURE_ENEMY_CANAANITE_TRANSPORT_SHIP:
+    case FIGURE_ENEMY_KUSHITE_TRANSPORT_SHIP:
+    case FIGURE_ENEMY_HITTITE_TRANSPORT_SHIP:
+    case FIGURE_ENEMY_PERSIAN_TRANSPORT_SHIP:
+    case FIGURE_ENEMY_ASSYRIAN_TRANSPORT_SHIP:
+    case FIGURE_ENEMY_LIBIAN_TRANSPORT_SHIP:
+    case FIGURE_ENEMY_NUBIAN_TRANSPORT_SHIP:
+    case FIGURE_ENEMY_PHOENICIAN_TRANSPORT_SHIP:
+    case FIGURE_ENEMY_ROMAN_TRANSPORT_SHIP:
+    case FIGURE_ENEMY_SEAPEOPLE_TRANSPORT_SHIP:
+    case FIGURE_ENEMY_HYKSOS_TRANSPORT_SHIP:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool figure_is_enemy_warship(e_figure_type type) {
+    switch (type) {
+    case FIGURE_ENEMY_WARSHIP:
+    case FIGURE_ENEMY_EGYPTIAN_WARSHIP:
+    case FIGURE_ENEMY_EGYPTIAN_GALERA:
+    case FIGURE_ENEMY_CANAANITE_WAR_SHIP:
+    case FIGURE_ENEMY_KUSHITE_WAR_SHIP:
+    case FIGURE_ENEMY_HITTITE_WAR_SHIP:
+    case FIGURE_ENEMY_PERSIAN_WAR_SHIP:
+    case FIGURE_ENEMY_ASSYRIAN_WAR_SHIP:
+    case FIGURE_ENEMY_LIBIAN_WAR_SHIP:
+    case FIGURE_ENEMY_NUBIAN_WAR_SHIP:
+    case FIGURE_ENEMY_PHOENICIAN_WAR_SHIP:
+    case FIGURE_ENEMY_ROMAN_WAR_SHIP:
+    case FIGURE_ENEMY_SEAPEOPLE_WAR_SHIP:
+    case FIGURE_ENEMY_HYKSOS_WAR_SHIP:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// OG get_missile_target_for_soldier: priority enemies(50) > loaded transports(40) > warships(30) > transports(20)
+// > predators(10).
+static int soldier_missile_target_priority(figure *f) {
+    switch (f->type) {
+    case FIGURE_CROCODILE:
+    case FIGURE_HYENA:
+    case FIGURE_HIPPO:
+    case FIGURE_ASP:
+    case FIGURE_LION:
+    case FIGURE_SCORPION:
+    case FIGURE_MUMMY:
+        return 10;
+    default:
+        break;
+    }
+    if (figure_is_enemy_warship(f->type)) {
+        return 30;
+    }
+    if (figure_is_enemy_transport_ship(f->type)) {
+        auto* transport = smart_cast<figure_enemy_transport>(f);
+        return (transport && transport->has_troops()) ? 40 : 20;
+    }
+    if (f->is_enemy()) {
+        return 50;
+    }
+    return 0;
+}
+
+int figure_combat_get_missile_target_for_soldier(figure* shooter, int max_distance, tile2i* tile) {
+    int best_priority = 0;
+    int best_distance = max_distance;
+    figure* best_figure = nullptr;
+    formation *m = formation_get(shooter->formation_id);
+    const int target_formation = m ? m->missile_attack_formation_id : 0;
+
+    for (figure* f: map_figures()) {
+        if (!f->is_valid() || f->is_dead()) {
+            continue;
+        }
+
+        if (invasion_auto_resolve_figure_immune(f)) {
+            continue;
+        }
+
+        if (!f->is_visible()) {
+            continue;
+        }
+
+        const int priority = soldier_missile_target_priority(f);
+        if (priority <= 0) {
+            continue;
+        }
+
+        const bool is_ship = figure_is_enemy_transport_ship(f->type) || figure_is_enemy_warship(f->type);
+        if (!is_ship && target_formation > 0 && f->formation_id != target_formation) {
+            continue;
+        }
+
+        int distance = calc_maximum_distance(shooter->tile, f->tile);
+        if (priority > best_priority && distance < best_distance
+            && figure_movement_can_launch_cross_country_missile(shooter->tile, f->tile)) {
+            best_figure = f;
+            best_distance = distance;
+            best_priority = priority;
+        }
+    }
+
+    if (best_figure) {
+        map_point_store_result(best_figure->tile, *tile);
+        return best_figure->id;
+    }
+
+    return 0;
+}
+
+target_figure figure_combat_get_missile_target_for_enemy(figure* enemy, int max_distance, int attack_citizens) {
+    figure* min_figure = 0;
+    int min_distance = max_distance;
+    for (figure* f: map_figures()) {
+        if (!f->is_valid() || f->is_dead() || f->params().ignored_by_enemy_missiles) {
+            continue;
+        }
+
+        switch (f->type) {
+        default:
+            ; // nothing
+            break;
+
+        case FIGURE_EXPLOSION:
+        case FIGURE_STANDARD_BEARER:
+        case FIGURE_MAP_FLAG:
+        case FIGURE_FLOTSAM:
+        case FIGURE_BUBBLES:
+        case FIGURE_INDIGENOUS_NATIVE:
+        case FIGURE_NATIVE_TRADER:
+        case FIGURE_ARROW:
+        case FIGURE_JAVELIN:
+        case FIGURE_BOLT:
+        case FIGURE_BALLISTA:
+        case FIGURE_CREATURE:
+        case FIGURE_SEAGULLS:
+        case FIGURE_FISHING_POINT:
+        case FIGURE_SHIPWRECK:
+        case FIGURE_BIRDS:
+        // case FIGURE_WOLF:
+        case FIGURE_OSTRICH:
+        case FIGURE_ANTELOPE:
+        case FIGURE_SPEAR:
+            continue;
+        }
+
+        int distance;
+        if (::smart_cast<figure_soldier>(f)) {
+            distance = calc_maximum_distance(enemy->tile, f->tile);
+        } else if (attack_citizens && f->is_friendly()) {
+            distance = calc_maximum_distance(enemy->tile, f->tile) + 5;
+        } else {
+            continue;
+        }
+
+        if (distance < min_distance
+            && figure_movement_can_launch_cross_country_missile(enemy->tile, f->tile)) {
+            min_distance = distance;
+            min_figure = f;
+        }
+    }
+
+    if (min_figure) {
+        return { min_figure->id, min_figure->tile };
+    }
+
+    return { 0, tile2i::invalid };
+}
+
+void figure::figure_combat_handle_corpse() {
+    if (wait_ticks < 0) {
+        wait_ticks = 0;
+    }
+
+    wait_ticks++;
+    if (wait_ticks >= params().corpse_time_delay) {
+        wait_ticks = 127;
+        poof();
+    }
+}
+
+void figure::resume_activity_after_attack() {
+    num_attackers = 0;
+    action_state = action_state_before_attack;
+    opponent_id = 0;
+    attacker_id1 = 0;
+    attacker_id2 = 0;
+    set_flag(e_figure_flag_inattack, false); // allow re-acquiring a new target next tick
+    route_remove();
+}
+
+void figure::hit_opponent() {
+    const formation* m = formation_get(formation_id);
+    figure* opponent = figure_get(opponent_id);
+    formation* opponent_formation = formation_get(opponent->formation_id);
+
+    // Pending auto-resolve waves are non-combatant both ways.
+    if (invasion_auto_resolve_figure_immune(this) || invasion_auto_resolve_figure_immune(opponent)) {
+        return;
+    }
+
+    //const figure_properties& props = figure_properties_for_type(type);
+    //const figure_properties& opponent_props = figure_properties_for_type(opponent->type);
+    if (category() == figure_category_citizen || category() == figure_category_criminal) {
+        attack_image_offset = 12;
+    } else {
+        attack_image_offset = 0;
+    }
+    int figure_attack = attack_value();
+    int opponent_defense = opponent->defense_value();
+
+    // OG military.c figure_combat_hit_opponent: ×4 attack while charge.steps is 6..19.
+    if (charge_steps > 5 && charge_steps < 20) {
+        figure_attack <<= 2;
+    }
+
+    // attack modifiers
+    // if (type == /*FIGURE_WOLF*/)
+    //    figure_attack = difficulty_adjust_wolf_attack(figure_attack);
+
+    // OG military.c: rear attack +4 when attacker formation is LEG_AUX (12) or LEG_HEAVY (13).
+    if (opponent->opponent_id != id
+        && (m->figure_type == FIGURE_INFANTRY || m->figure_type == FIGURE_FCHARIOTEER)
+        && attack_is_same_direction(attack_direction, opponent->attack_direction)) {
+        figure_attack += 4;
+        events::emit(event_sound_effect{SOUND_EFFECT_SWORD_SWING});
+    }
+
+    // OG halted facing bonuses: infantry double-line +4 / column +2; missile/chariot column +2.
+    if (m->is_halted && attack_is_same_direction(attack_direction, m->direction)) {
+        if (m->figure_type == FIGURE_INFANTRY) {
+            if (m->layout == FORMATION_DOUBLE_LINE_1 || m->layout == FORMATION_DOUBLE_LINE_2)
+                figure_attack += 4;
+            else if (m->layout == FORMATION_COLUMN)
+                figure_attack += 2;
+        } else if (m->figure_type == FIGURE_ARCHER || m->figure_type == FIGURE_FCHARIOTEER) {
+            if (m->layout == FORMATION_COLUMN)
+                figure_attack += 2;
+        }
+    }
+
+    // defense modifiers
+    if (opponent_formation->is_halted) {
+        const e_figure_type oft = opponent_formation->figure_type;
+        if (oft == FIGURE_INFANTRY) {
+            if (!attack_is_same_direction(opponent->attack_direction, opponent_formation->direction))
+                opponent_defense -= 4;
+            else if (opponent_formation->layout == FORMATION_DOUBLE_LINE_1
+                     || opponent_formation->layout == FORMATION_DOUBLE_LINE_2)
+                opponent_defense += 4;
+            else if (opponent_formation->layout == FORMATION_COLUMN)
+                opponent_defense -= 2;
+        } else if (oft == FIGURE_ARCHER || oft == FIGURE_FCHARIOTEER) {
+            if (!attack_is_same_direction(opponent->attack_direction, opponent_formation->direction))
+                opponent_defense -= 4;
+            else if (opponent_formation->layout == FORMATION_COLUMN)
+                opponent_defense -= 2;
+        } else if (figure_is_kingdome_army(oft)) {
+            if (!attack_is_same_direction(opponent->attack_direction, opponent_formation->direction))
+                opponent_defense -= 4;
+            else if (opponent_formation->layout == FORMATION_COLUMN)
+                opponent_defense += 7;
+            else if (opponent_formation->layout == FORMATION_DOUBLE_LINE_1
+                     || opponent_formation->layout == FORMATION_DOUBLE_LINE_2)
+                opponent_defense += 4;
+        }
+    }
+
+   const int opponent_max_damage = opponent->max_damage();
+    int net_attack = figure_attack - opponent_defense;
+    if (net_attack < 0)
+        net_attack = 0;
+
+    opponent->damage += net_attack;
+    if (opponent->damage <= opponent_max_damage) {
+        play_hit_sound();
+    } else {
+        opponent->kill();
+        opponent->wait_ticks = 0;
+        opponent->play_die_sound();
+        formation_update_morale_after_death(opponent_formation);
+    }
+}
+
+void figure::figure_combat_handle_attack() {
+    advance_attack();
+    if (num_attackers == 0) {
+        resume_activity_after_attack();
+        return;
+    }
+    if (num_attackers == 1) {
+        figure* target = figure_get(opponent_id);
+        if (target->is_dead()) {
+            resume_activity_after_attack();
+            return;
+        }
+    } else if (num_attackers == 2) {
+        if (figure_get(opponent_id)->is_dead()) {
+            if (opponent_id == attacker_id1)
+                opponent_id = attacker_id2;
+            else if (opponent_id == attacker_id2)
+                opponent_id = attacker_id1;
+
+            if (figure_get(opponent_id)->is_dead()) {
+                resume_activity_after_attack();
+                return;
+            }
+            num_attackers = 1;
+            attacker_id1 = opponent_id;
+            attacker_id2 = 0;
+        }
+    }
+    attack_image_offset++;
+    if (attack_image_offset >= 24)
+        hit_opponent();
+}
+
+void figure::figure_combat_attack_figure_at(int grid_offset) {
+    // OG military.c: thief vs gold cartpusher — steal 100 after a short flee, kill the cart.
+    if (type == FIGURE_ROBBER && !in_attack()) {
+        int cid = map_figure_id_get(grid_offset);
+        for (int guard = 0; cid > 0 && guard < MAX_FIGURES; guard++, cid = figure_get(cid)->next_figure) {
+            if (cid == id) {
+                continue;
+            }
+            figure *opp = figure_get(cid);
+            if (!opp->is_alive()) {
+                continue;
+            }
+            if (opp->type == FIGURE_CART_PUSHER && opp->get_resource() == RESOURCE_GOLD) {
+                action_state = ACTION_10_ROBBER_FLEEING;
+                wait_ticks = 0;
+                opp->kill();
+                return;
+            }
+        }
+    }
+    if (type == FIGURE_CART_PUSHER && get_resource() == RESOURCE_GOLD && !in_attack()) {
+        int cid = map_figure_id_get(grid_offset);
+        for (int guard = 0; cid > 0 && guard < MAX_FIGURES; guard++, cid = figure_get(cid)->next_figure) {
+            if (cid == id) {
+                continue;
+            }
+            figure *opp = figure_get(cid);
+            if (!opp->is_alive() || opp->type != FIGURE_ROBBER) {
+                continue;
+            }
+            opp->action_state = ACTION_10_ROBBER_FLEEING;
+            opp->wait_ticks = 0;
+            kill();
+            return;
+        }
+    }
+
+    if (category() <= figure_category_inactive
+        || category() >= figure_category_criminal
+        || in_attack()) {
+        return;
+    }
+
+    // OG: a charging soldier (action 0x13) deals an immediate hit instead of entering melee state.
+    if (action_state == ACTION_12_SOLDIER_CHARGING) {
+        int cid = map_figure_id_get(grid_offset);
+        for (int guard = 0; cid > 0 && guard < MAX_FIGURES; guard++, cid = figure_get(cid)->next_figure) {
+            if (cid == id) {
+                continue;
+            }
+            figure *opp = figure_get(cid);
+            if (!opp->is_alive() || opp->faction_id == faction_id) {
+                continue;
+            }
+            e_figure_category oc = opp->category();
+            if (oc != figure_category_hostile && oc != figure_category_animal
+                && oc != figure_category_criminal && oc != figure_category_native) {
+                continue;
+            }
+            opponent_id = cid;
+            hit_opponent();
+            return;
+        }
+        return;
+    }
+
+    int guard = 0;
+    int opponent_id_tile = map_figure_id_get(grid_offset);
+    for (;;) {
+        if (++guard >= MAX_FIGURES || opponent_id_tile <= 0)
+            break;
+
+        figure* opponent = figure_get(opponent_id_tile);
+        if (opponent_id_tile == id) {
+            opponent_id_tile = opponent->next_figure;
+            continue;
+        }
+
+        // OG: do not open a normal fight against a charging figure.
+        if (opponent->action_state == ACTION_12_SOLDIER_CHARGING) {
+            return;
+        }
+
+        if (invasion_auto_resolve_figure_immune(this) || invasion_auto_resolve_figure_immune(opponent)) {
+            opponent_id_tile = opponent->next_figure;
+            continue;
+        }
+
+        e_figure_category opponent_category = opponent->category();
+        e_figure_category my_category = category();
+        bool attack = false;
+        if (opponent->state != FIGURE_STATE_ALIVE) {
+            attack = false;
+        } else if (opponent->action_state == FIGURE_ACTION_149_CORPSE) {
+            attack = false;
+        } else if (my_category == figure_category_armed && opponent_category == figure_category_native) {
+            if (opponent->is_enemy()) {
+                attack = true;
+            }
+
+        } else if (my_category == figure_category_armed && opponent_category == figure_category_criminal)
+            attack = true;
+        else if (my_category == figure_category_armed && opponent_category == figure_category_hostile)
+            attack = true;
+        else if (my_category == figure_category_hostile && opponent_category == figure_category_citizen)
+            attack = true;
+        else if (my_category == figure_category_hostile && opponent_category == figure_category_armed)
+            attack = true;
+        else if (my_category == figure_category_hostile && opponent_category == figure_category_criminal)
+            attack = true;
+        else if (my_category == figure_category_armed && opponent_category == figure_category_animal)
+            attack = true;
+        else if (my_category == figure_category_hostile && opponent_category == figure_category_animal)
+            attack = true;
+
+        if (figure_plagued_citizen::cure_on_meeting(*this, *opponent)) {
+            return;
+        }
+
+        if (attack && in_attack() && opponent->num_attackers >= 2) {
+            attack = false;
+        }
+
+        if (attack) {
+            action_state_before_attack = action_state;
+            acquire_attack();
+            this->opponent_id = opponent_id_tile;
+            attacker_id1 = opponent_id_tile;
+            num_attackers = 1;
+            attack_image_offset = 12;
+            if (opponent->tile.x() != opponent->destination_tile.x()
+                || opponent->tile.y() != opponent->destination_tile.y()) {
+                attack_direction = calc_general_direction(previous_tile, opponent->previous_tile);
+            } else {
+                attack_direction = calc_general_direction(previous_tile, opponent->tile);
+            }
+            if (attack_direction >= 8)
+                attack_direction = 0;
+
+            if (!opponent->in_attack()) {
+                opponent->action_state_before_attack = opponent->action_state;
+                opponent->acquire_attack();
+                opponent->attack_image_offset = 0;
+                opponent->attack_direction = (attack_direction + 4) % 8;
+            }
+
+            if (opponent->num_attackers == 0) {
+                opponent->attacker_id1 = id;
+                opponent->opponent_id = id;
+                opponent->num_attackers = 1;
+            } else if (opponent->num_attackers == 1) {
+                opponent->attacker_id2 = id;
+                opponent->num_attackers = 2;
+            }
+
+            return;
+        }
+        opponent_id_tile = opponent->next_figure;
+    }
+}

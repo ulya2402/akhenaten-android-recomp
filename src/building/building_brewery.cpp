@@ -1,0 +1,106 @@
+#include "building/building_brewery.h"
+
+#include "city/city_resource.h"
+#include "game/game_config.h"
+#include "grid/terrain.h"
+#include "io/io_buffer.h"
+
+#include "js/js_register.h"
+#include "dev/debug.h"
+
+
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(building_brewery);
+
+declare_console_command(add_beer, game_cheat_add_resource<RESOURCE_BEER>);
+declare_console_command(add_barley, game_cheat_add_resource<RESOURCE_BARLEY>);
+
+int building_brewery::stored_amount(e_resource r) const {
+    if (r == RESOURCE_WATER) {
+        return water_stored();
+    }
+    return building_industry::stored_amount(r);
+}
+
+void building_brewery::update_preproduction() {
+    building_industry::update_preproduction();
+
+    update_water_supply();
+}
+
+void building_brewery::on_create(int orientation) {
+    building_industry::on_create(orientation);
+
+    if (!!game_features::gameplay_brewery_requires_water) {
+        set_water_stored(0);
+    }
+}
+
+void building_brewery::update_production() {
+    if (!!game_features::gameplay_brewery_requires_water) {
+        auto &d = runtime_data();
+
+        // Only burn water while a batch is running. Idle drain cancelled refill (+1/day).
+        if (base.progress > 0) {
+            if (water_stored() > 0) {
+                set_water_stored(water_stored() - 1);
+            } else {
+                return;
+            }
+        }
+
+        update_water_supply();
+    }
+
+    building_industry::update_production();
+}
+
+void building_brewery::production_started() {
+    auto &d = runtime_data();
+    if (!!game_features::gameplay_brewery_requires_water) {
+        int current_water = water_stored();
+        current_water = std::max(0, current_water - current_params().water_amount_for_production);
+        set_water_stored(current_water);
+    }
+}
+
+void building_brewery::start_production() {
+    if (!!game_features::gameplay_brewery_requires_water) {
+        // Check if we have enough water (need at least 50 units to start)
+        if (water_stored() < current_params().water_amount_for_production) {
+            return; // Can't start production without water
+        }
+
+        building_industry::start_production();
+    } else {
+        building_industry::start_production();
+    }
+}
+
+bool building_brewery::has_water_access() const {
+    if (!game_features::gameplay_brewery_requires_water) {
+        return true; // Feature disabled, no water requirement
+    }
+
+    return map_terrain_exists_tile_in_area_with_type(base.tile, base.size, TERRAIN_GROUNDWATER) ||
+           map_terrain_exists_tile_in_area_with_type(base.tile, base.size, TERRAIN_FOUNTAIN_RANGE) ||
+           map_terrain_exists_tile_in_radius_with_type(base.tile, base.size, 3, TERRAIN_WATER) ||
+           map_terrain_exists_tile_in_radius_with_type(base.tile, base.size, 3, TERRAIN_FLOODPLAIN);
+}
+
+void building_brewery::update_water_supply() {
+    if (!game_features::gameplay_brewery_requires_water) {
+        return;
+    }
+
+    int current_water = water_stored();
+    const int max_water = current_params().max_water_storage;
+    if (max_water <= 0 || current_water >= max_water) {
+        return;
+    }
+
+    if (!has_water_access()) {
+        return;
+    }
+
+    set_water_stored(current_water + 1);
+}

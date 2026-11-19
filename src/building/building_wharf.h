@@ -1,0 +1,27 @@
+#pragma once
+
+#include "building/building.h"
+
+class building_wharf : public building_impl {
+public:
+    using inherited = building_impl;
+
+    building_wharf(building &b) : building_impl(b) {}
+
+    struct runtime_data_t {
+        int reserved;
+        uint8_t docker_anim_frame;
+    } BUILDING_RUNTIME_DATA_T;
+
+    virtual building_wharf *dcast_wharf() override { return this; }
+
+    virtual void on_create(int orientation) override;
+    virtual void on_place(int orientation, int variant) override;
+    virtual void on_place_update_tiles(int orientation, int variant) override;
+    virtual void update_map_orientation(int orientation) override;
+    virtual void on_tick(bool refresh_only) override;
+    virtual bool draw_ornaments_and_animations_height(painter &ctx, vec2i point, tile2i tile, color color_mask) override;
+};
+
+ANK_CONFIG_PROPERTY(building_wharf::runtime_data_t, reserved)
+

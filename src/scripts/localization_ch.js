@@ -1,0 +1,167 @@
+log_info("akhenaten: localization_ch config started")
+
+localization_ch = [
+     { key:"#TR_NO_PATCH_TITLE", text:""},
+     { key:"#TR_NO_PATCH_MESSAGE", text:""},
+     { key:"#TR_MISSING_FONTS_TITLE", text:"缺失字體"},
+     { key:"#TR_MISSING_FONTS_MESSAGE", text:"《凱撒大帝3》需要額外字體檔。 語言包下載連結:\n"},
+     { key:"#TR_NO_EDITOR_TITLE", text:"未安裝地圖編輯器"},
+     { key:"#TR_NO_EDITOR_MESSAGE", text:"《凱撒大帝3》未檢測到地圖編輯器檔。 地圖編輯器下載連結:\n"},
+     { key:"#TR_INVALID_LANGUAGE_TITLE", text:"語言包路徑無效"},
+     { key:"#TR_INVALID_LANGUAGE_MESSAGE", text:"指定路徑未檢測到有效語言包。 請檢視日志查看錯誤。"},
+     { key:"#dock_order_trade", text:"交易"},
+     { key:"#dock_order_dont_trade", text:"不交易"},
+     { key:"#dock_order_accept_all", text:"全部接受"},
+     { key:"#dock_orders_hint", text:"船隻只有在至少一項貨物設為「交易」時才會使用此碼頭。"},
+     { key:"#dock_orders_closed", text:"此碼頭不接受任何貨物 — 船隻不會在此停泊。"},
+     { key:"#TR_BUTTON_OK", text:"確定"},
+     { key:"#TR_BUTTON_CANCEL", text:"取消"},
+     { key:"#TR_BUTTON_RESET_DEFAULTS", text:"重置默認"},
+     { key:"#TR_BUTTON_CONFIGURE_HOTKEYS", text:"熱鍵綁定"},
+     { key:"#TR_CONFIG_TITLE", text:"配置設定"},
+     { key:"#TR_CONFIG_LANGUAGE_LABEL", text:"語言包:"},
+     { key:"#TR_CONFIG_LANGUAGE_DEFAULT", text:"默認"},
+     { key:"#TR_CONFIG_HEADER_UI_CHANGES", text:"使用者介面更變"},
+     { key:"#TR_CONFIG_HEADER_GAMEPLAY_CHANGES", text:"遊戲內容更變"},
+     { key:"#TR_CONFIG_HEADER_GODS_CHANGES", text:"Gods changes"},
+     { key:"#TR_CONFIG_HEADER_BUILDING_CHANGES", text:"Building changes"},
+     { key:"#TR_CONFIG_HEADER_RESOURCE_CHANGES", text:"Resource changes"},
+     { key:"#TR_CONFIG_SHOW_INTRO_VIDEO", text:"播放啓動動畫"},
+     { key:"#TR_CONFIG_SIDEBAR_INFO", text:"控制台更多資訊"},
+     { key:"#TR_CONFIG_SMOOTH_SCROLLING", text:"平滑視角滾動"},
+     { key:"#TR_CONFIG_VISUAL_FEEDBACK_ON_DELETE", text:"優化清理土地視覺回饋"},
+     { key:"#TR_CONFIG_ALLOW_CYCLING_TEMPLES", text:"允許連續建造每種神廟"},
+     { key:"#TR_CONFIG_SHOW_WATER_STRUCTURE_RANGE", text:"建造時顯示貯水池水泉及水井覆蓋範圍"},
+     { key:"#TR_CONFIG_SHOW_CONSTRUCTION_SIZE", text:"顯示拖動建設大小"},
+     { key:"#TR_CONFIG_HIGHLIGHT_LEGIONS", text:"滑鼠懸停時高亮軍團"},
+     { key:"#TR_CONFIG_FIX_IMMIGRATION_BUG", text:"修復非常困難不來人BUG"},
+     { key:"#TR_CONFIG_FIX_100_YEAR_GHOSTS", text:"修復人口百歲仍占房BUG"},
+     { key:"#TR_CONFIG_FIX_EDITOR_EVENTS", text:"自定遊戲修正：皇帝更位支持度重置至50；生存時間結束才勝利"},
+     { key:"#TR_HOTKEY_TITLE", text:"熱鍵綁定"},
+     { key:"#TR_HOTKEY_LABEL", text:"熱鍵"},
+     { key:"#TR_HOTKEY_ALTERNATIVE_LABEL", text:"可替代鍵"},
+     { key:"#TR_HOTKEY_HEADER_ARROWS", text:"方向鍵"},
+     { key:"#TR_HOTKEY_HEADER_GLOBAL", text:"全域熱鍵"},
+     { key:"#TR_HOTKEY_HEADER_CITY", text:"城市熱鍵"},
+     { key:"#TR_HOTKEY_HEADER_ADVISORS", text:"顧問"},
+     { key:"#TR_HOTKEY_HEADER_OVERLAYS", text:"覆層"},
+     { key:"#TR_HOTKEY_HEADER_BOOKMARKS", text:"城市地圖視角標簽"},
+     { key:"#TR_HOTKEY_HEADER_EDITOR", text:"編輯器"},
+     { key:"#TR_HOTKEY_HEADER_BUILD", text:"建造熱鍵"},
+     { key:"#TR_HOTKEY_ARROW_UP", text:"上"},
+     { key:"#TR_HOTKEY_ARROW_DOWN", text:"下"},
+     { key:"#TR_HOTKEY_ARROW_LEFT", text:"左"},
+     { key:"#TR_HOTKEY_ARROW_RIGHT", text:"右"},
+     { key:"#TR_HOTKEY_TOGGLE_FULLSCREEN", text:"全屏切換"},
+     { key:"#TR_HOTKEY_CENTER_WINDOW", text:"中心視窗化"},
+     { key:"#TR_HOTKEY_RESIZE_TO_640", text:"重置解析度至640x480"},
+     { key:"#TR_HOTKEY_RESIZE_TO_800", text:"重置解析度至800x600"},
+     { key:"#TR_HOTKEY_RESIZE_TO_1024", text:"重置解析度至1024x768"},
+     { key:"#TR_HOTKEY_SAVE_SCREENSHOT", text:"保存截圖"},
+     { key:"#TR_HOTKEY_SAVE_CITY_SCREENSHOT", text:"保存城市全景截圖"},
+     { key:"#TR_HOTKEY_LOAD_FILE", text:"載入文件"},
+     { key:"#TR_HOTKEY_SAVE_FILE", text:"保存檔"},
+     { key:"#TR_HOTKEY_INCREASE_GAME_SPEED", text:"加快遊戲速度"},
+     { key:"#TR_HOTKEY_DECREASE_GAME_SPEED", text:"減慢遊戲速度"},
+     { key:"#TR_HOTKEY_TOGGLE_PAUSE", text:"暫停切換"},
+     { key:"#TR_HOTKEY_CYCLE_LEGION", text:"切換各軍團所在視角"},
+     { key:"#TR_HOTKEY_ROTATE_MAP_LEFT", text:"順時針旋轉地圖視角"},
+     { key:"#TR_HOTKEY_ROTATE_MAP_RIGHT", text:"逆時針旋轉地圖視角"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_LABOR", text:"勞工顧問"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_MILITARY", text:"軍事顧問"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_IMPERIAL", text:"皇帝顧問"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_RATINGS", text:"評比顧問"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_TRADE", text:"貿易顧問"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_POPULATION", text:"人口顧問"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_HEALTH", text:"健康顧問"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_EDUCATION", text:"教育顧問"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_ENTERTAINMENT", text:"娛樂顧問"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_RELIGION", text:"宗教顧問"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_FINANCIAL", text:"財政顧問"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_CHIEF", text:"首席顧問"},
+     { key:"#TR_HOTKEY_TOGGLE_OVERLAY", text:"當前覆層視角切換"},
+     {key:"#TR_HOTKEY_TOGGLE_FLAT_BUILDINGS", text:"扁平建築視圖"},
+     { key: "#sidebar_flat_buildings", text: "扁平視圖" },
+     { key: "#sidebar_flat_buildings_on", text: "扁平視圖：開" },
+     { key: "#TR_CONFIG_FLAT_BUILDINGS", text: "扁平建築視圖 (Shift+F) — 壓低高大建築以看見後方道路" },
+     { key: "#TR_TOOLTIP_FLAT_BUILDINGS", text: "扁平建築視圖 (Shift+F)。開啟時：Ctrl+右鍵抬高單一建築。" },
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_WATER", text:"顯示供水覆層"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_FIRE", text:"顯示火災覆層"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_DAMAGE", text:"顯示損壞覆層"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_CRIME", text:"顯示犯罪覆層"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_PROBLEMS", text:"顯示問題覆層"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_MALARIA_RISK", text:"顯示瘧疾風險覆層"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_DISEASE", text:"顯示疾病覆層"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_HIDE_CLIFFS", text:"隱藏懸崖"},
+     { key:"#TR_HOTKEY_GO_TO_BOOKMARK_1", text:"前往視角標簽 1"},
+     { key:"#TR_HOTKEY_GO_TO_BOOKMARK_2", text:"前往視角標簽 2"},
+     { key:"#TR_HOTKEY_GO_TO_BOOKMARK_3", text:"前往視角標簽 3"},
+     { key:"#TR_HOTKEY_GO_TO_BOOKMARK_4", text:"前往視角標簽 4"},
+     { key:"#TR_HOTKEY_SET_BOOKMARK_1", text:"設定視角標簽 1"},
+     { key:"#TR_HOTKEY_SET_BOOKMARK_2", text:"設定視角標簽 2"},
+     { key:"#TR_HOTKEY_SET_BOOKMARK_3", text:"設定視角標簽 3"},
+     { key:"#TR_HOTKEY_SET_BOOKMARK_4", text:"設定視角標簽 4"},
+     { key:"#TR_HOTKEY_EDITOR_TOGGLE_BATTLE_INFO", text:"戰鬥資訊切換"},
+     { key:"#TR_HOTKEY_EDIT_TITLE", text:"按下新熱鍵"}
+     { key:"#mansion_protected_by_police", text:"有警察保護"}
+     { key:"#mansion_not_protected_theft", text:"未受保護——盜賊可能竊取積蓄"}
+
+     { key: "#overlay_menu_normal", text: "普通" }
+     { key: "#overlay_menu_risks", text: "風險" }
+     { key: "#overlay_menu_water", text: "水" }
+     { key: "#overlay_menu_entertainment", text: "娛樂" }
+     { key: "#overlay_menu_religion", text: "宗教" }
+     { key: "#overlay_menu_education", text: "教育" }
+     { key: "#overlay_menu_health", text: "健康" }
+     { key: "#overlay_menu_administration", text: "管理" }
+     { key: "#overlay_menu_food", text: "食物" }
+     { key: "#overlay_menu_other", text: "其他" }
+
+     { key: "#overlay_fire", text: "火灾" }
+     { key: "#overlay_damage", text: "损坏" }
+     { key: "#overlay_architect_reach", text: "建筑师可达范围" }
+     { key: "#overlay_architect_reach_hint", text: "点击建筑师岗位" }
+     { key: "#overlay_architect_reach_tile", text: "在建筑师巡逻范围内" }
+     { key: "#overlay_crime", text: "犯罪" }
+     { key: "#overlay_entertainment", text: "娱乐" }
+     { key: "#overlay_booth", text: "杂耍" }
+     { key: "#overlay_bandstand", text: "乐师" }
+     { key: "#overlay_pavilion", text: "舞者" }
+     { key: "#overlay_senet_house", text: "塞尼特玩家" }
+     { key: "#overlay_education", text: "教育" }
+     { key: "#overlay_scribal_school", text: "文书学校" }
+     { key: "#overlay_library", text: "图书馆" }
+     { key: "#overlay_academy", text: "学院" }
+     { key: "#overlay_apothecary", text: "药房" }
+     { key: "#overlay_dentist", text: "牙医" }
+     { key: "#overlay_physician", text: "医生" }
+     { key: "#overlay_mortuary", text: "停尸房" }
+     { key: "#overlay_tax_income", text: "税收" }
+     { key: "#overlay_bazaar_access", text: "市集通行" }
+     { key: "#overlay_desirability", text: "吸引力" }
+     { key: "#overlay_fertility", text: "肥沃度" }
+     { key: "#overlay_magistrate", text: "治安官" }
+     { key: "#overlay_food_stocks", text: "食物储备" }
+     { key: "#overlay_labor", text: "劳动力" }
+     { key: "#overlay_labor_access", text: "劳动力通行" }
+     { key: "#overlay_native", text: "土著" }
+     { key: "#overlay_problems", text: "问题" }
+     { key: "#overlay_routing", text: "路线" }
+     { key: "#overlay_malaria_risk", text: "疟疾风险" }
+     { key: "#overlay_health", text: "健康" }
+     { key: "#overlay_criminal", text: "罪犯" }
+     { key: "#overlay_osiris", text: "奥西里斯" }
+     { key: "#overlay_ra", text: "拉" }
+     { key: "#overlay_ptah", text: "普塔" }
+     { key: "#overlay_seth", text: "赛特" }
+     { key: "#overlay_bast", text: "巴斯泰特" }
+     { key: "#TR_PALACE_TOOLTIP_UNEMPLOYMENT", text: "失業率" }
+     { key: "#TR_PALACE_TOOLTIP_CULTURE_RATING", text: "文化評分" }
+     { key: "#TR_PALACE_TOOLTIP_PROSPERITY_RATING", text: "繁榮評分" }
+     { key: "#TR_PALACE_TOOLTIP_MONUMENT_RATING", text: "紀念碑評分" }
+     { key: "#TR_PALACE_TOOLTIP_KINGDOM_RATING", text: "王國評分" },
+     { key: "#TR_CONFIG_HISTORICAL_ECONOMY", text: "Enhanced: historical economy — deben as unit of account; part of wages paid in granary grain" },
+     { key: "#finance_deben_unit_of_account", text: "deben-weight" },
+     { key: "#finance_historical_economy_hint", text: "Debens measure value (metal-weight account). Part of labour is paid from granary grain when available." },
+     { key: "#finance_wages_paid_in_grain", text: "Wages paid in grain (deben-eq)" },
+]

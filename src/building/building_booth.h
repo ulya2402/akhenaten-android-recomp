@@ -1,0 +1,24 @@
+#pragma once
+
+#include "building/building_entertainment.h"
+
+class building_booth : public building_entertainment {
+public:
+    BUILDING_METAINFO(BUILDING_BOOTH, building_booth, building_entertainment)
+    virtual building_booth *dcast_booth() override { return this; }
+
+    virtual void on_create(int orientation) override {}
+    virtual void on_place(int orientation, int variant) override;
+    virtual void on_place_update_tiles(int orientation, int variant) override;
+    virtual void spawn_figure() override;
+    virtual bool draw_ornaments_and_animations_height(painter &ctx, vec2i point, tile2i tile, color mask) override;
+    virtual void update_sprite_anims() override;
+    virtual e_overlay get_overlay() const override { return OVERLAY_BOOTH; }
+    virtual e_sound_channel_city sound_channel() const override { return SOUND_CHANNEL_CITY_BOOTH; }
+    virtual bool force_draw_flat_tile(painter &ctx, tile2i tile, vec2i pixel, color mask) override;
+    virtual bool force_draw_height_tile(painter &ctx, tile2i tile, vec2i pixel, color mask) override;
+    virtual void update_map_orientation(int map_orientation) override;
+    virtual void on_undo() override;
+    virtual bool get_route_citizen_land_type(int grid_offset, int &land_result) const override;
+    virtual bool target_route_tile_blocked(int grid_offset) const override;
+};

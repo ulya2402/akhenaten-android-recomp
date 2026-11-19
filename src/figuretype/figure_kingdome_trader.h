@@ -1,0 +1,65 @@
+#pragma once
+
+#include "figure_trader.h"
+#include "empire/empire_city.h"
+#include "empire/trader_handler.h"
+
+struct event_trade_caravan_arrival { int cid; uint8_t tid; pcstr location; };
+
+enum e_trade_caravan_action : uint16_t {
+    ACTION_0_TRADE_CARAVAN_CREATED = 0,
+    ACTION_1_TRADE_CARAVAN_ARRIVING = 1,
+    ACTION_2_TRADE_CARAVAN_TRADING = 2,
+    ACTION_3_TRADE_CARAVAN_LEAVING = 3,
+    ACTION_4_TRADE_CARAVAN_RECALC_LEAVING = 4,
+
+    ACTION_5_TRADE_CARAVAN_MAX
+};
+using e_trade_caravan_action_tokens_t = token_holder<e_trade_caravan_action, ACTION_0_TRADE_CARAVAN_CREATED, ACTION_5_TRADE_CARAVAN_MAX>;
+extern const e_trade_caravan_action_tokens_t e_trade_caravan_action_tokens;
+
+class figure_trade_caravan : public figure_trader {
+public:
+    FIGURE_METAINFO(FIGURE_TRADE_CARAVAN, figure_trade_caravan);
+    figure_trade_caravan(figure *f) : figure_trader(f) {}
+    virtual figure_trade_caravan *dcast_trade_caravan() override { return this; }
+
+    struct runtime_data_t {
+        empire_trader_handle trader;
+        empire_city_handle empire_city;
+        uint16_t capacity;
+        uint16_t amount_bought;
+    } FIGURE_RUNTIME_DATA_T;
+
+    struct static_params : figure_static_params {
+        uint16_t wait_ticks_after_create;
+        uint16_t min_capacity;
+        uint16_t max_capacity;
+        uint16_t capacity_random;
+    } FIGURE_STATIC_DATA_T;
+
+    virtual void on_create() override;
+    virtual void on_destroy() override;
+    virtual void figure_action() override;
+    virtual void before_poof() override;
+    virtual void update_animation() override;
+    virtual xstring action_tip() const override;
+    virtual void debug_show_properties() override;
+    virtual bvariant get_property(const xstring& domain, const xstring& name) const override;
+    virtual void buy(int amounts) override { runtime_data().amount_bought += amounts; }
+    virtual void sell(int amounts) override { base.resource_amount_full += amounts; }
+
+    virtual uint16_t total_bought() const override { return runtime_data().amount_bought; }
+    virtual uint16_t max_capacity() const override { return runtime_data().capacity; }
+
+    empire_trader_handle empire_trader() const { return runtime_data().trader; }
+    virtual empire_trader_handle trade_session() const override { return runtime_data().trader; }
+    virtual empire_city_handle empire_city() const override { return runtime_data().empire_city; }
+
+    void go_to_next_storageyard(tile2i src_tile, int distance_to_entry);
+};
+ANK_CONFIG_STRUCT(figure_trade_caravan::static_params, 
+    wait_ticks_after_create, min_capacity, max_capacity, capacity_random)
+
+ANK_CONFIG_PROPERTY(figure_trade_caravan::runtime_data_t,
+    capacity, amount_bought)

@@ -1,0 +1,71 @@
+# IDE data
+.kdev4
+*.kdev4
+.vs
+.vscode
+.idea
+/CMakeSettings.json
+CMakeUserPresets.json
+
+# Generated resources
+src/platform/version.c
+res/version.rc
+res/version.txt
+res/akhenaten.icns
+
+# Build output and data directories
+/build*/
+out/
+cmake-build-*
+/ext/SDL2/**
+*~
+*.swp
+/android/.gradle
+/android/.idea
+/android/SDL2
+/android/akhenaten/build
+# Android
+*.iml
+.gradle
+local.properties
+.DS_Store
+/captures
+.externalNativeBuild
+.cxx/
+distribution/
+*.log
+
+/wiki/*
+/akhenaten-extra/*
+/akhenaten.wiki/*
+doc
+/doc/*
+*.ods#
+
+*.lnk
+
+# Local remake / mission planning docs (keep on disk, do not track)
+/REMAKE_*.md
+/MISSION_*.md
+
+# Tools
+/tools/*
+!/tools/*.zip
+!/tools/*.7z
+!/tools/check_layers.cpp
+!/tools/layers_baseline.txt
+
+/bin_x64
+/ext/include
+/ext/lib/x64
+/ext/lib/x86
+/ext/cpptrace
+/ext/openssl
+
+# Downloaded mod packs (hosted on GitHub Releases tag `mods`)
+/mods/*
+!/mods/.gitkeep
+
+# Agent configuration: shared rules are committed, per-developer overrides are not
+/.claude/settings.local.json
+/.claude/*.local.json

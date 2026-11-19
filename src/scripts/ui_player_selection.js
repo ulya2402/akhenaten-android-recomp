@@ -1,0 +1,137 @@
+log_info("akhenaten: player selection started")
+
+[es=(window_player_selection, click_item)]
+function player_selection_on_click_item(entry) {
+    window_player_selection.dynasty_name_changed = entry.text
+    game.dynasty_name = entry.text
+}
+
+[es=(window_player_selection, doubleclick_item)]
+function player_selection_on_double_click(entry) {
+    player_selection_proceed()
+}
+
+function player_selection_btn_new() {
+    window_show_by_id("window_new_career")
+}
+
+function player_selection_btn_delete() {
+    if (game.dynasty_name == "") {
+        ui.show_ok("#popup_dialog_no_dynasty")
+        return
+    }
+
+    var dynasty_name = game.dynasty_name
+    ui.show_yesno("#popup_dialog_delete_dynasty", function() {
+        __game_delete_player(dynasty_name)
+        window_player_selection.need_refresh_list = true
+    })
+}
+
+function player_selection_proceed() {
+    if (game.dynasty_name == "") {
+        ui.show_ok("#popup_dialog_no_dynasty")
+        return
+    }
+
+    window_show_by_id("window_dinasty_menu")
+}
+
+function player_selection_btn_back() {
+    window_go_back()
+}
+
+[es=window]
+window_player_selection {
+    pos [(sw(0) - px(24))/2, (sh(0) - px(21))/2]
+    allow_rmb_goback : true
+    dynasty_name_changed : ""
+    need_refresh_list : false
+    ui {
+        background_image : background({pack:PACK_UNLOADED, id:29})
+        background       : outer_panel({size[24, 21]})
+
+        title    : text_center({pos[0, 16], size[px(24), 20], font:FONT_LARGE_BLACK_ON_LIGHT, text[292, 3]})
+
+        player_list : scrollable_list({
+            margin{left:16, top:52}
+            size[20, 13]
+            dir:"Save/"
+            file_ext:"folders"
+            use_file_finder:true
+            view_items:12
+            draw_scrollbar_always:true
+            onclick_event: "click_item"
+            ondoubleclick_event: "doubleclick_item"
+        })
+
+        btn_new    : button({margin{left:16, top:266}, size[126, 25], text[292, 0], font:FONT_NORMAL_BLACK_ON_LIGHT })
+        btn_delete : button({margin{left:146, top:266}, size[126, 25], text[292, 1], font:FONT_NORMAL_BLACK_ON_LIGHT })
+        btn_proceed: button({margin{left:278, top:266}, size[86, 25], text[292, 2], font:FONT_NORMAL_BLACK_ON_LIGHT })
+        btn_back   : button({margin{left:64, top:296}, size[256, 25], text[292, 4], font:FONT_NORMAL_BLACK_ON_LIGHT })
+    }
+}
+
+[es=(window_player_selection, btn_new)]
+function window_player_selection_btn_new(window) {
+    player_selection_btn_new()
+}
+
+[es=(window_player_selection, btn_delete)]
+function window_player_selection_btn_delete(window) {
+    player_selection_btn_delete()
+}
+
+[es=(window_player_selection, btn_proceed)]
+function window_player_selection_btn_proceed(window) {
+    player_selection_proceed()
+}
+
+[es=(window_player_selection, btn_back)]
+function window_player_selection_btn_back(window) {
+    player_selection_btn_back()
+}
+
+function update_player_list(window) {
+    window.player_list.refresh_file_finder()
+    var prev_dynasty = game.dynasty_name
+    if (prev_dynasty !== "") {
+        window.player_list.select_item(prev_dynasty)
+    }
+
+    if (window.player_list.items_count == 1) {
+        window.player_list.select_index(0)
+        var name = window.player_list.selected_text(0)
+        if (name !== "") {
+            game.dynasty_name = name
+        }
+    } else if (window.player_list.items_count > 1) {
+        var sel = window.player_list.selected_text(0)
+        var matched = prev_dynasty !== "" && sel !== "" &&
+            sel.toLowerCase() === prev_dynasty.toLowerCase()
+        if (!matched) {
+            game.dynasty_name = ""
+        }
+    } else {
+        game.dynasty_name = ""
+    }
+    window_player_selection.need_refresh_list = false
+}
+
+[es=(window_player_selection, ui_draw_foreground)]
+function window_player_selection_ui_draw_foreground(window) {
+    if (window_player_selection.need_refresh_list) {
+        update_player_list(window)
+    }
+}
+
+[es=(window_player_selection, on_restore)]
+function window_player_selection_on_restore(window) {
+    window_player_selection.need_refresh_list = true
+}
+
+[es=(window_player_selection, init)]
+function window_player_selection_on_init(window) {
+   __log_marker("window_show:window_player_selection")
+   window_player_selection.need_refresh_list = true
+}

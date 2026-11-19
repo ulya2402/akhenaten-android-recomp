@@ -1,0 +1,1390 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --gold: #c9a84c;
+  --gold-dark: #a07830;
+  --bg: #0e0c08;
+  --bg-card: #1a1610;
+  --bg-card2: #211d14;
+  --text: #e8dfc8;
+  --text-muted: #9a8f78;
+  --border: #3a3020;
+  --accent: #d4a843;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a {
+  color: var(--gold);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* ── Navigation ── */
+header {
+  background: rgba(14, 12, 8, 0.95);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(8px);
+}
+
+nav {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  height: 60px;
+}
+
+.nav-logo {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.nav-logo:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+nav ul {
+  list-style: none;
+  display: flex;
+  gap: 1.5rem;
+  margin-left: auto;
+}
+
+nav ul a {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+  transition: color 0.2s;
+  text-decoration: none;
+}
+
+nav ul a:hover,
+nav ul a.active {
+  color: var(--gold);
+}
+
+/* ── Hero ── */
+.hero {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 5rem 2rem 4rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+}
+
+.hero-content h1 {
+  font-size: 3.5rem;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+  line-height: 1.1;
+}
+
+.hero-content .subtitle {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.03em;
+}
+
+.hero-content .description {
+  font-size: 1.05rem;
+  margin-bottom: 2rem;
+  color: var(--text);
+}
+
+.hero-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.hero-image img {
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+
+.notice {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-block;
+  padding: 0.65rem 1.4rem;
+  border-radius: 3px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--gold);
+  color: #0e0c08;
+  font-weight: bold;
+}
+
+.btn-primary:hover {
+  background: var(--accent);
+  color: #0e0c08;
+  text-decoration: none;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+}
+
+.btn-secondary:hover {
+  background: rgba(201,168,76,0.1);
+  text-decoration: none;
+}
+
+/* ── Features ── */
+.features {
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  max-width: 100%;
+}
+
+.feature {
+  padding: 2.5rem 2rem;
+  border-right: 1px solid var(--border);
+}
+
+.feature:last-child {
+  border-right: none;
+}
+
+.feature h3 {
+  color: var(--gold);
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.03em;
+}
+
+.feature p {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ── Community ── */
+.community {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.community h2 {
+  font-size: 1.8rem;
+  color: var(--gold);
+  margin-bottom: 2rem;
+}
+
+.community-links {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.community-btn {
+  display: inline-block;
+  padding: 0.65rem 1.8rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text);
+  background: var(--bg-card);
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.community-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  text-decoration: none;
+}
+
+/* ── Footer ── */
+footer {
+  margin-top: auto;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  padding: 2rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 2;
+}
+
+footer a {
+  color: var(--text-muted);
+}
+
+footer a:hover {
+  color: var(--gold);
+}
+
+/* ── Contributors page ── */
+.contributors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0 3rem;
+}
+
+.contributor {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.5rem;
+  transition: all 0.2s;
+}
+
+.contributor:hover {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+}
+
+.contributor h3 {
+  color: var(--gold);
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.commit-count {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  font-family: monospace;
+}
+
+.contributor p:last-child {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.contributors-list {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.8;
+  margin-top: 1rem;
+}
+
+.contributor.inactive {
+  opacity: 0.6;
+}
+
+.inactive-badge {
+  display: inline-block;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  margin-top: 0.5rem;
+  font-family: monospace;
+}
+
+/* ── Inner pages ── */
+.page-content {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 3rem 2rem 5rem;
+  flex: 1;
+}
+
+.page-content h1 {
+  font-size: 2.5rem;
+  color: var(--gold);
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.04em;
+}
+
+.section-intro {
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+/* ── About page ── */
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 3rem;
+  align-items: start;
+}
+
+.about-text h2 {
+  font-size: 1.3rem;
+  color: var(--gold);
+  margin: 2rem 0 0.75rem;
+}
+
+.about-text h2:first-child {
+  margin-top: 0;
+}
+
+.about-text p {
+  margin-bottom: 1rem;
+  color: var(--text);
+}
+
+.about-text ul {
+  padding-left: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: var(--text);
+}
+
+.about-text ul li {
+  margin-bottom: 0.4rem;
+}
+
+.about-image img {
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+/* ── Gallery ── */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.gallery a {
+  display: block;
+  overflow: hidden;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  aspect-ratio: 16/9;
+}
+
+.gallery img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+  display: block;
+}
+
+.gallery a:hover img {
+  transform: scale(1.04);
+}
+
+/* ── Downloads ── */
+.download-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.download-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2rem;
+  text-align: center;
+}
+
+.download-card h2 {
+  font-size: 1.3rem;
+  color: var(--gold);
+  margin-bottom: 0.75rem;
+}
+
+.download-card p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  min-height: 2.5rem;
+}
+
+.platform-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  color: var(--gold);
+}
+
+.platform-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.download-alt {
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2rem;
+}
+
+.download-alt h2 {
+  font-size: 1.2rem;
+  color: var(--gold);
+  margin-bottom: 1rem;
+}
+
+.download-alt ul {
+  padding-left: 1.5rem;
+  color: var(--text);
+}
+
+.download-alt li {
+  margin-bottom: 0.5rem;
+}
+
+/* ── Contact ── */
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 3rem;
+  align-items: start;
+}
+
+.contact-info h2 {
+  font-size: 1.3rem;
+  color: var(--gold);
+  margin: 2rem 0 0.75rem;
+}
+
+.contact-info h2:first-child {
+  margin-top: 0;
+}
+
+.contact-info ul {
+  padding-left: 1.5rem;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.contact-info li {
+  margin-bottom: 0.5rem;
+}
+
+.contact-screenshot img {
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+/* ── Devblog ── */
+.post {
+  border-bottom: 1px solid var(--border);
+  padding: 2.5rem 0;
+}
+
+.post:last-child {
+  border-bottom: none;
+}
+
+.post-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.03em;
+}
+
+.post h2 {
+  font-size: 1.5rem;
+  color: var(--gold);
+  margin-bottom: 1rem;
+}
+
+.post p {
+  margin-bottom: 0.75rem;
+  color: var(--text);
+}
+
+.post ul {
+  padding-left: 1.5rem;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+}
+
+.post ul li {
+  margin-bottom: 0.35rem;
+}
+
+.post code {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.88em;
+  background: rgba(201,168,76,0.1);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 2px;
+  padding: 0.1em 0.35em;
+  color: var(--gold);
+}
+
+.post-image {
+  width: 100%;
+  max-width: 600px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  margin-top: 1rem;
+}
+
+.post-preview {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  display: block;
+  margin: .75rem 0;
+}
+
+.post-page img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ── Post page ── */
+.post-page h2 {
+  font-size: 1.4rem;
+  color: var(--gold);
+  margin: 2rem 0 0.75rem;
+}
+
+.post-page h3 {
+  font-size: 1.1rem;
+  color: var(--accent);
+  margin: 1.5rem 0 0.5rem;
+}
+
+.post-page p {
+  margin-bottom: 1rem;
+}
+
+.post-page ul,
+.post-page ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.post-page li {
+  margin-bottom: 0.4rem;
+}
+
+.post-page pre {
+  background: rgba(201,168,76,0.06);
+  border: 1px solid rgba(201,168,76,0.15);
+  border-radius: 3px;
+  padding: 1.25rem 1.5rem;
+  overflow-x: auto;
+  margin: 1rem 0 1.5rem;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.85em;
+  line-height: 1.6;
+}
+
+.post-page code {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.88em;
+  background: rgba(201,168,76,0.1);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 2px;
+  padding: 0.1em 0.35em;
+  color: var(--gold);
+}
+
+.post-page pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+.post-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+  gap: 1rem;
+}
+
+.post-nav a {
+  color: var(--text-muted);
+}
+
+.post-nav a:hover {
+  color: var(--gold);
+}
+
+.post h2 a {
+  color: var(--gold);
+  text-decoration: none;
+}
+
+.post h2 a:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.post .read-more {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+}
+
+.post .read-more:hover {
+  color: var(--accent);
+}
+
+/* ── Wiki nav cards (compact, top of article) ── */
+.wiki-nav-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+}
+
+.wiki-nav-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.2s;
+}
+
+.wiki-nav-card:hover {
+  border-color: var(--gold);
+  text-decoration: none;
+  color: var(--text);
+}
+
+.wiki-nav-card-icon {
+  font-size: 1.25rem;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.wiki-nav-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.wiki-nav-card-body strong {
+  color: var(--gold);
+  font-size: 0.95rem;
+}
+
+.wiki-nav-card-body span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.wiki-nav-card-arrow {
+  color: var(--text-muted);
+  font-size: 1rem;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.wiki-nav-card:hover .wiki-nav-card-arrow {
+  color: var(--gold);
+}
+
+/* ── Wiki infobox ── */
+.wiki-infobox {
+  float: right;
+  margin: 0 0 1.5rem 2rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  min-width: 240px;
+  font-size: 0.88rem;
+}
+
+.wiki-infobox table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.wiki-infobox th,
+.wiki-infobox td {
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.wiki-infobox tr:last-child th,
+.wiki-infobox tr:last-child td {
+  border-bottom: none;
+}
+
+.wiki-infobox th {
+  color: var(--text-muted);
+  font-weight: normal;
+  white-space: nowrap;
+  width: 40%;
+}
+
+.wiki-infobox td {
+  color: var(--text);
+}
+
+/* ── Wiki article content ── */
+.wiki-content h2 {
+  font-size: 1.4rem;
+  color: var(--gold);
+  margin: 2.5rem 0 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.wiki-content p {
+  margin-bottom: 1rem;
+  color: var(--text);
+}
+
+.wiki-list {
+  padding-left: 1.25rem;
+  margin-bottom: 1.5rem;
+  color: var(--text);
+}
+
+.wiki-list li {
+  margin-bottom: 0.6rem;
+  line-height: 1.6;
+}
+
+.wiki-list li strong {
+  color: var(--gold);
+}
+
+/* ── Wiki landing ── */
+.wiki-landing {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.wiki-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2.5rem 2rem;
+  text-decoration: none;
+  transition: border-color 0.2s, transform 0.2s;
+  color: var(--text);
+}
+
+.wiki-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  text-decoration: none;
+  color: var(--text);
+}
+
+.wiki-card-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: var(--gold);
+}
+
+.wiki-card h2 {
+  font-size: 1.5rem;
+  color: var(--gold);
+  margin-bottom: 0.75rem;
+}
+
+.wiki-card p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-bottom: 1.25rem;
+  line-height: 1.6;
+}
+
+.wiki-card-links {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 1.5rem;
+  flex: 1;
+}
+
+.wiki-card-links li {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  padding: 0.2rem 0;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.wiki-card-links li::before {
+  content: '–';
+  position: absolute;
+  left: 0;
+  color: var(--gold-dark);
+}
+
+.wiki-card-cta {
+  font-size: 0.9rem;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+  margin-top: auto;
+}
+
+/* ── Wiki layout (sidebar + content) ── */
+.wiki-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 0;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  flex: 1;
+  align-items: start;
+}
+
+.wiki-sidebar {
+  position: sticky;
+  top: 60px;
+  padding: 2.5rem 1.5rem 2.5rem 0;
+  border-right: 1px solid var(--border);
+  min-height: calc(100vh - 60px);
+  font-size: 0.9rem;
+}
+
+.wiki-sidebar-section {
+  margin-bottom: 1.5rem;
+}
+
+.wiki-sidebar-title {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.wiki-sidebar-title a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.wiki-sidebar-title a:hover {
+  color: var(--gold);
+}
+
+.wiki-sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.wiki-sidebar ul li {
+  margin-bottom: 0.1rem;
+}
+
+.wiki-sidebar ul a {
+  display: block;
+  padding: 0.25rem 0.5rem;
+  color: var(--text-muted);
+  border-radius: 2px;
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+}
+
+.wiki-sidebar ul a:hover,
+.wiki-sidebar ul a.active {
+  color: var(--gold);
+  background: rgba(201,168,76,0.07);
+  text-decoration: none;
+}
+
+/* ── Wiki content area ── */
+.wiki-content {
+  padding: 2.5rem 0 5rem 2.5rem;
+  min-width: 0;
+}
+
+.wiki-breadcrumb {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.02em;
+}
+
+.wiki-breadcrumb a {
+  color: var(--text-muted);
+}
+
+.wiki-breadcrumb a:hover {
+  color: var(--gold);
+}
+
+/* ── Wiki index grid (cards on section landing pages) ── */
+.wiki-index-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.wiki-index-card {
+  display: block;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.5rem;
+  text-decoration: none;
+  transition: border-color 0.2s;
+  color: var(--text);
+}
+
+.wiki-index-card:hover {
+  border-color: var(--gold);
+  text-decoration: none;
+  color: var(--text);
+}
+
+.wiki-index-card h3 {
+  color: var(--gold);
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.wiki-index-card p {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.wiki-index-card code {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.85em;
+  background: rgba(201,168,76,0.1);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 2px;
+  padding: 0.1em 0.3em;
+  color: var(--gold);
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .wiki-landing {
+    grid-template-columns: 1fr;
+  }
+
+  .wiki-layout {
+    grid-template-columns: 1fr;
+    padding: 0 1.5rem;
+  }
+
+  .wiki-sidebar {
+    position: static;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 1.5rem 0;
+    min-height: unset;
+  }
+
+  .wiki-content {
+    padding: 2rem 0 3rem;
+  }
+
+  .wiki-index-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+    padding: 3rem 1.5rem;
+    gap: 2rem;
+  }
+
+  .hero-content h1 {
+    font-size: 2.5rem;
+  }
+
+  .hero-image {
+    order: -1;
+  }
+
+  .features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .feature {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .feature:last-child {
+    border-bottom: none;
+  }
+
+  .about-grid,
+  .contact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .about-image,
+  .contact-screenshot {
+    order: -1;
+  }
+
+  .gallery {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .download-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  nav {
+    padding: 0 1rem;
+  }
+
+  nav ul {
+    gap: 1rem;
+  }
+
+  .features {
+    grid-template-columns: 1fr;
+  }
+
+  .gallery {
+    grid-template-columns: 1fr;
+  }
+
+  .page-content {
+    padding: 2rem 1rem 3rem;
+  }
+}
+
+/* ── Wiki Tables ── */
+.wiki-table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.wiki-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.wiki-table th {
+  background: var(--bg-card2);
+  color: var(--gold);
+  font-weight: 600;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+
+.wiki-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.wiki-table tr:last-child td {
+  border-bottom: none;
+}
+
+.wiki-table tbody tr:hover td {
+  background: rgba(201, 168, 76, 0.05);
+}
+
+/* Housing tier row groups */
+.housing-tier-huts td:first-child        { border-left: 3px solid #6b5a3e; }
+.housing-tier-shanties td:first-child    { border-left: 3px solid #7a6545; }
+.housing-tier-cottages td:first-child    { border-left: 3px solid #8c7a52; }
+.housing-tier-homesteads td:first-child  { border-left: 3px solid #a08a5e; }
+.housing-tier-apartments td:first-child  { border-left: 3px solid #b09060; }
+.housing-tier-residences td:first-child  { border-left: 3px solid #c9a84c; }
+.housing-tier-manors td:first-child      { border-left: 3px solid #d4b865; }
+.housing-tier-estates td:first-child     { border-left: 3px solid #e8cf80; }
+
+.housing-tier-huts       { background: rgba(107, 90, 62,  0.12); }
+.housing-tier-shanties   { background: rgba(122, 101, 69, 0.12); }
+.housing-tier-cottages   { background: rgba(140, 122, 82, 0.12); }
+.housing-tier-homesteads { background: rgba(160, 138, 94, 0.12); }
+.housing-tier-apartments { background: rgba(176, 144, 96, 0.12); }
+.housing-tier-residences { background: rgba(201, 168, 76, 0.15); }
+.housing-tier-manors     { background: rgba(212, 184, 101, 0.15); }
+.housing-tier-estates    { background: rgba(232, 207, 128, 0.18); }
+
+/* Small footnote text below tables */
+.wiki-table-footnotes {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+  line-height: 1.6;
+}
+
+.wiki-table-footnotes p {
+  margin-bottom: 0.2rem;
+}
+
+/* Stat pill badges used in tables */
+.stat-yes  { color: #7ec87e; font-weight: 600; }
+.stat-no   { color: var(--text-muted); }
+.stat-gold { color: var(--gold); font-weight: 600; }
+
+/* ── Mission badges ── */
+.mission-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 2px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.badge-tutorial {
+  background: rgba(126, 200, 126, 0.12);
+  border: 1px solid rgba(126, 200, 126, 0.35);
+  color: #7ec87e;
+}
+
+.badge-choice {
+  background: rgba(201, 168, 76, 0.1);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  color: var(--gold);
+}
+
+.badge-impl {
+  background: rgba(138, 171, 220, 0.1);
+  border: 1px solid rgba(138, 171, 220, 0.35);
+  color: #8aabdc;
+}
+
+/* Mission table: city name column */
+.mission-city {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Era section divider inside wiki-content */
+.era-section {
+  margin-top: 2.5rem;
+}
+
+.era-section:first-of-type {
+  margin-top: 1.5rem;
+}
+
+/* Goals cell compact layout */
+.goals-cell {
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.goals-cell span {
+  display: inline-block;
+  margin-right: 0.4rem;
+  color: var(--text);
+}
+
+.goals-cell strong {
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
+/* ── Wiki Info Boxes ── */
+.wiki-infobox {
+  float: right;
+  margin: 0 0 1.5rem 2rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  min-width: 220px;
+  max-width: 280px;
+  font-size: 0.875rem;
+}
+
+.wiki-infobox h4 {
+  color: var(--gold);
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.4rem;
+}
+
+.wiki-infobox dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 0.75rem;
+}
+
+.wiki-infobox dt {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.wiki-infobox dd {
+  color: var(--text);
+}
+
+@media (max-width: 768px) {
+  .wiki-table {
+    font-size: 0.8rem;
+  }
+
+  .wiki-table th,
+  .wiki-table td {
+    padding: 0.4rem 0.5rem;
+  }
+
+  .wiki-infobox {
+    float: none;
+    margin: 0 0 1.5rem 0;
+    max-width: 100%;
+  }
+}
+
+/* ── Lightbox ── */
+.lb-zoomable {
+  cursor: zoom-in;
+}
+
+#lb-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0, 0, 0, 0.88);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  outline: none;
+}
+
+#lb-overlay.lb-visible {
+  display: flex;
+}
+
+#lb-img {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border: 1px solid #3a3020;
+  border-radius: 3px;
+  image-rendering: pixelated;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+}
+
+#lb-caption {
+  color: #9a8f78;
+  font-size: 0.82rem;
+  text-align: center;
+  max-width: 60ch;
+}
+
+#lb-close {
+  position: fixed;
+  top: 1rem;
+  right: 1.25rem;
+  background: none;
+  border: 1px solid #3a3020;
+  color: #e8dfc8;
+  font-size: 1.1rem;
+  line-height: 1;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#lb-close:hover {
+  background: rgba(201,168,76,0.12);
+  border-color: #c9a84c;
+  color: #c9a84c;
+}

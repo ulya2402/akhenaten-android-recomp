@@ -1,0 +1,205 @@
+#pragma once
+
+#include "bstring.h"
+
+#include <cstdint>
+#include <cstdarg>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <functional>
+
+#include "core/crc32.h"
+
+//#define XSTRING_USE_REFERENCE_COUNTING
+
+struct xstring_value {
+    uint32_t crc;
+#ifdef XSTRING_USE_REFERENCE_COUNTING
+    uint16_t reference;
+#endif
+    uint16_t length;
+    std::string value;
+};
+
+class xstring {
+    xstring_value* _p;
+
+protected:
+    // ref-counting
+    void _dec() {
+#ifdef XSTRING_USE_REFERENCE_COUNTING
+        if (0 == _p)
+            return;
+
+        _p->reference--;
+        if (0 == _p->reference)
+            _p = 0;
+#endif
+    }
+
+public:
+    xstring_value *_dock(pcstr value);
+    void _set(pcstr rhs) {
+        xstring_value* v = _dock(rhs);
+#ifdef XSTRING_USE_REFERENCE_COUNTING
+        if (0 != v) {
+            v->reference++;
+        }
+#endif
+        _dec();
+        _p = v;
+    }
+
+    void _set(xstring_value* p) {
+        xstring_value* v = p;
+#ifdef XSTRING_USE_REFERENCE_COUNTING
+        if (0 != v) {
+            v->reference++;
+        }
+#endif
+        _dec();
+        _p = v;
+    }
+
+    void _set(xstring const& rhs) {
+        xstring_value* v = rhs._p;
+#ifdef XSTRING_USE_REFERENCE_COUNTING
+        if (0 != v) {
+            v->reference++;
+        }
+#endif
+        _dec();
+        _p = v;
+    }
+
+    [[nodiscard]]
+    const xstring_value* _get() const { return _p; }
+
+    [[nodiscard]]
+    const uint32_t crc() const { return _p ? _p->crc : UINT32_MAX; }
+
+public:
+    // construction
+    xstring() { _p = nullptr; }
+    xstring(pcstr rhs) { _p = nullptr; _set(rhs); }
+    xstring(xstring const& rhs) { _p = 0; _set(rhs); }
+#ifdef XSTRING_USE_REFERENCE_COUNTING
+    ~xstring() { _dec(); }
+#else
+    ~xstring() = default;
+#endif
+
+    xstring& operator=(pcstr rhs) { _set(rhs); return (xstring&)*this; }
+    xstring& operator=(xstring const& rhs) { _set(rhs); return (xstring&)*this; }
+
+    [[nodiscard]]
+    pcstr operator*() const { return _p ? _p->value.data() : nullptr; }
+
+    [[nodiscard]]
+    bool operator!() const { return empty(); }
+
+    [[nodiscard]]
+    char operator[](size_t id) { return _p->value[id]; }
+
+    [[nodiscard]]
+    char operator[](size_t id) const { return _p->value[id]; }
+
+    [[nodiscard]]
+    pcstr c_str() const { return _p ? _p->value.c_str() : nullptr; }
+
+    [[nodiscard]]
+    pcstr data() const { return _p ? _p->value.c_str() : nullptr; }
+
+    [[nodiscard]]
+    size_t size() const { return _p ? _p->length : 0; }
+
+    [[nodiscard]]
+    bool empty() const { return size() == 0; }
+
+    [[nodiscard]]
+    operator std::string_view() const {
+        return _p ? std::string_view(_p->value.data(), _p->length) : std::string_view();
+    }
+
+    void swap(xstring& rhs) noexcept { xstring_value* tmp = _p; _p = rhs._p; rhs._p = tmp; }
+
+    [[nodiscard]]
+    bool equal(const xstring& rhs) const { return (_p == rhs._p); }
+
+    [[nodiscard]]
+    bool equal(pcstr rhs) const {
+        return strcmp(_p ? c_str() : "", rhs ? rhs : "") == 0;
+    }
+
+    template <typename... Args>
+    xstring& printf(pcstr format, const Args&... args) {
+        bstring<4096> buf;
+        int vs_sz = snprintf(buf, sizeof(buf) - 1, format, fmt_arg(args)...);
+        buf[sizeof(buf) - 1] = 0;
+        if (vs_sz) {
+            _set(buf);
+        }
+        return (xstring&)*this;
+    }
+
+    [[nodiscard]]
+    xstring tolower() const {
+        size_t lsize = size();
+        if (!lsize) {
+            return {};
+        }
+        char *buffer = (char*)alloca(lsize + 1);
+        ::strcpy(buffer, c_str());
+        char *s = buffer;
+        while (*s) {
+            *s = std::tolower(*s);
+            ++s;
+        }
+        *s = '\0';
+        return xstring(buffer);
+    }
+};
+
+#ifndef XSTRING_USE_REFERENCE_COUNTING
+// MuJS unwinds with longjmp, skipping destructors: xstring is safe in bridge frames only while this holds.
+static_assert(std::is_trivially_destructible_v<xstring>, "xstring must stay trivially destructible");
+#endif
+
+template<>
+struct std::hash<xstring>
+{
+    [[nodiscard]] size_t operator()(const xstring& str) const noexcept {
+        return str._get() ? (size_t)str._get() : 0;
+    }
+};
+
+using xstring_hash = uint32_t;
+
+inline xstring_hash str_hash(pcstr str) {
+    if (str == nullptr) {
+        return 0;
+    }
+
+    // FNV-1a hash constants
+    constexpr uint32_t FNV_OFFSET_BASIS = 2166136261u;
+    constexpr uint32_t FNV_PRIME = 16777619u;
+
+    uint32_t hash = FNV_OFFSET_BASIS;
+    const unsigned char* p = reinterpret_cast<const unsigned char*>(str);
+
+    while (*p) {
+        hash ^= *p++;
+        hash *= FNV_PRIME;
+    }
+
+    return hash;
+}
+
+inline xstring_hash str_hash(const xstring &str) { return str_hash(str.c_str()); }
+inline bool operator==(xstring const& a, xstring const& b) { return a._get() == b._get(); }
+inline bool operator==(xstring const& a, pcstr b) { return a.equal(b); }
+inline bool operator!=(xstring const& a, xstring const& b) { return a._get() != b._get(); }
+inline bool operator<(xstring const& a, xstring const& b) { return a._get() < b._get(); }
+inline bool operator>(xstring const& a, xstring const& b) { return a._get() > b._get(); }
+inline void swap(xstring& lhs, xstring& rhs) noexcept { lhs.swap(rhs); }

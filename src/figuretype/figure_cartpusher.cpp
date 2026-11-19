@@ -1,0 +1,646 @@
+#include "figure_cartpusher.h"
+
+#include "building/building_ferry.h"
+#include "building/building_barracks.h"
+#include "building/building_delivery_path.h"
+#include "building/building_granary.h"
+#include "building/building_food_mill.h"
+#include "city/city_industry.h"
+#include "building/building_type.h"
+#include "building/building_storage_yard.h"
+#include "building/building_storage_room.h"
+#include "building/monuments.h"
+#include "city/buildings.h"
+#include "city/city_resource.h"
+#include "city/city_recorded_paths.h"
+#include "core/calc.h"
+#include "core/profiler.h"
+#include "figure/combat.h"
+#include "figure/movement.h"
+#include "figure/route.h"
+#include "game/resource.h"
+#include "game/game.h"
+#include "graphics/image.h"
+#include "grid/figure.h"
+#include "grid/road_network.h"
+#include "grid/terrain.h"
+#include "window/building/figures.h"
+#include "graphics/elements/ui.h"
+#include "grid/routing/routing_terrain.h"
+#include "game/game_config.h"
+#include "city/city.h"
+#include "js/js_register.h"
+
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_cartpusher);
+
+const figure_cartpusher_action_tokens_t ANK_CONFIG_ENUM(figure_cartpusher_action_tokens)
+
+static const int CART_OFFSET_MULTIPLE_LOADS_FOOD[] = {0, 0, 8, 16, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static const int CART_OFFSET_MULTIPLE_LOADS_NON_FOOD[] = {0, 0, 0, 0, 0, 8, 0, 16, 24, 32, 40, 48, 56, 64, 72, 80};
+static const int CART_OFFSET_8_LOADS_FOOD[] = {0, 40, 48, 56, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+void figure_carrier::load_resource(e_resource resource, int amount) {
+    base.resource_id = resource;
+    base.resource_amount_full = amount;
+}
+
+void figure_carrier::append_resource(e_resource resource, int amount) {
+    assert(base.resource_id == RESOURCE_NONE || base.resource_id == resource);
+    if (base.resource_id == RESOURCE_NONE) {
+        base.resource_id = resource;
+        base.resource_amount_full = 0;
+    }
+    base.resource_amount_full += amount;
+}
+
+int figure_carrier::dump_resource(int amount) {
+    amount = std::min<int>(amount, base.resource_amount_full);
+    base.resource_amount_full -= amount;
+
+    // automatically clear field if carrying nothing
+    if (base.resource_amount_full == 0)
+        base.resource_id = RESOURCE_NONE;
+
+    return base.resource_amount_full;
+}
+
+int figure::get_carrying_amount() {
+    return resource_amount_full;
+}
+
+static bool building_keeps_visitor_paths(building *b) {
+    return b && b->params().flags.keeps_visitor_paths;
+}
+
+static void cartpusher_handoff_visitor_path(figure &f, building *dest) {
+    if (!f.trail_path_id) {
+        return;
+    }
+
+    building *home = f.home();
+    building *home_main = home ? home->main() : nullptr;
+    building *dest_main = dest ? dest->main() : nullptr;
+    const bool home_keeps = building_keeps_visitor_paths(home_main);
+    const bool dest_keeps = building_keeps_visitor_paths(dest_main);
+
+    if (home_keeps && dest_keeps) {
+        const int copy = g_recorded_paths.duplicate(f.trail_path_id);
+        if (copy) {
+            g_recorded_paths.building_push(home_main->id, copy);
+        }
+        g_recorded_paths.handoff_to_building(f, dest_main->id);
+    } else if (dest_keeps) {
+        g_recorded_paths.handoff_to_building(f, dest_main->id);
+    } else if (home_keeps) {
+        g_recorded_paths.handoff_to_building(f, home_main->id);
+    }
+}
+
+void figure_cartpusher::do_deliver(bool warehouseman, int action_done, int action_fail) {
+    base.animctx.frame = 0;
+    base.wait_ticks++;
+
+    // OG industry cart: SY unload waits 10 ticks; granary/workshop/recruiter wait 5.
+    // Storage-yard cart keeps the shorter remake/Julius wait of 4.
+    int wait_needed = 10;
+    if (warehouseman) {
+        wait_needed = 4;
+    } else if (building *dest = destination()) {
+        switch (dest->type) {
+        case BUILDING_STORAGE_YARD:
+        case BUILDING_STORAGE_ROOM:
+            wait_needed = 10;
+            break;
+        default:
+            wait_needed = 5;
+            break;
+        }
+    }
+
+    if (base.wait_ticks >= wait_needed) {
+        base.wait_ticks = 0;
+
+        int carrying = base.get_carrying_amount();
+        e_resource resource = base.get_resource();
+        building *dest = destination();
+
+        if (resource == RESOURCE_NONE || carrying <= 0) {
+            cartpusher_handoff_visitor_path(base, dest);
+            if (!base.trail_path_id) {
+                figure_recorded_path_acquire(base);
+            }
+            base.progress_inside_speed = 0;
+            return advance_action(action_done);
+
+        } else if (!dest) {
+            return advance_action(action_fail);
+
+        } else {
+            int amount_single_turn = std::min(carrying, UNITS_PER_LOAD);
+            bool deposited = false;
+
+            switch (dest->type) {
+            case BUILDING_GRANARY:
+            case BUILDING_GRANARY_UP:
+            case BUILDING_FOOD_MILL:
+            case BUILDING_STORAGE_YARD:
+            case BUILDING_STORAGE_ROOM: {
+                    building_storage *storage = dest->dcast_storage();
+                    int accepting = storage ? storage->accepting_amount(resource) : 0;
+                    int total_depositable = std::min<int>(carrying, accepting);
+
+                    if (total_depositable <= 0) {
+                        if (warehouseman) {
+                            advance_action(ACTION_8_RECALCULATE);
+                        } else {
+                            determine_deliveryman_destination();
+                        }
+                        return;
+                    }
+
+                    int amount = storage->add_resource(base.resource_id, amount_single_turn, /*force*/false);
+                    if (amount != -1) {
+                        dump_resource(amount_single_turn);
+                        deposited = true;
+                    } else {
+                        if (warehouseman) {
+                            advance_action(action_fail);
+                        } else {
+                            determine_deliveryman_destination();
+                        }
+                        return;
+                    }
+                }
+                break;
+
+            case BUILDING_RECRUITER:
+            case BUILDING_SHIPWRIGHT:
+            case BUILDING_SCRIBAL_SCHOOL:
+            case BUILDING_LIBRARY:
+            case BUILDING_INDUSTRY_OFFICE:
+            case BUILDING_SENET_HOUSE:
+            case BUILDING_ZOO:
+            case BUILDING_POLICE_STATION:
+            case BUILDING_VILLAGE_PALACE:
+            case BUILDING_TOWN_PALACE:
+            case BUILDING_CITY_PALACE: {
+                    building_impl *b = dest->dcast();
+                    bool ok = b->add_resource(resource, amount_single_turn, id());
+                    if (!ok) {
+                        advance_action(action_fail);
+                        return;
+                    }
+                    dump_resource(amount_single_turn);
+                    deposited = true;
+                }
+                break;
+
+            default:                              // workshop
+                if (dest->stored_amount(resource) < 200) {
+                    building_workshop_add_raw_material(dest, amount_single_turn, resource);
+                    dump_resource(amount_single_turn);
+                    deposited = true;
+                } else {
+                    return advance_action(action_fail);
+                }
+                break;
+            }
+
+            if (deposited) {
+                cartpusher_handoff_visitor_path(base, dest);
+            }
+        }
+
+        // Re-read after dump ? locals above are stale once the last load is dropped.
+        if (base.get_resource() == RESOURCE_NONE || base.get_carrying_amount() <= 0) {
+            if (!base.trail_path_id) {
+                figure_recorded_path_acquire(base);
+            }
+            base.progress_inside_speed = 0;
+            return advance_action(action_done);
+        }
+    }
+}
+
+void figure_cartpusher::calculate_destination(bool warehouseman) {
+    set_destination(nullptr);
+    base.animctx.frame = 0;
+    base.wait_ticks++;
+
+    if (!warehouseman) {
+        if (base.wait_ticks > destination_wait_threshold()) {
+            base.wait_ticks = 0;
+            determine_deliveryman_destination();
+        }
+    } else {
+        building* b = home();
+        if (base.wait_ticks > 2) {
+            base.wait_ticks = 0;
+            if (home()->dcast_granary() || home()->type == BUILDING_FOOD_MILL) {
+                determine_granaryman_destination();
+            } else {
+                determine_storageyard_cart_destination();
+            }
+        }
+    }
+}
+
+int figure_cartpusher::destination_wait_threshold() {
+    if (game_features::gameplay_enhanced_walker_move_boost.to_bool()) {
+        return 10;
+    }
+    return current_params().wait_on_calculate_destination;
+}
+
+void figure_cartpusher::determine_deliveryman_destination() {
+    base.destination_tile = tile2i::invalid;
+
+    // before we start... check that resource is not empty.
+    if (base.resource_id == RESOURCE_NONE || base.get_carrying_amount() == 0) {
+        return advance_action(ACTION_15_CARTPUSHER_RETURNING);
+    }
+
+    building *home_b = home();
+    if (!home_b) {
+        return advance_action(ACTION_8_RECALCULATE);
+    }
+    auto pred = cartpusher_predict_deliveryman_destination(tile(), base.resource_id, *home_b);
+    set_destination(pred.destination);
+
+    if (has_destination()) {
+        switch (pred.kind) {
+        case e_delivery_dest_kind::palace:
+            return advance_action(ACTION_28_CARTPUSHER_DELIVERING_GOLD);
+        case e_delivery_dest_kind::recruiter:
+            return advance_action(ACTION_16_CARTPUSHER_DELIVERING_TO_RECRUITER);
+        case e_delivery_dest_kind::storage_yard:
+            return advance_action(ACTION_9_CARTPUSHER_DELIVERING_TO_WAREHOUSE);
+        case e_delivery_dest_kind::granary:
+            return advance_action(ACTION_10_CARTPUSHER_DELIVERING_TO_GRANARY);
+        case e_delivery_dest_kind::workshop:
+            return advance_action(ACTION_11_CARTPUSHER_DELIVERING_TO_WORKSHOP);
+        default:
+            // Kind/destination mismatch — don't keep a stuck dest into recalc.
+            set_destination(nullptr);
+            break;
+        }
+    }
+
+    // Wait — returning home would despawn and lose cargo already taken from home.
+    base.min_max_seen = pred.understaffed ? 2 : 1;
+    advance_action(ACTION_8_RECALCULATE);
+}
+
+void figure_cartpusher::determine_granaryman_destination() {
+    int road_network_id = map_road_network_get(tile());
+    building_granary *granary = home()->dcast_granary();
+    building_food_mill *mill = home()->dcast_food_mill();
+
+    if (!base.resource_id) {
+        granary_getting_result dest = {0, tile2i::invalid};
+        if (granary) {
+            dest = granary->find_storage_for_getting();
+        } else if (mill) {
+            dest = mill->find_storage_for_getting();
+        } else {
+            poof();
+            return;
+        }
+
+        set_destination(dest.building_id);
+        if (has_destination()) {
+            advance_action(ACTION_54_CARTPUSHER_GETTING_FOOD);
+            if (!!game_features::gameplay_change_getting_granaries_go_offroad) {
+                base.terrain_usage = TERRAIN_USAGE_PREFER_ROADS;
+            }
+        } else {
+            poof();
+        }
+        return;
+    }
+
+    // Emptying / redistribution ? granary only (mill does not empty-out in v1).
+    if (!granary) {
+        advance_action(ACTION_56_CARTPUSHER_RETURNING_WITH_FOOD);
+        return;
+    }
+
+    // Delivering resource. Cargo is removed at spawn (OG 400-load); only top-up if empty.
+    auto take_for_delivery = [&]() {
+        if (base.get_carrying_amount() <= 0) {
+            const int haul = std::min(400, granary->amount(base.resource_id));
+            if (haul > 0) {
+                granary->remove_resource(base.resource_id, haul);
+                load_resource(base.resource_id, haul);
+            }
+        }
+    };
+
+    tile2i dest_b;
+    int granary_id = building_granary_for_storing(tile(), base.resource_id, granary->distance_from_entry(), road_network_id, 0, 0, &dest_b);
+    set_destination(granary_id);
+    if (has_destination()) {
+        take_for_delivery();
+        return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+    }
+
+    int warehouse_id = building_storage_yard_for_storing(tile(), base.resource_id, granary->distance_from_entry(), road_network_id, 0, dest_b);
+    set_destination(warehouse_id);
+    if (has_destination()) {
+        take_for_delivery();
+        return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+    }
+
+    int granary_second_id = building_granary_for_storing(tile(), base.resource_id, granary->distance_from_entry(), road_network_id, 1, 0, &dest_b);
+    set_destination(granary_second_id);
+    if (has_destination()) {
+        take_for_delivery();
+        return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+    }
+    // nowhere to go to: recalculate
+    advance_action(ACTION_56_CARTPUSHER_RETURNING_WITH_FOOD);
+}
+
+void figure_cartpusher::determine_storageyard_cart_destination() {
+    int road_network_id = map_road_network_get(tile());
+    const bool og = !!game_features::gameplay_og_warehouseman;
+
+    ////// getting resources!
+    if (!base.resource_id) {
+        tile2i dst;
+        building_storage_yard *warhouse = home()->dcast_storage_yard();
+        int building_id = warhouse
+                            ? warhouse->for_getting((e_resource)base.collecting_item_id, &dst)
+                            : 0;
+        set_destination(building_id);
+        if (has_destination()) {
+            advance_action(ACTION_57_CARTPUSHER_GETTING_RESOURCE);
+            base.terrain_usage = TERRAIN_USAGE_PREFER_ROADS;
+        } else if (og) {
+            // OG warehouseman_initial_yard: nothing to fetch → die (no image update).
+            poof();
+        } else {
+            advance_action(ACTION_53_CARTPUSHER_RETURNING_EMPTY);
+        }
+        return;
+    }
+    building* warehouse = home();
+
+    ////// delivering resource!
+    // Remake-only consumers (not in OG warehouseman_initial_yard).
+    if (!og) {
+        if (base.resource_id == RESOURCE_PAPYRUS) {
+            const e_building_type consumers[] = { BUILDING_SCRIBAL_SCHOOL, BUILDING_LIBRARY, BUILDING_INDUSTRY_OFFICE };
+            for (e_building_type consumer : consumers) {
+                auto result = building_get_asker_for_resource(tile(), consumer, base.resource_id, road_network_id, warehouse->distance_from_entry);
+                set_destination(result.building_id);
+                if (has_destination()) {
+                    return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+                }
+            }
+        }
+
+        if (base.resource_id == RESOURCE_TIMBER) {
+            auto result = building_get_asker_for_resource(tile(), BUILDING_SHIPWRIGHT, base.resource_id, road_network_id, warehouse->distance_from_entry);
+            set_destination(result.building_id);
+            if (has_destination()) {
+                return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+            }
+        }
+
+        if (base.resource_id == RESOURCE_BEER) {
+            auto result = building_get_asker_for_resource(tile(), BUILDING_SENET_HOUSE, base.resource_id, road_network_id, warehouse->distance_from_entry);
+            set_destination(result.building_id);
+            if (has_destination()) {
+                return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+            }
+        }
+
+        if (base.resource_id == RESOURCE_STRAW || base.resource_id == RESOURCE_GAMEMEAT) {
+            auto result = building_get_asker_for_resource(tile(), BUILDING_ZOO, base.resource_id, road_network_id, warehouse->distance_from_entry);
+            set_destination(result.building_id);
+            if (has_destination()) {
+                return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+            }
+        }
+    }
+
+    // OG order: recruiter → workshop(with room) → granary → getting granary → other yard → any workshop.
+    if (base.resource_id == RESOURCE_WEAPONS) {
+        auto result = building_get_asker_for_resource(tile(), BUILDING_RECRUITER, base.resource_id, road_network_id, warehouse->distance_from_entry);
+        set_destination(result.building_id);
+        if (has_destination()) {
+            return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+        }
+    }
+
+    {
+        tile2i dest;
+        int building_id = building_get_workshop_for_raw_material_with_room(tile(), base.resource_id, warehouse->distance_from_entry, road_network_id, dest);
+        set_destination(building_id);
+        if (has_destination()) {
+            return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+        }
+    }
+
+    {
+        tile2i dest;
+        int building_id = building_granary_for_storing(tile(), base.resource_id, warehouse->distance_from_entry, road_network_id, 0, 0, &dest);
+        set_destination(building_id);
+        if (has_destination()) {
+            return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+        }
+    }
+
+    {
+        tile2i dest;
+        int building_id = building_getting_granary_for_storing(tile(), base.resource_id, warehouse->distance_from_entry, road_network_id, &dest);
+        set_destination(building_id);
+        if (has_destination()) {
+            return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+        }
+    }
+
+    tile2i dest;
+    int warehouse_id = building_storage_yard_for_storing(tile(), base.resource_id, warehouse->distance_from_entry, road_network_id, 0, dest);
+    if (warehouse_id) {
+        building *dest_building = building_get(warehouse_id);
+        if (dest_building->main()->id == warehouse->id) {
+            warehouse_id = 0;
+        }
+    }
+    set_destination(warehouse_id);
+    if (has_destination()) {
+        return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+    }
+
+    // OG / missing remake branch: deliver to a workshop even without free room.
+    {
+        tile2i any_dest;
+        int building_id = building_get_workshop_for_raw_material(tile(), base.resource_id, warehouse->distance_from_entry, road_network_id, any_dest);
+        set_destination(building_id);
+        if (has_destination()) {
+            return advance_action(ACTION_51_CARTPUSHER_DELIVERING_RESOURCE);
+        }
+    }
+}
+
+void figure_cartpusher::figure_before_action() {
+    if (has_destination()) {
+        return;
+    }
+
+    building* b = home();
+    if (!b->is_floodplain_farm()
+        && (b->state != BUILDING_STATE_VALID || (!b->has_figure(0, id()) && !b->has_figure(1, id())))) {
+        poof();
+    }
+}
+
+void figure_cartpusher::figure_action() {
+    OZZY_PROFILER_FUNCTION();
+
+    base.use_cart = true;
+
+    // Yield to cartpushers with a higher ID sharing the same tile to reduce visual overlap
+    if (!!game_features::gameplay_change_cartpushers_yield_by_id) {
+        int check_id = map_figure_id_get(tile());
+        while (check_id > 0) {
+            if (check_id != id()) {
+                figure *other = figure_get(check_id);
+                if (other->type == FIGURE_CART_PUSHER && check_id > id()) {
+                    return;
+                }
+            }
+            figure *other = figure_get(check_id);
+            int next_id = other->next_figure;
+            if (next_id == check_id || next_id == 0) {
+                break;
+            }
+            check_id = next_id;
+        }
+    }
+
+    building* b = home();
+    switch (action_state()) {
+    case ACTION_6_CARTPUSHER_ON_FERRY:
+        // OG: hide walker + cart while aboard.
+        base.set_flag(e_figure_flag_invisible, true);
+        base.cart_image_id = 0;
+        break;
+
+    case ACTION_7_CARTPUSHER_WAIT_FOR_FERRY:
+        // OG: idle at landing; after 100 ticks without a ferry queue slot → back to initial.
+        base.animctx.frame = 0;
+        base.wait_ticks++;
+        if (base.wait_ticks > 100) {
+            base.wait_ticks = 0;
+            if (!figure_is_queued_for_ferry(id())) {
+                base.set_flag(e_figure_flag_invisible, false);
+                advance_action(ACTION_8_RECALCULATE);
+            }
+        }
+        break;
+
+    case ACTION_8_RECALCULATE:
+    case ACTION_20_CARTPUSHER_INITIAL:
+        calculate_destination(false);
+        break;
+
+    case ACTION_9_CARTPUSHER_DELIVERING_TO_WAREHOUSE:
+    case ACTION_21_CARTPUSHER_DELIVERING_TO_WAREHOUSE_LEGACY:
+        drop_route_if_heading_into_non_ferry_water();
+        do_gotobuilding(destination(), true, TERRAIN_USAGE_ROADS, ACTION_12_CARTPUSHER_AT_WAREHOUSE, ACTION_8_RECALCULATE);
+        break;
+
+    case ACTION_10_CARTPUSHER_DELIVERING_TO_GRANARY:
+    case ACTION_22_CARTPUSHER_DELIVERING_TO_GRANARY_LEGACY:
+        drop_route_if_heading_into_non_ferry_water();
+        do_gotobuilding(destination(), true, TERRAIN_USAGE_ROADS, ACTION_13_CARTPUSHER_AT_GRANARY, ACTION_8_RECALCULATE);
+        break;
+
+    case ACTION_11_CARTPUSHER_DELIVERING_TO_WORKSHOP:
+    case ACTION_23_CARTPUSHER_DELIVERING_TO_WORKSHOP_LEGACY:
+        drop_route_if_heading_into_non_ferry_water();
+        do_gotobuilding(destination(), true, TERRAIN_USAGE_ROADS, ACTION_14_CARTPUSHER_AT_WORKSHOP, ACTION_8_RECALCULATE);
+        break;
+
+    case ACTION_16_CARTPUSHER_DELIVERING_TO_RECRUITER:
+        drop_route_if_heading_into_non_ferry_water();
+        do_gotobuilding(destination(), true, TERRAIN_USAGE_ROADS, ACTION_17_CARTPUSHER_AT_RECRUITER, ACTION_8_RECALCULATE);
+        break;
+
+    case ACTION_28_CARTPUSHER_DELIVERING_GOLD:
+        drop_route_if_heading_into_non_ferry_water();
+        do_gotobuilding(destination(), true, TERRAIN_USAGE_ROADS, ACTION_29_CARTPUSHER_UNLOADING_GOLD, ACTION_8_RECALCULATE);
+        break;
+
+    case ACTION_12_CARTPUSHER_AT_WAREHOUSE:
+    case ACTION_13_CARTPUSHER_AT_GRANARY:
+    case ACTION_14_CARTPUSHER_AT_WORKSHOP:
+    case ACTION_17_CARTPUSHER_AT_RECRUITER:
+    case ACTION_24_CARTPUSHER_AT_WAREHOUSE_LEGACY:
+    case ACTION_25_CARTPUSHER_AT_GRANARY_LEGACY:
+    case ACTION_26_CARTPUSHER_AT_WORKSHOP_LEGACY:
+    case ACTION_29_CARTPUSHER_UNLOADING_GOLD:
+        do_deliver(false, ACTION_15_CARTPUSHER_RETURNING, ACTION_8_RECALCULATE);
+        break;
+
+    case ACTION_15_CARTPUSHER_RETURNING:
+    case ACTION_27_CARTPUSHER_RETURNING_LEGACY:
+        // Industry cart never fetches — that is the storage-yard cart's job.
+        drop_route_if_heading_into_non_ferry_water();
+        if (b->is_floodplain_farm()) {
+            poof();
+        } else if (do_returnhome(TERRAIN_USAGE_ROADS)) {
+            if (b->params().flags.keeps_visitor_paths) {
+                g_recorded_paths.handoff_to_building(base, b->main()->id);
+            }
+        }
+        break;
+    }
+}
+
+bool figure_cartpusher::can_move_by_water() const {
+    return can_move_by_ferry_water();
+}
+
+void figure_cartpusher::update_animation() {
+    if (action_state() == FIGURE_ACTION_149_CORPSE) {
+        image_set_animation(animkeys().death);
+        return;
+    }
+
+    if (action_state() == ACTION_6_CARTPUSHER_ON_FERRY) {
+        base.set_flag(e_figure_flag_invisible, true);
+        base.cart_image_id = 0;
+        return;
+    }
+
+    if (action_state() == ACTION_7_CARTPUSHER_WAIT_FOR_FERRY) {
+        image_set_animation(animkeys().idle);
+        return;
+    }
+
+    auto &d = runtime_data();
+    const bool first_tick = d.movement_check_progress == 255;
+    const bool moved = !first_tick && base.progress_on_tile != d.movement_check_progress;
+    const int off = tile().grid_offset();
+    const bool on_ferry_lane = map_terrain_is(off, TERRAIN_FERRY_ROUTE)
+        || map_terrain_is_near_ferry_route(off, 1);
+    // Ferry lanes are roads-over-water: walk, don't swim. Swim only on free water.
+    const bool on_open_water = map_terrain_is(off, TERRAIN_WATER) && !on_ferry_lane;
+
+    xstring animkey;
+    if (!moved) {
+        animkey = animkeys().idle;
+    } else if (on_open_water) {
+        animkey = animkeys().swim;
+    } else {
+        animkey = animkeys().walk;
+    }
+
+    image_set_animation(animkey);
+    d.movement_check_progress = base.progress_on_tile;
+}
+

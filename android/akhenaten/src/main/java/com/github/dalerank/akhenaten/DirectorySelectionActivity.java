@@ -1,0 +1,84 @@
+package com.github.dalerank.akhenaten;
+
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.provider.DocumentsContract;
+import android.widget.Button;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+
+public class DirectorySelectionActivity extends AppCompatActivity {
+    private static final String ARG_SKIP_INSTRUCTIONS = "arg_skip_instructions";
+    private static final int RW_FLAGS_PERMISSION = Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
+
+    public static Intent newIntent(Context context, boolean skipInstructions) {
+        Intent intent = new Intent(context, DirectorySelectionActivity.class);
+        intent.putExtra(ARG_SKIP_INSTRUCTIONS, skipInstructions);
+        return intent;
+    }
+
+    private final ActivityResultLauncher<Uri> directorySelectionLauncher = registerForActivityResult(
+            new ActivityResultContracts.OpenDocumentTree() {
+                @Override
+                @NonNull
+                public Intent createIntent(@NonNull Context context, Uri input) {
+                    Intent intent = super.createIntent(context, input);
+                    intent.addFlags(RW_FLAGS_PERMISSION
+                                    | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION
+                                    | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+
+                    Uri initialUri = FileManager.getBaseUri(context);
+                    if (initialUri != null && !Uri.EMPTY.equals(initialUri) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri);
+                    }
+
+                    intent.putExtra("android.content.extra.SHOW_ADVANCED", true);
+                    intent.putExtra("android.content.extra.FANCY", true);
+                    intent.putExtra("android.content.extra.SHOW_FILESIZE", true);
+                    return intent;
+                }
+            },
+            uri -> {
+                if (uri != null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                        try {
+                            getContentResolver().takePersistableUriPermission(uri, RW_FLAGS_PERMISSION);
+                        } catch (SecurityException ignored) {
+                        }
+                    }
+                    Intent result = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                    result.addCategory(Intent.CATEGORY_OPENABLE);
+                    result.setType("*/*");
+                    result.setData(uri);
+                    setResult(RESULT_OK, result);
+                } else {
+                    setResult(RESULT_CANCELED);
+                }
+                finish();
+            });
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        setContentView(R.layout.activity_directory_selection);
+
+        Button button = findViewById(R.id.directory_selector_button);
+        button.setOnClickListener(v -> launchDirectoryPicker());
+
+        if (savedInstanceState == null && getIntent().getBooleanExtra(ARG_SKIP_INSTRUCTIONS, false)) {
+            launchDirectoryPicker();
+        }
+    }
+
+    private void launchDirectoryPicker() {
+        Uri initial = FileManager.getBaseUri(this);
+        directorySelectionLauncher.launch(Uri.EMPTY.equals(initial) ? null : initial);
+    }
+}

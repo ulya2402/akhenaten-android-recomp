@@ -1,0 +1,136 @@
+#include "empire_city.h"
+
+#include "widget/debug_console.h"
+#include "imgui.h"
+#include "imgui_internal.h"
+#include "empire/empire_map.h"
+#include "empire/empire.h"
+#include "graphics/elements/ui.h"
+
+ANK_REGISTER_PROPS_ITERATOR(config_load_selected_empire_city_properties);
+ANK_REGISTER_PROPS_ITERATOR(config_load_all_empire_city_properties);
+
+void game_debug_show_properties_object(pcstr prefix, empire_city *c) {
+    if (!c->in_use) {
+        return;
+    }
+
+    ImGui::PushID(0x80000000 | c->lookup_id);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    pcstr city_name = ui::str(195, c->name_id);
+    bool common_open = ImGui::TreeNodeEx(city_name, ImGuiTreeNodeFlags_None, "%s", city_name);
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("in_use", c->in_use);
+        bstring256 type_name; type_name.printf("%s [%d]", token::find_name(e_empire_city_tokens, c->type), c->type);
+        game_debug_show_property("type<name>", type_name);
+        game_debug_show_property("type", c->type);
+        game_debug_show_property("name_id", c->name_id);
+        game_debug_show_property("name", ui::str(195, c->name_id));
+        game_debug_show_property("route_id", c->route_id);
+        game_debug_show_property("is_open", c->is_open);
+        game_debug_show_property("cost_to_open", c->cost_to_open);
+        game_debug_show_property("ph_unk01", c->ph_unk01);
+        game_debug_show_property("trader_blocked", c->trader_blocked);
+        game_debug_show_property("trader_entry_delay", c->trader_entry_delay);
+        game_debug_show_property("empire_object_id", c->empire_object_id);
+        game_debug_show_property("is_sea_trade", c->is_sea_trade);
+        game_debug_show_property("trader_figure_ids[0]", c->trader_figure_ids[0], true);
+        game_debug_show_property("trader_figure_ids[1]", c->trader_figure_ids[1], true);
+        game_debug_show_property("trader_figure_ids[2]", c->trader_figure_ids[2], true);
+
+        {
+            ImGui::PushID(0x81000000 | c->name_id);
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::AlignTextToFramePadding();
+            const bool buy_res_open = ImGui::TreeNodeEx("Buy Resources", ImGuiTreeNodeFlags_DefaultOpen, "Buy Resources");
+            ImGui::TableSetColumnIndex(1);
+
+            if (buy_res_open) {
+                for (const auto r : resource_list::all) {
+                    game_debug_show_property(ui::resource_name(r.type), c->buys_resource[r.type]);
+                }
+
+                ImGui::TreePop();
+            }
+            ImGui::PopID();
+        }
+
+        {
+            ImGui::PushID(0x41000000 | c->name_id);
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::AlignTextToFramePadding();
+            const bool sell_res_open = ImGui::TreeNodeEx("Sells Resources", ImGuiTreeNodeFlags_DefaultOpen, "Sells Resource");
+            ImGui::TableSetColumnIndex(1);
+
+            if (sell_res_open) {
+                for (const auto r : resource_list::all) {
+                    game_debug_show_property(ui::resource_name(r.type), c->sells_resource[r.type]);
+                }
+
+                ImGui::TreePop();
+            }
+            ImGui::PopID();
+        }
+
+        ImGui::TreePop();
+    }
+    ImGui::PopID();
+}
+
+void config_load_selected_empire_city_properties(bool header) {
+    if (header) {
+        return;
+    }
+
+    bool common_open = ImGui::TreeNodeEx("Selected Empire City", ImGuiTreeNodeFlags_None, "Selected Empire City");
+    if (common_open) {
+        const int selected_pick = g_empire_map.selected_object();
+        if (selected_pick <= 0) {
+            ImGui::Text("No selected empire object");
+        } else {
+            const int object_slot = selected_pick - 1;
+            const empire_object* obj = g_empire.get_object(object_slot);
+            if (!obj || obj->type != EMPIRE_OBJECT_CITY) {
+                ImGui::Text("Selection is not a city");
+            } else {
+                const int selected_city = g_empire.get_city_for_object(object_slot);
+                empire_city* c = g_empire.city(selected_city);
+                if (!c || !c->in_use || c->empire_object_id != object_slot) {
+                    ImGui::Text("No city data for object slot %d", object_slot);
+                } else {
+                    ImGui::BeginTable("split", 2, ImGuiTableFlags_BordersOuter | ImGuiTableFlags_Resizable);
+                    game_debug_show_properties_object("City", c);
+                    ImGui::EndTable();
+                }
+            }
+        }
+
+        ImGui::TreePop();
+    }
+}
+
+void config_load_all_empire_city_properties(bool header) {
+    if (header) {
+        return;
+    }
+
+    bool common_open = ImGui::TreeNodeEx("Empire Cities", ImGuiTreeNodeFlags_None, "Empire Cities");
+    if (common_open) {
+        ImGui::BeginTable("split", 2, ImGuiTableFlags_BordersOuter | ImGuiTableFlags_Resizable);
+        for (auto &city : g_empire.get_cities()) {
+            game_debug_show_properties_object("City", &city);
+        }
+        ImGui::EndTable();
+
+        ImGui::TreePop();
+    }
+}

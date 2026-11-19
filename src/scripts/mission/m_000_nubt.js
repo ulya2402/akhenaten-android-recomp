@@ -1,0 +1,217 @@
+log_info("akhenaten: mission 0 nubt started")
+
+// Mission 0 — Nubt (Naqada), "A Village is Born". Rank 0 (Village Elder). Tutorial.
+//
+// Goals:     housing count 6, housing level 2, plus the tutorial steps: granary unlocked and built, a firehouse
+//            built, 400 game meat stored.
+// Start:     funds 3750, rescue loan 3750 (normal difficulty).
+// Gods:      none (religion disabled).
+// Monuments: none.
+// Trade:     none (empire map off).
+// Enemies:   none.
+// Timeline:  only vacant lots, clear land and roads at start; population capped at 250. First fire —
+//            firehouse; first collapse — architect's post; population 150 — hunting lodge, granary, bazaar
+//            (the population advisor opens once a granary is built); 400 game meat in a granary — water
+//            supply.
+//
+// Notes for developers:
+// - Victory also waits a few days after the last tutorial step (victory_last_action_delay); the win
+//   screen is skipped (hide_won_screen).
+
+mission0 { // Nubt
+	map_file : "data/maps/m_000_nubt.map"
+
+	// Tutorial hunt: fixed ostrich count (not climate roll). Tile from data/maps/m_000_nubt.map.
+	herd_points_prey [
+		{ tile: [44, 58], type: FIGURE_OSTRICH, count: 8, radius: 16 }
+	]
+
+	start_message : "message_housing_and_roads"
+	selection_title : "Nubt"
+	env {
+		has_animals : true
+	    gods_least_mood : 50
+	    marshland_grow : default_marshland_grow
+	    tree_grow : default_tree_grow
+		hide_nilometer : true
+	}
+	religion_enabled : false
+	hide_won_screen : true
+	player_rank : 0
+
+	initial_funds [7500, 5000, 3750, 2500, 2000]
+	rescue_loans [7500, 5000, 3750, 2500, 2000]
+
+	buildings [
+		BUILDING_HOUSE_VACANT_LOT, BUILDING_CLEAR_LAND, BUILDING_ROAD
+	]
+
+	sounds {
+		briefing : "Voice/Mission/200_mission.mp3"
+		victory : "Voice/Mission/200_victory.mp3"
+	}
+
+	win_criteria {
+		housing_count {enabled : true, goal : 6 }
+		housing_level {enabled : true, goal : 2 }
+	}
+
+	vars {
+		granary_open_population : 150
+		granary_meat_stored : 400
+		victory_last_action_delay : 4
+		population_cap : 250
+
+		tutorial_fire_handled : false
+		tutorial_collapsed_handled : false
+		tutorial_firehouse_built : false
+		tutorial_granary_opened : false
+		tutorial_gamemeat_stored : false
+		granary_built : false
+		last_action_time : 0
+		start_message_shown : false
+	}
+
+	goal_tooltip: function() {
+		if (mission.tutorial_granary_opened) {
+			return "#mission0_goal_build_granary"
+		}
+
+		return "#mission0_goal_create_housing"
+	}
+}
+
+[es=event_mission_start, mission=mission0]
+function mission0_on_start(ev) {
+	mission_show_start_message(mission, "message_housing_and_roads")
+	city.set_empire_available(-1)
+
+	for (var i = 0; i <= ADVISOR_DIPLOMACY; i++) {
+		city.set_advisor_available(i, 0)
+	}
+
+	city.use_building(BUILDING_HUNTING_LODGE, mission.tutorial_granary_opened)
+    city.use_building(BUILDING_GRANARY, mission.tutorial_granary_opened)
+	city.use_building(BUILDING_BAZAAR, mission.tutorial_granary_opened)
+
+	city.set_advisor_available(ADVISOR_POPULATION, mission.granary_built)
+	city.use_building(BUILDING_FIREHOUSE, mission.tutorial_fire_handled)
+	city.use_building(BUILDING_ARCHITECT_POST, mission.tutorial_collapsed_handled)
+	city.use_building(BUILDING_WATER_SUPPLY, mission.tutorial_gamemeat_stored)
+
+	migration.set_population_cap("first_mission_population_cap", mission.population_cap)
+}
+
+[event=event_advance_day, mission=mission0]
+function mission0_on_build_firehouse(ev) {
+    if (mission.tutorial_firehouse_built) {
+        return
+    }
+
+    var firehouse_count = city.count_total_buildings(BUILDING_FIREHOUSE)
+    if (firehouse_count == 0) {
+        return
+    }
+
+	mission.last_action_time = game.absolute_day
+    mission.tutorial_firehouse_built = true
+}
+
+[event=event_fire_damage, mission=mission0]
+function mission0_handle_fire(ev) {
+	if (mission.tutorial_fire_handled) {
+		return
+	}
+
+	mission.last_action_time = game.absolute_day
+	mission.tutorial_fire_handled = true
+
+	city.use_building(BUILDING_FIREHOUSE, true)
+	ui.popup_message("message_fire_in_the_village")
+}
+
+[event=event_collase_damage, mission=mission0]
+function mission0_handle_collapse(ev) {
+    if (mission.tutorial_collapsed_handled) {
+        return;
+    }
+
+	mission.last_action_time = game.absolute_day
+	mission.tutorial_collapsed_handled = true
+
+	city.use_building(BUILDING_ARCHITECT_POST, true)
+    ui.popup_message("message_tutorial_collapsed_building")
+}
+
+[event=event_population_changed, mission=mission0]
+function mission0_handle_population_for_granary(ev) {
+	if (mission.tutorial_granary_opened) {
+		return;
+	}
+
+	if (ev.value < mission.granary_open_population) {
+		return;
+	}
+
+	city.use_building(BUILDING_HUNTING_LODGE, true)
+	city.use_building(BUILDING_GRANARY, true)
+	city.use_building(BUILDING_BAZAAR, true)
+
+	mission.last_action_time = game.absolute_day
+	mission.tutorial_granary_opened = true
+
+	ui.popup_message("message_tutorial_food_or_famine")
+}
+
+[event=event_advance_day, mission=mission0]
+function mission0_on_build_granary(ev) {
+    if (mission.granary_built) {
+        return
+    }
+
+    var granaries_count = city.count_total_buildings(BUILDING_GRANARY)
+    if (granaries_count == 0) {
+        return
+    }
+
+    mission.last_action_time = game.absolute_day
+    mission.granary_built = true
+
+	city.set_advisor_available(ADVISOR_POPULATION, 1)
+}
+
+[event=event_granary_resource_added, mission=mission0]
+function mission0_on_filled_granary(ev) {
+    if (mission.tutorial_gamemeat_stored) {
+        return;
+    }
+
+    var granary = city.get_granary(ev.bid)
+    var meat_stored = granary.amount(RESOURCE_GAMEMEAT)
+
+    if (meat_stored < mission.granary_meat_stored) {
+        return;
+    }
+
+	mission.tutorial_gamemeat_stored = true
+	mission.last_action_time = game.absolute_day
+
+	city.use_building(BUILDING_WATER_SUPPLY, true)
+	ui.popup_message("message_tutorial_clean_water")
+}
+
+[event=event_update_victory_state, mission=mission0]
+function mission0_handle_victory_state(ev) {
+	city.victory.set_reason("gamemeat_stored", mission.tutorial_gamemeat_stored)
+	city.victory.set_reason("tutorial_granary_opened", mission.tutorial_granary_opened)
+	city.victory.set_reason("granary_built", mission.granary_built)
+	city.victory.set_reason("tutorial_firehouse_built", mission.tutorial_firehouse_built)
+
+	var some_days_after_last_action = (game.absolute_day - mission.last_action_time) > mission.victory_last_action_delay;
+	city.victory.set_reason("some_days_after_last_action", some_days_after_last_action)
+}
+
+[event=event_migration_update, mission=mission0]
+function mission0_handle_population_cap(ev) {
+	migration.set_unemployments_cap({reason:"mission_0_unemployment_cap", min:-10, max:10})
+}

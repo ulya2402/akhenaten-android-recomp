@@ -1,0 +1,128 @@
+#pragma once
+
+#include "grid/point.h"
+#include "core/custom_span.hpp"
+#include "core/svector.h"
+#include "building/building.h"
+
+#include <array>
+
+struct city_buildings_t {
+    struct record {
+        uint16_t active;
+        uint16_t total;
+    };
+
+    int32_t festival_building_id;
+    tile2i festival_square;
+
+    int32_t palace_building_id = 0;
+    tile2i palace_point;
+
+    int32_t mansion_building_id = 0;
+
+    bool distribution_center_placed;
+    int32_t distribution_center_building_id;
+    tile2i distribution_center;
+
+    int32_t trade_center_building_id;
+
+    int8_t triumphal_obelisk_available;
+    int8_t triumphal_obelisk_placed;
+
+    int8_t fishing_boats_requested;
+    int8_t warships_requested;
+    int8_t transport_ships_requested;
+
+    bool has_high_fire_risk = false;
+
+    using tracked_building_ids = std::vector<building_id>;
+    using tracked_buildings_t = std::array<tracked_building_ids, BUILDING_MAX>;
+    const tracked_buildings_t &tracked_buildings() const;
+
+    int32_t mission_post_operational;
+    tile2i main_native_meeting;
+    int8_t unknown_value;
+
+    std::array<record, BUILDING_MAX> buildings;
+    std::array<record, RESOURCES_MAX> industry;
+
+    void init();
+    void shutdown();
+
+    void update_tick(bool refresh_only);
+    void update_water_supply();
+    void pump_water_lifts_iterative();
+    void stamp_water_lift_irrigation();
+    void update_religion_supply_houses();
+    void update_counters();
+    void on_post_load();
+    void update_month();
+    void update_year();
+    void update_week();
+    void update_day();
+    void reload_objects();
+
+    building_id temple_complex_id();
+    building_id temple_complex_id(e_building_type type);
+    bool has_temple_complex();
+    span_const<e_building_type> temple_complex_types();
+
+    int get_palace_id() const { return palace_building_id; }
+    bool has_palace() const;
+
+    int get_mansion_id() const { return mansion_building_id; }
+    bool has_mansion() const;
+
+    void reset_tracked_buildings_counters();
+    void track_building(building &b, bool active);
+    const tracked_building_ids &track_buildings(e_building_type type) const { return tracked_buildings().at(type); }
+
+    void clear_fishing_boat_requests() { fishing_boats_requested = 0; }
+    void request_fishing_boat() { ++fishing_boats_requested; }
+    void request_warship_ship() { ++warships_requested; }
+    void request_transport_ship() { ++transport_ships_requested; }
+
+    bool has_working_dock() const {
+        return !tracked_buildings().at(BUILDING_DOCK).empty()
+            || !tracked_buildings().at(BUILDING_DOCK_UP).empty();
+    }
+    bool has_working_shipyard() const { return !tracked_buildings().at(BUILDING_SHIPWRIGHT).empty(); }
+
+    void increase_count(e_building_type type, bool active);
+    void increase_active(e_building_type type);
+    void increase_industry_count(int resource, bool active);
+
+    int count_active(std::initializer_list<e_building_type> types);
+    int count_active(e_building_type type);
+    int count_total(std::initializer_list<e_building_type> types);
+    int count_total(e_building_type type);
+
+    int count_industry_active(e_resource resource);
+    int count_industry_total(e_resource resource);
+
+    void check_buildings_twins();
+};
+
+
+bool city_buildings_has_distribution_center(void);
+void city_buildings_add_distribution_center(building* center);
+void city_buildings_remove_distribution_center(building* center);
+
+int city_buildings_get_trade_center();
+void city_buildings_set_trade_center(int building_id);
+
+int city_buildings_triumphal_obelisk_available();
+void city_buildings_earn_triumphal_obelisk();
+void city_buildings_build_triumphal_obelisk();
+void city_buildings_remove_triumphal_obelisk();
+
+tile2i city_buildings_main_native_meeting_center();
+void city_buildings_set_main_native_meeting_center(int x, int y);
+
+int city_buildings_is_mission_post_operational();
+void city_buildings_set_mission_post_operational();
+
+tile2i city_building_get_festival_square_position();
+
+int city_buildings_unknown_value();

@@ -1,0 +1,94 @@
+#ifndef js_lex_h
+#define js_lex_h
+
+enum
+{
+	TK_IDENTIFIER = 256,
+	TK_NUMBER,
+	TK_STRING,
+	TK_REGEXP,
+
+	/* multi-character punctuators */
+	TK_LE,
+	TK_GE,
+	TK_EQ,
+	TK_NE,
+	TK_STRICTEQ,
+	TK_STRICTNE,
+	TK_SHL,
+	TK_SHR,
+	TK_USHR,
+	TK_AND,
+	TK_OR,
+	TK_ADD_ASSIGN,
+	TK_SUB_ASSIGN,
+	TK_MUL_ASSIGN,
+	TK_DIV_ASSIGN,
+	TK_MOD_ASSIGN,
+	TK_SHL_ASSIGN,
+	TK_SHR_ASSIGN,
+	TK_USHR_ASSIGN,
+	TK_AND_ASSIGN,
+	TK_OR_ASSIGN,
+	TK_XOR_ASSIGN,
+	TK_INC,
+	TK_DEC,
+
+	/* keywords */
+	TK_BREAK,
+	TK_CASE,
+	TK_CATCH,
+	TK_CONTINUE,
+	TK_DEBUGGER,
+	TK_DEFAULT,
+	TK_DELETE,
+	TK_DO,
+	TK_ELSE,
+	TK_EMIT,
+	TK_FALSE,
+	TK_FINALLY,
+	TK_FOR,
+	TK_FUNCTION,
+	TK_IF,
+	TK_IMPORT,
+	TK_IN,
+	TK_INSTANCEOF,
+	TK_NEW,
+	TK_NULL,
+	TK_RETURN,
+	TK_SWITCH,
+	TK_THIS,
+	TK_THROW,
+	TK_TRUE,
+	TK_TRY,
+	TK_TYPEOF,
+	TK_VAR,
+	TK_VOID,
+	TK_WHILE,
+	TK_WITH,
+};
+
+int jsY_iswhite(int c);
+int jsY_isnewline(int c);
+int jsY_ishex(int c);
+int jsY_tohex(int c);
+
+const char *jsY_tokenstring(int token);
+
+template<typename Arr>
+int jsY_findword(const js_StringNode s, const Arr& list) {
+    int i = 0;
+    for (auto n : list) {
+        if (s == n) {
+            return i;
+        }
+        ++i;
+    }
+    return -1;
+}
+
+void jsY_initlex(js_State *J, const char *filename, const char *source);
+int jsY_lex(js_State *J);
+int jsY_lexjson(js_State *J);
+
+#endif

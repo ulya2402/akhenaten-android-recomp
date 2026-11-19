@@ -1,0 +1,206 @@
+log_info("akhenaten: mission 1 started")
+
+// Mission 1 — Thinis, "The Dawn of Civilization". Rank 0 (Village Elder). Tutorial.
+//
+// Goals:     housing count 10, housing level 5, plus the tutorial steps: 500 deben of gold delivered, a temple of
+//            Bast, a booth and a juggler school built.
+// Start:     funds 3750, rescue loan 3750 (normal difficulty).
+// Gods:      Bast (unlocked by the tutorial).
+// Monuments: none.
+// Trade:     none (empire map off).
+// Enemies:   none.
+// Timeline:  housing, roads, architect, firehouse, police, bazaar, granary, water supply, gold mine, village
+//            palace and hunting lodge at start; population capped at 150 until a granary is built. 500 deben
+//            of gold delivered this year — temple and shrine of Bast, festival square; first temple of
+//            Bast — booth and juggler school.
+//
+// Notes for developers:
+// - Victory also waits a few days after the last tutorial step (victory_last_action_delay); the win
+//   screen is skipped (hide_won_screen).
+
+mission1 {
+	map_file : "data/maps/m_001_thinis.map"
+
+	// Tutorial hunt: fixed ostrich counts. First tile from map; second is the remake spawn.
+	herd_points_prey [
+		{ tile: [67, 84], type: FIGURE_OSTRICH, count: 8, radius: 16 }
+		{ tile: [55, 95], type: FIGURE_OSTRICH, count: 8, radius: 16 }
+	]
+
+	start_message : "message_gold_and_crime"
+	selection_title : "Thinis"
+	env {
+		has_animals : true
+	    gods_least_mood : 50
+	    marshland_grow : default_marshland_grow
+	    tree_grow : default_tree_grow
+		hide_nilometer : true
+	}
+	player_rank : 0
+	hide_won_screen : true
+	initial_funds [7500, 5000, 3750, 2500, 2000]
+	rescue_loans [7500, 5000, 3750, 2500, 2000]
+
+	buildings  [
+					BUILDING_HOUSE_VACANT_LOT, BUILDING_CLEAR_LAND, BUILDING_ROAD, BUILDING_ARCHITECT_POST,
+					BUILDING_FIREHOUSE, BUILDING_POLICE_STATION, BUILDING_BAZAAR, BUILDING_GRANARY, BUILDING_WATER_SUPPLY,
+					BUILDING_GOLD_MINE, BUILDING_VILLAGE_PALACE, BUILDING_HUNTING_LODGE
+				]
+
+	win_criteria {
+		housing_count {enabled : true, goal : 10 }
+		housing_level {enabled : true, goal : 5 }
+	}
+
+	sounds {
+		briefing : "Voice/Mission/201_mission.mp3"
+		victory : "Voice/Mission/201_victory.mp3"
+	}
+
+	vars {
+		gold_mined : 500
+		victory_last_action_delay : 4
+		nogranary_population_cap : 150
+
+		gold_mined_handled : false
+		temples_built : false
+		booth_built : false
+		juggler_school_built : false
+		last_action_time : 0
+		start_message_shown : false
+	}
+
+	goal_tooltip: function() {
+		if (!mission.gold_mined_handled) {
+			return "#mission1_goal_build_mines"
+		}
+
+		if (!mission.temples_built) {
+			return "#mission1_goal_build_temples"
+		}
+
+		if (!mission.booth_built || !mission.juggler_school_built) {
+			return "#mission1_goal_build_entertainment"
+		}
+
+		if (!city.victory.is_housing_condition_met()) {
+			return "#mission1_goal_evolve_housing"
+		}
+
+		return ""
+	}
+}
+
+[es=event_mission_start, mission=mission1]
+function mission1_on_start(ev) {
+	mission_show_start_message(mission, "message_gold_and_crime")
+	city.set_empire_available(-1)
+
+	for (var i = 0; i <= ADVISOR_DIPLOMACY; i++) {
+		city.set_advisor_available(i, 0)
+	}
+
+	city.use_building(BUILDING_TEMPLE_BAST, mission.gold_mined_handled)
+	city.use_building(BUILDING_SHRINE_BAST, mission.gold_mined_handled)
+	city.use_building(BUILDING_FESTIVAL_SQUARE, mission.gold_mined_handled)
+	city.set_advisor_available(ADVISOR_RELIGION, mission.gold_mined_handled)
+
+	city.use_building(BUILDING_BOOTH, mission.temples_built)
+	city.use_building(BUILDING_JUGGLER_SCHOOL, mission.temples_built)
+	city.set_advisor_available(ADVISOR_ENTERTAINMENT, mission.temples_built)
+
+    city.set_advisor_available(ADVISOR_POPULATION, 1)
+}
+
+[event=event_advance_day, mission=mission1]
+function mission1_check_gold_mined(ev) {
+    if (mission.gold_mined_handled) {
+        return
+    }
+
+    if (city.finance.this_year.income.gold_delivered < mission.gold_mined) {
+        return
+    }
+
+    mission.last_action_time = game.absolute_day
+    mission.gold_mined_handled = true
+
+	city.use_building(BUILDING_TEMPLE_BAST, true)
+	city.use_building(BUILDING_SHRINE_BAST, true)
+	city.use_building(BUILDING_FESTIVAL_SQUARE, true)
+
+	city.set_advisor_available(ADVISOR_RELIGION, 1)
+
+	ui.popup_message("message_tutorial_the_gods_of_egypt")
+}
+
+[event=event_migration_update, mission=mission1]
+function mission1_handle_population_cap(ev) {
+    var granary_built = city.count_total_buildings(BUILDING_GRANARY)
+    var max_pop = (granary_built > 0) ? 0 : mission.nogranary_population_cap
+
+    migration.set_population_cap("no_granary_population_cap", max_pop)
+}
+
+[event=event_update_victory_state, mission=mission1]
+function mission1_handle_victory_state(ev) {
+	city.victory.set_reason("gold_mined_handled", mission.gold_mined_handled)
+	city.victory.set_reason("temples_built", mission.temples_built)
+	city.victory.set_reason("booth_built", mission.booth_built)
+	city.victory.set_reason("juggler_school_built", mission.juggler_school_built)
+
+    var some_days_after_last_action = (game.absolute_day - mission.last_action_time) > mission.victory_last_action_delay;
+	city.victory.set_reason("some_days_after_last_action", some_days_after_last_action)
+}
+
+[event=event_advance_day, mission=mission1]
+function mission1_on_build_temple(ev) {
+    if (mission.temples_built) {
+        return
+    }
+
+    var temples_count = city.count_total_buildings(BUILDING_TEMPLE_BAST)
+    if (temples_count == 0) {
+        return
+    }
+
+	city.use_building(BUILDING_BOOTH, true)
+	city.use_building(BUILDING_JUGGLER_SCHOOL, true)
+
+	city.set_advisor_available(ADVISOR_ENTERTAINMENT, 1)
+
+    mission.last_action_time = game.absolute_day
+    mission.temples_built = true
+
+    ui.popup_message("message_tutorial_entertainment");
+}
+
+[event=event_advance_day, mission=mission1]
+function mission1_on_build_booth(ev) {
+    if (mission.booth_built) {
+        return
+    }
+
+    var booth_count = city.count_total_buildings(BUILDING_BOOTH)
+    if (booth_count == 0) {
+        return
+    }
+
+	mission.last_action_time = game.absolute_day
+    mission.booth_built = true
+}
+
+[event=event_advance_day, mission=mission1]
+function mission1_on_build_juggler_school(ev) {
+	if (mission.juggler_school_built) {
+		return
+	}
+
+	var juggler_school_count = city.count_total_buildings(BUILDING_JUGGLER_SCHOOL)
+	if (juggler_school_count == 0) {
+		return
+	}
+
+	mission.last_action_time = game.absolute_day
+    mission.juggler_school_built = true
+}

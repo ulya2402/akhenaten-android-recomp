@@ -1,0 +1,89 @@
+log_info("akhenaten: building_bandstand started")
+
+building_bandstand {
+  animations {
+    _pack { pack: PACK_GENERAL }
+    booth { id:114 }
+    square { id:58}
+    stand_sn_s { id:92, offset:0 }
+    stand_sn_n { id:92, offset:1 }
+    stand_we_w { id:92, offset:2 }
+    stand_we_e { id:92, offset:3 }
+
+    juggler { pos[35, 15], pack:PACK_SPR_AMBIENT, id:7, max_frames:26, duration:2, internal_offset:true }
+    musician_sn { pos[-10, -36], pack:PACK_SPR_AMBIENT, id:10, max_frames : 11, duration:3 }
+    musician_we { pos[30, 10], pack:PACK_SPR_AMBIENT, id:9, max_frames : 11, duration:3, internal_offset:true }
+  }
+
+  overlay : OVERLAY_BANDSTAND
+  labor_category : LABOR_CATEGORY_ENTERTAINMENT
+  min_houses_coverage : 100
+  fire_proof: true
+  meta { text_id:71, help_link:"message_building_bandstand" }
+  info_sound : "Wavs/music_r.wav"
+  building_size : 3
+  cost [ 30, 50, 100, 150, 200 ]
+  desirability { value[4], step[1], step_size[-1], range[4] }
+  laborers[12], fire_risk[4], damage_risk[3]
+  flags {
+    no_map_edge_margin: true
+    is_entertainment: true
+  }
+
+  place_dir : [
+    { items: [
+      {type: BUILDING_GARDENS, offset:[2, 1]},
+      {type: BUILDING_BOOTH, offset:[2, 0]},
+      {type: BUILDING_BANDSTAND, offset:[0, 0], main:true},
+      {type: BUILDING_BANDSTAND, offset:[0, 1], main:false}
+    ]},
+    { items: [
+      {type: BUILDING_GARDENS, offset:[1, 2]},
+      {type: BUILDING_BOOTH, offset:[2, 2]},
+      {type: BUILDING_BANDSTAND, offset:[1, 0], main:true},
+      {type: BUILDING_BANDSTAND, offset:[2, 0], main:false}
+    ]},
+    { items: [
+      {type: BUILDING_GARDENS, offset:[2, 1]},
+      {type: BUILDING_BOOTH, offset:[2, 2]},
+      {type: BUILDING_BANDSTAND, offset:[0, 1], main:true},
+      {type: BUILDING_BANDSTAND, offset:[0, 2], main:false}
+    ]},
+    { items: [
+      {type: BUILDING_GARDENS, offset:[1, 2]},
+      {type: BUILDING_BOOTH, offset:[0, 2]},
+      {type: BUILDING_BANDSTAND, offset:[1, 0], main:true},
+      {type: BUILDING_BANDSTAND, offset:[0, 0], main:false}
+    ]}
+  ]
+}
+
+[es=(building_bandstand, ghost_allow_tile)]
+function building_bandstand_ghost_allow_tile(ev) {
+    city_planner.preview_allow_result = terrain.is(ev.tile, TERRAIN_ROAD) || !__map_has_figure_at(ev.tile)
+}
+
+[es=(building_bandstand, setup_preview_graphics)]
+function building_bandstand_setup_preview_graphics(ev) {
+    var size = building_bandstand.building_size
+    city_planner.init_tiles(size, size)
+}
+
+[es=(building_bandstand, update_day)]
+function building_bandstand_update_day(ev) {
+    var b = city.get_entertainment_building(ev.bid)
+    if (!b) {
+        return
+    }
+
+    var shows = 0
+    if (b.juggler_visited > 0) {
+        b.juggler_visited = b.juggler_visited - 1
+        shows = shows + 1
+    }
+    if (b.musician_visited > 0) {
+        b.musician_visited = b.musician_visited - 1
+        shows = shows + 1
+    }
+    b.num_shows = shows
+}

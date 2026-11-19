@@ -1,0 +1,130 @@
+log_info("akhenaten: building_well started")
+
+function BuildingWell(building_id) {
+    this.id = building_id
+}
+
+BuildingWell.prototype = Object.create(Building.prototype)
+BuildingWell.prototype.constructor = BuildingWell
+
+BuildingWell.prototype.necessity_status = function(radius) {
+    return __map_water_supply_is_well_unnecessary(this.id, radius)
+}
+
+city.get_well = function(building_id) {
+    if (__building_type(building_id) != BUILDING_WELL) {
+        return null
+    }
+    return new BuildingWell(building_id)
+}
+
+[es=building]
+building_well {
+  type: BUILDING_WELL
+  animations {
+    preview { pack: PACK_GENERAL, id:23, max_frames:1 }
+    base { pack: PACK_GENERAL, id:23, max_frames:1 }
+    base_work { pos[26, 12], pack: PACK_GENERAL, id:23, offset:1, max_frames:1 }
+    fancy { pack: PACK_GENERAL, id:23, offset:2, max_frames:1 }
+    fancy_work { pos[28, 14], pack: PACK_GENERAL, id:23, offset:3, max_frames:1 }
+    minimap {pack:PACK_GENERAL, id:151},
+  }
+
+  fire_proof : true
+  building_size : 1
+  meta { text_id:109, help_link:"message_building_well" }
+  info_sound : "Wavs/WELL.WAV"
+  sound_channel : SOUND_CHANNEL_CITY_WELL
+  needs {
+    groundwater : true
+  }
+
+  labor_category : LABOR_CATEGORY_WATER_HEALTH
+  cost [ 1, 2, 5, 10, 20 ]
+
+  range_radius : 2
+  desirability_fancy : 30
+  unnecessary_range_check : 2
+  laborers[0]
+  fire_risk[0]
+  damage_risk[0]
+  desirability { value[1], step[1], step_size[-1], range[1] }
+  flags {
+    no_road_access: true
+    draw_normal_anim: false
+  }
+}
+
+[es=(building_well, update_day)]
+function building_well_update_day(ev) {
+    var well = city.get_well(ev.bid)
+    if (!well) {
+        return
+    }
+
+    var radius = building_well.range_radius
+    if (game_features.gameplay_change_well_radius_depends_moisture) {
+        radius = Math.floor(__map_moisture_get(well.tile) / 40)
+        if (radius < 1) radius = 1
+        if (radius > 4) radius = 4
+    }
+
+    var range = city.get_grid_area(well.tile, 1, radius)
+    for (var ry = range.miny; ry <= range.maxy; ry++) {
+        for (var rx = range.minx; rx <= range.maxx; rx++) {
+            terrain.add({ x: rx, y: ry }, TERRAIN_FOUNTAIN_RANGE)
+        }
+    }
+}
+
+[es=(building_well, update_animation)]
+function building_well_update_animation(ev) {
+    var well = city.get_well(ev.bid)
+    if (!well) {
+        return
+    }
+    well.play_animation = (well.necessity_status(building_well.unnecessary_range_check) == WELL_NECESSARY)
+}
+
+[es=(building_well, update_graphic)]
+function building_well_update_graphic(ev) {
+    var well = city.get_well(ev.bid)
+    if (!well) {
+        return
+    }
+    if (!well.play_animation) {
+        well.set_animation("none")
+        return
+    }
+
+    var animkey = well.is_fancy ? "fancy_work" : "base_work"
+    well.set_animation(animkey)
+}
+
+[es=(building_well, update_month)]
+function building_well_update_month(ev) {
+    var well = city.get_well(ev.bid)
+    if (!well) {
+        return
+    }
+    // OG: fancy image when desirability at the well tile >= 30.
+    var tile_des = __desirability_at_tile(well.tile.x, well.tile.y)
+    var is_fancy = tile_des >= building_well.desirability_fancy
+    well.set_fancy(is_fancy)
+    var animkey = is_fancy ? "fancy" : "base"
+    __map_building_tiles_add(well.id, well.tile, 1, well.first_img(animkey), TERRAIN_BUILDING)
+}
+
+[es=(building_well, ghost_preview)]
+function building_well_ghost_preview(ev) {
+    if (game_features.gameui_show_water_structure_range) {
+        var overlay = get_image({ pack: PACK_TERRAIN, id: 21 }).tid
+        var pixels = __camera_tile_range_pixels(city_planner.end, 1, building_well.range_radius)
+        for (var i = 0; i < pixels.length; i++) {
+            city_planner.draw_overlay_tile(pixels[i], overlay, COLOR_MASK_BLUE, 1.0)
+        }
+    }
+
+    var params = city.get_building_params_by_type(BUILDING_WELL)
+    city_planner.draw_ghost(ev.pixel, params.preview_image)
+}

@@ -1,0 +1,129 @@
+#pragma once
+
+#include "content/dir.h"
+#include "core/string.h"
+#include "core/archive.h"
+#include "core/tokenum.h"
+
+enum e_message_arch : uint8_t {
+    MESSAGE_ARCH_MANUAL = 0,
+    MESSAGE_ARCH_ABOUT = 1,
+    MESSAGE_ARCH_MESSAGE = 2,
+    MESSAGE_ARCH_MISSION = 3,
+
+    MESSAGE_ARCH_MAX
+};
+using e_message_arch_tokens_t = token_holder<e_message_arch, MESSAGE_ARCH_MANUAL, MESSAGE_ARCH_MAX>;
+extern e_message_arch_tokens_t e_message_arch_tokens;
+
+enum e_message_category : uint8_t {
+    MESSAGE_TYPE_GENERAL = 0,
+    MESSAGE_TYPE_DISASTER = 1,
+    MESSAGE_TYPE_IMPERIAL = 2,
+    MESSAGE_TYPE_EMIGRATION = 3,
+    MESSAGE_TYPE_TUTORIAL = 4,
+    MESSAGE_TYPE_TRADE_CHANGE = 5,
+    MESSAGE_TYPE_PRICE_CHANGE = 6,
+    MESSAGE_TYPE_INVASION = 7,
+    MESSAGE_TYPE_DISTANT_BATTLE = 8,
+    MESSAGE_TYPE_IMAGE = 9,
+
+    MESSAGE_TYPE_MAX
+};
+using e_message_category_tokens_t = token_holder<e_message_category, MESSAGE_TYPE_GENERAL, MESSAGE_TYPE_MAX>;
+extern e_message_category_tokens_t e_message_category_tokens;
+
+struct lang_message {
+    struct ltext {
+        xstring text;
+        vec2i pos;
+    };
+
+    struct limage {
+        vec2i pos;
+        int16_t pack, id;
+        int16_t offset;
+    };
+
+    ltext title;
+    ltext subtitle;
+    ltext video;
+    ltext content;
+    limage image;
+    uint8_t advisor;
+    vec2i size;
+    xstring key;
+    vec2i pos;
+    e_message_arch type;
+    e_message_category message_type;
+    xstring help_link;
+    uint16_t id;
+    bool urgent;
+    enum {
+        max_messages = 512
+    };
+};
+ANK_CONFIG_STRUCT(lang_message::limage, pos, pack, id, offset)
+ANK_CONFIG_STRUCT(lang_message::ltext, text, pos)
+ANK_CONFIG_STRUCT(lang_message, title, subtitle, video, content, image,
+    advisor, size, key, pos, type, message_type, help_link, id, urgent)
+
+template<>
+struct stable_array_max_elements<lang_message> {
+    enum { max_elements = lang_message::max_messages };
+};
+
+template<>
+struct std::hash<lang_message> {
+    [[nodiscard]] size_t operator()(const lang_message &g) const noexcept {
+        return g.id;
+    }
+};
+
+struct lang_pack {
+    vfs::path dir;
+    vfs::path langfile;
+    xstring ext;
+
+    lang_pack(pcstr dir, pcstr ext, pcstr lang = "Pharaoh_Text") {
+        this->dir = dir;
+        this->ext = ext;
+        pcstr pdir = dir && *dir ? dir : "";
+        pcstr plim = dir && *dir ? "/" : ""; 
+        langfile.printf("%s%s%s.%s", pdir, plim, lang, ext);
+    }
+};
+
+/**
+ * Gets a localized string
+ * @param group Text group
+ * @param index Index within the group
+ * @return String
+ */
+pcstr lang_get_string(int group, int index);
+xstring lang_get_xstring(int group, int index);
+pcstr lang_get_string(textid text);
+
+/**
+ * Gets the message for the specified ID
+ * @param id ID of the message
+ * @return Message
+ */
+const lang_message& lang_get_message(int id);
+const lang_message& lang_get_message(xstring id);
+xstring lang_get_message_id(int id);
+uint16_t lang_get_message_uid(xstring msg);
+
+void lang_reload_game_messages(const xstring table_name);
+
+enum e_text_info {
+    e_text_title = 0,
+    e_text_senate_tooltip = 68,
+    e_text_senate_tooltip_unemployed = 135,
+    e_text_senate_tooltip_culture = 136,
+    e_text_senate_tooltip_prosperity = 137,
+    e_text_senate_tooltip_monuments = 138,
+    e_text_senate_tooltip_kingdom = 139,
+    e_text_building = 69,
+    e_text_building_no_roads = 25,
+};

@@ -1,0 +1,74 @@
+#pragma once
+
+#include "building/building.h"
+
+class building_statue : public building_impl {
+public:
+    using inherited = building_impl;
+
+    building_statue(building &b) : building_impl(b) {}
+    virtual building_statue *dcast_statue() override { return this; }
+
+    struct statue_params_t {
+        svector<image_desc, 8> variants;
+    };
+
+    struct runtime_data_t {
+        uint8_t variant;
+        uint8_t statue_offset;
+        uint8_t temple_complex_upgrades;
+        uint8_t resources_pct[RESOURCES_MAX];
+        uint8_t service;
+        uint8_t upgrades;
+    } BUILDING_RUNTIME_DATA_T;
+
+    virtual void on_create(int orientation) override;
+    virtual void on_place_update_tiles(int orientation, int variant) override;
+    virtual e_sound_channel_city sound_channel() const override { return SOUND_CHANNEL_CITY_STATUE; }
+    virtual void update_map_orientation(int map_orientation) override;
+    virtual void bind_dynamic(io_buffer *iob, size_t version) override;
+    virtual void add_workers(figure_id fid) override;
+    virtual void update_day() override;
+
+    virtual const statue_params_t &statue_params() = 0;
+
+    uint8_t service() const { return runtime_data().service; }
+    void set_service(uint8_t v) { runtime_data().service = v; }
+    static int get_image(e_building_type type, int orientation, int variant);
+    static bool guild_service_enabled();
+};
+ANK_CONFIG_PROPERTY(building_statue::runtime_data_t, variant)
+ANK_CONFIG_STRUCT(building_statue::statue_params_t, variants)
+
+class building_small_statue : public building_statue {
+public:
+    BUILDING_METAINFO(BUILDING_SMALL_STATUE, building_small_statue, building_statue)
+
+    struct static_params : public statue_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const statue_params_t &statue_params() { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_small_statue::static_params, variants)
+
+class building_medium_statue : public building_statue {
+public:
+    BUILDING_METAINFO(BUILDING_MEDIUM_STATUE, building_medium_statue, building_statue)
+
+    struct static_params : public statue_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const statue_params_t &statue_params() { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_medium_statue::static_params, variants)
+
+class building_large_statue : public building_statue {
+public:
+    BUILDING_METAINFO(BUILDING_LARGE_STATUE, building_large_statue, building_statue)
+
+    struct static_params : public statue_params_t, public building_static_params {
+    } BUILDING_STATIC_DATA_T;
+
+    virtual const statue_params_t &statue_params() { return current_params(); }
+};
+ANK_CONFIG_STRUCT(building_large_statue::static_params, variants)

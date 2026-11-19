@@ -1,0 +1,352 @@
+log_info("akhenaten: console_commands started");
+
+[console_command=hello]
+function console_command_hello(args) {
+	log_info("Hello, " + ((args && args[0]) || "World") + "!");
+}
+
+[console_command=noble_spawn]
+function console_command_spawnnobles(args) {
+	var count = parseInt((args && args[0]) || "10", 10)
+	if (count <= 0) {
+		count = 10
+	}
+
+	var houses = []
+	for (var bid = 1; bid < MAX_BUILDINGS; bid++) {
+		var house = city.get_house(bid)
+		if (house && house.valid && !house.is_vacant_lot && house.population > 0) {
+			houses.push(house)
+		}
+	}
+
+	var step = Math.max(1, Math.floor(houses.length / count))
+	for (var i = 0; i < houses.length; i += step) {
+		var house = houses[i]
+		if (!house.has_road_access) {
+			continue
+		}
+		__building_create_roaming_figure(house.id, FIGURE_NOBLES, ACTION_0_NOBLE_ROAMING, BUILDING_SLOT_SERVICE)
+	}
+}
+
+[console_command=monument_clearprogress]
+function console_command_clearprogress(args) {
+	__map_monuments_clear()
+}
+
+[console_command=locust_start_plague]
+function console_command_cropbusters(args) {
+	__locust_start_plague()
+	ui.popup_message("message_plague_of_locusts")
+	city.warnings.show("Crop Busters")
+}
+
+[console_command=add_grain]
+function console_command_add_grain(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) {
+		amount = 100
+	}
+	__cheat_add_resource(RESOURCE_GRAIN, amount)
+}
+
+[console_command=farm_grow]
+function console_command_farm_grow(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) {
+		amount = 100
+	}
+
+	for (var i = 1; i <= MAX_BUILDINGS; i++) {
+		var farm = city.get_farm(i)
+		if (!farm) {
+			continue
+		}
+		farm.progress += amount
+	}
+}
+
+// Completes unfinished monument tile progress (to 200). Optional arg = max tiles
+// to bump (0 / omitted = all).
+[console_command=monument_up]
+function console_command_monument_up(args) {
+	var amount = parseInt((args && args[0]) || "0", 10)
+	if (!(amount > 0)) {
+		amount = 0
+	}
+
+	var remaining = amount
+	for (var i = 1; i <= MAX_BUILDINGS; i++) {
+		var m = city.get_monument(i)
+		if (!m || m.prev_part_building_id) {
+			continue
+		}
+		if (m.phase() === -1) {
+			continue
+		}
+
+		var bumped = m.boost_incomplete_tiles(amount > 0 ? remaining : 0)
+		if (amount > 0) {
+			remaining -= bumped
+			if (remaining <= 0) {
+				break
+			}
+		}
+	}
+}
+
+// Debug: force carpenter ramp sprites on all unfinished block-engine pyramids.
+// Arg 0/omit = on, "0"/"off" = clear.
+[console_command=pyramid_show_ramps]
+function console_command_pyramid_show_ramps(args) {
+	var raw = (args && args[0] != null) ? String(args[0]) : "1"
+	var enable = !(raw === "0" || raw === "off" || raw === "false")
+	for (var i = 1; i <= MAX_BUILDINGS; i++) {
+		var m = city.get_monument(i)
+		if (!m || m.prev_part_building_id) {
+			continue
+		}
+		__pyramid_force_show_ramps(m.id, enable ? 1 : 0)
+	}
+}
+
+[console_command=add_pottery]
+function console_command_add_pottery(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) {
+		amount = 100
+	}
+	__cheat_add_resource(RESOURCE_POTTERY, amount)
+}
+
+[console_command=add_papyrus]
+function console_command_addpapyrus(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) {
+		amount = 100
+	}
+	__cheat_add_resource(RESOURCE_PAPYRUS, amount)
+}
+
+[console_command=add_chickpeas]
+function console_command_add_chickpeas(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) amount = 100
+	__cheat_add_resource(RESOURCE_CHICKPEAS, amount)
+}
+
+[console_command=add_gamemeat]
+function console_command_add_gamemeat(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) amount = 100
+	__cheat_add_resource(RESOURCE_GAMEMEAT, amount)
+}
+
+[console_command=add_stone]
+function console_command_addstone(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) amount = 100
+	__cheat_add_resource(RESOURCE_STONE, amount)
+}
+
+[console_command=add_limestone]
+function console_command_addlimestone(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) amount = 100
+	__cheat_add_resource(RESOURCE_LIMESTONE, amount)
+}
+
+[console_command=add_granite]
+function console_command_addgranite(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) amount = 100
+	__cheat_add_resource(RESOURCE_GRANITE, amount)
+}
+
+[console_command=add_wood]
+function console_command_add_wood(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) {
+		amount = 100
+	}
+	__cheat_add_resource(RESOURCE_TIMBER, amount)
+}
+
+[console_command=add_sandstone]
+function console_command_addsandstone(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) amount = 100
+	__cheat_add_resource(RESOURCE_SANDSTONE, amount)
+}
+
+[console_command=add_weapons]
+function console_command_addweapons(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) amount = 100
+	__cheat_add_resource(RESOURCE_WEAPONS, amount)
+}
+
+[console_command=add_copper]
+function console_command_addcopper(args) {
+	var amount = parseInt((args && args[0]) || "100", 10)
+	if (amount <= 0) amount = 100
+	__cheat_add_resource(RESOURCE_COPPER, amount)
+}
+
+[console_command=collapse_no]
+function console_command_collapse_no(args) {
+	for (var i = 1; i <= MAX_BUILDINGS; i++) {
+		var building = city.get_building(i)
+		building.add_collapse_damage(-building.collapse_risk)
+	}
+}
+
+[console_command=damage_no]
+function console_command_damage_no(args) {
+	for (var i = 1; i <= MAX_BUILDINGS; i++) {
+		var building = city.get_building(i)
+		building.add_structure_damage(-building.structure_damage)
+	}
+}
+
+[console_command=fire_no]
+function console_command_fire_no(args) {
+	for (var i = 1; i <= MAX_BUILDINGS; i++) {
+		var building = city.get_building(i)
+		building.add_fire_damage(-building.fire_risk)
+	}
+}
+
+[console_command=fire_start]
+function console_command_fire_start(args) {
+	var count = parseInt((args && args[0]) || "1", 10)
+	if (count <= 0) {
+		count = 1
+	}
+
+	for (var i = 0; i < count; i++) {
+		var building = city.get_random_building()
+		building.destroy_by_fire()
+	}
+}
+
+[console_command=collapse_random_buildings]
+function console_command_collapse_random_buildings(args) {
+	var count = parseInt((args && args[0]) || "0", 10)
+	if (count <= 0) {
+		count = 10
+	}
+
+	for (var i = 0; i < count; i++) {
+		var building = city.get_random_building()
+		building.add_collapse_damage(2000)
+	}
+}
+
+[console_command=test_request_pottery]
+function console_command_request_status(args) {
+	var amount = parseInt((args && args[0]) || "0", 10)
+	if (amount <= 0) {
+		amount = 0
+	}
+
+	city.create_good_request({ tag_id: 1, resource: RESOURCE_POTTERY, amount: amount, months_initial: 12 })
+}
+
+[console_command=show_mission_won]
+function console_command_show_mission_won(args) {
+    emit event_show_window { id: "window_mission_won" }
+}
+
+[console_command=show_victory_dialog]
+function console_command_show_victory_dialog(args) {
+    city.victory.state = 1
+    emit event_show_window { id: "window_victory_dialog" }
+}
+
+// show_video                    → message dialog with embedded SMK (illness)
+// show_video message_<id>       → that message dialog (if it has video{})
+// show_video <path> [w] [h]     → centered video window (.smk / .bik)
+[console_command=show_video]
+function console_command_show_video(args) {
+    var a0 = (args && args[0]) || ""
+    if (!a0 || a0.indexOf("message_") === 0) {
+        var msgid = a0 || "message_illness_video"
+        // City-popup path (use_popup) — required for in-dialog SMK playback.
+        __ui_window_message_dialog_show_city_message(msgid, -1, 1250, 0, 0, 0, 0)
+        return
+    }
+    var w = parseInt((args && args[1]) || "400", 10)
+    var h = parseInt((args && args[2]) || "292", 10)
+    if (!(w > 0)) { w = 400 }
+    if (!(h > 0)) { h = 292 }
+    __game_victory_video_show(a0, w, h, "")
+}
+
+// show_dialog_video                         → dialog + BINKS/High/Intro_big.bik
+// show_dialog_video <path> [title]          → dialog + arbitrary .bik/.smk
+// Steam campaign clips live under BINKS/High/ (Intro_big, Archaic_big, …).
+[console_command=show_dialog_video]
+function console_command_show_dialog_video(args) {
+    var path = (args && args[0]) || "BINKS/High/Intro_big.bik"
+    var title = (args && args[1]) || path
+    __ui_window_message_dialog_show_with_video(path, title)
+}
+
+[console_command=show_intro_video]
+function console_command_show_intro_video(args) {
+    __window_intro_video_show()
+}
+
+[console_command=victory]
+function console_command_victory(args) {
+    city.victory.force_win = true
+}
+
+[console_command=defeat]
+function console_command_defeat(args) {
+    city.victory.force_lost = true
+}
+
+[console_command=show_labor_priority]
+function console_command_show_labor_priority(args) {
+    var category = parseInt((args && args[0]) || "0", 10)
+    if (category < 0 || category >= LABOR_CATEGORY_SIZE) {
+        category = 0
+    }
+    show_labor_priority_window(category)
+}
+
+[console_command=addmoney]
+function console_command_addmoney(args) {
+    var money = parseInt((args && args[0]) || "100", 10)
+    if (money <= 0) {
+        money = 100
+    }
+    emit event_finance_donation{ amount: money }
+    city.warnings.show("Added money")
+}
+
+[console_command=unlock_buildings]
+function console_command_unlock_buildings(args) {
+    emit event_building_menu_update{ stage: "enable_all" }
+    city.warnings.show("All buildings unlocked")
+}
+
+[console_command=crashme]
+function console_command_crashme(args) {
+    __debug_crash()
+}
+
+/** off/on or 0/1 sets explicitly; no or other arg toggles current */
+function console_tri_state_on_off(args, current) {
+	var v = args && args[0]
+	if (v === "0" || v === "off") {
+		return false
+	}
+	if (v === "1" || v === "on") {
+		return true
+	}
+	return !current
+}

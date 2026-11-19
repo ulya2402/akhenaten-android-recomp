@@ -1,0 +1,32 @@
+#pragma once
+
+#include "building/building.h"
+
+class building_mortuary : public building_impl {
+public:
+    BUILDING_METAINFO(BUILDING_MORTUARY, building_mortuary, building_impl)
+
+    struct static_params : public building_static_params {
+        uint16_t linen_required_for_animation;
+        uint16_t monthly_linen_consumption;
+    } BUILDING_STATIC_DATA_T;
+
+    struct runtime_data_t : public no_copy_assignment {
+        int residents_served_this_month;
+        int residents_served_this_year;
+        int total_residents_served;
+        int months_active;
+    } BUILDING_RUNTIME_DATA_T;
+
+    virtual building_mortuary *dcast_mortuary() override { return this; }
+
+    virtual void update_month() override;
+    virtual void update_year() override;
+    virtual e_overlay get_overlay() const override { return OVERLAY_MORTUARY; }
+    virtual e_sound_channel_city sound_channel() const override { return SOUND_CHANNEL_CITY_MORTUARY; }
+    virtual int animation_speed(int speed) const override { return 3; }
+    virtual void update_count() const override;
+};
+ANK_CONFIG_STRUCT(building_mortuary::static_params, linen_required_for_animation, monthly_linen_consumption)
+ANK_CONFIG_PROPERTY(building_mortuary::runtime_data_t, residents_served_this_month, residents_served_this_year, total_residents_served, months_active)
+

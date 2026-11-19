@@ -1,0 +1,364 @@
+#include "figure_enemy_fast_sword.h"
+
+#include "core/profiler.h"
+#include "city/city.h"
+#include "city/sound.h"
+#include "sound/sound.h"
+#include "figure/combat.h"
+#include "figuretype/figure_missile.h"
+#include "figure/formation_layout.h"
+#include "figure/formation.h"
+#include "scenario/invasion_auto_resolve.h"
+#include "city/city_buildings.h"
+#include "city/city_figures.h"
+#include "graphics/view/lookup.h"
+#include "dev/debug.h"
+#include "grid/image.h"
+#include "grid/grid.h"
+#include "grid/terrain.h"
+#include "js/js_register.h"
+
+const e_action_enemy_fast_sword_tokens_t ANK_CONFIG_ENUM(e_action_enemy_fast_sword_tokens)
+
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_barbarian_sword)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_assyrian_sword)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_canaanite_sword)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_hyksos_sword)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_kushite_axeman)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_libian_sword)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_nubian_axeman)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_phoenician_swordman)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_roman_legioner)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_seapeople_axeman)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_egyptian_fast_sword)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_egyptian_sword)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_egyptian_heavy_sword)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_egyptian_axe)
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_kingdome_infantry)
+
+tile2i figure_enemy_fast_sword::get_formation_position(formation *m, int figure_index) {
+    if (m->destination_building_id <= 0) {
+        return formation_layout_position(m->layout, figure_index);
+    }
+
+    building *b = building_get(m->destination_building_id);
+    if (!b || b->state != BUILDING_STATE_VALID) {
+        return formation_layout_position(m->layout, figure_index);
+    }
+
+    grid_tiles_sm perimeter_tiles = map_grid_get_adjacent_tiles_sm(b, 1);
+    if (perimeter_tiles.empty()) {
+        return formation_layout_position(m->layout, figure_index);
+    }
+
+    int perimeter_index = figure_index % perimeter_tiles.size();
+    tile2i target_tile = perimeter_tiles[perimeter_index];
+    return target_tile.sub(m->destination);
+}
+
+void figure_enemy_fast_sword::figure_action() {
+    OZZY_PROFILER_FUNCTION();
+
+    count_as_city_invader();
+    if (invasion_auto_resolve_figure_immune(&base)) {
+        base.map_figure_update();
+        return;
+    }
+
+    // OG enemy_begin(drowns): foot infantry drowns; elephant overrides false.
+    if (drowns_on_floodplain()
+        && map_terrain_is(tile(), TERRAIN_WATER)
+        && map_terrain_is(tile(), TERRAIN_FLOODPLAIN)) {
+        poof();
+        return;
+    }
+
+    base.speed_multiplier = enemy_speed_multiplier();
+    formation *m = formation_get(base.formation_id);
+    base.set_flag(e_figure_flag_inattack, false);
+    base.terrain_usage = TERRAIN_USAGE_ENEMY;
+
+    // locked in melee (set up by the shared C3 path): trade blows via hit_opponent
+    // until one side dies, then resume_activity_after_attack clears opponent_id.
+    if (base.opponent_id > 0 && !figure_get(base.opponent_id)->is_dead()) {
+        base.set_flag(e_figure_flag_inattack);
+        base.figure_combat_handle_attack();
+        return;
+    }
+
+    switch (action_state()) {
+    case FIGURE_ACTION_148_FLEEING:
+        base.destination_tile = base.source_tile;
+
+        base.move_ticks(enemy_walk_ticks());
+        if (direction() == DIR_FIGURE_NONE || direction() == DIR_FIGURE_REROUTE || direction() == DIR_FIGURE_CAN_NOT_REACH) {
+            poof();
+        }
+        break;
+
+    case ACTION_151_ENEMY_FAST_SWORD_INITIAL:
+        enemy_initial(m);
+        break;
+
+    case ACTION_152_ENEMY_FAST_SWORD_WAITING:
+        base.map_figure_update(); // ???? WTF
+        break;
+
+    case ACTION_153_ENEMY_FAST_SWORD_MARCHING:
+        enemy_marching(m);
+        break;
+
+    case ACTION_154_ENEMY_FAST_SWORD_ATTACK:
+        enemy_fighting(m);
+        break;
+
+    case ACTION_156_ENEMY_FAST_SWORD_LEAVING:
+        enemy_leaving();
+        break;
+    }
+}
+
+void figure_enemy_fast_sword::leave_city() {
+    base.destination_tile = g_city.map.exit_point;
+    advance_action(ACTION_156_ENEMY_FAST_SWORD_LEAVING);
+}
+
+void figure_enemy_fast_sword::enemy_fighting(formation *m) {
+    OZZY_PROFILER_FUNCTION();
+
+    base.set_flag(e_figure_flag_inattack, false);
+    if (!m->recent_fight) {
+        advance_action(ACTION_151_ENEMY_FAST_SWORD_INITIAL);
+    }
+
+    // OG: camel/elephant silent; chariot / kingdom mounted: horse; else foot march.
+    if (!silent_on_march()) {
+        if (type() == FIGURE_ENEMY_EGYPTIAN_CHARIOT
+            || type() == FIGURE_ENEMY_KINGDOME_MOUNTED) {
+            if (city_sound_update_march_horse()) {
+                g_sound.play_effect(SOUND_EFFECT_HORSE_MOVING);
+            }
+        } else if (city_sound_update_march_enemy()) {
+            g_sound.play_effect(SOUND_EFFECT_MARCHING);
+        }
+    }
+
+    int target_id = base.target_figure_id;
+    if (figure_get(target_id)->is_dead()) {
+        base.target_figure_id = 0;
+        target_id = 0;
+    }
+
+    if (target_id <= 0) {
+        target_id = figure_combat_get_target_for_enemy(tile());
+        if (target_id) {
+            figure *target = figure_get(target_id);
+            base.destination_tile = target->tile;
+            base.target_figure_id = target_id;
+            target->targeted_by_figure_id = id();
+            route_remove();
+        }
+    }
+
+    auto& d = runtime_data();
+    bool attacking = false;
+    if (target_id > 0) {
+        figure *target = figure_get(base.target_figure_id);
+        base.direction = calc_general_direction(tile(), target->tile);
+        if (tile().dist(target->tile) < 2.f) {
+            // adjacent to the soldier: engage through the shared C3 combat so both
+            // sides use the same attack/defense math, the 2-attacker cap and the
+            // formation-defense bonuses. (A custom damage path here let unlimited
+            // barbarians gang a single soldier and ignored formation defense.)
+            attacking = true;
+            m->recent_fight = 6;
+            base.figure_combat_attack_figure_at(target->tile.grid_offset());
+        } else {
+            base.move_ticks(enemy_walk_ticks());
+            if (direction() == DIR_FIGURE_NONE) {
+                base.destination_tile = target->tile;
+                route_remove();
+            } else if (direction() == DIR_FIGURE_REROUTE || direction() == DIR_FIGURE_CAN_NOT_REACH) {
+                advance_action(ACTION_151_ENEMY_FAST_SWORD_INITIAL);
+                base.target_figure_id = 0;
+            }
+        }
+    }
+
+    if (m->destination_building_id > 0) {
+        building *b = building_get(m->destination_building_id);
+        float dist = tile().dist(b->tile);
+        if (dist < 2) {
+            attacking = true;
+            base.direction = calc_general_direction(tile(), b->tile);
+            d.damage_action++;
+            m->recent_fight = 6;
+            if (d.damage_action > interval_attack_delay()) {
+                b->force_damage(e_damage_enemy, base.attack_value());
+                d.damage_action = 0;
+            }
+        }
+    }
+    
+    if (!attacking) {
+        advance_action(ACTION_151_ENEMY_FAST_SWORD_INITIAL);
+        base.wait_ticks = 50;
+    }
+}
+
+void figure_enemy_fast_sword::enemy_marching(formation *m) {
+    OZZY_PROFILER_FUNCTION();
+
+    base.wait_ticks--;
+    if (base.wait_ticks <= 0) {
+        base.wait_ticks = 50;
+
+        tile2i formation_t = get_formation_position(m, base.index_in_formation);
+
+        base.destination_tile = m->destination.shifted(formation_t);
+        if (calc_general_direction(tile(), base.destination_tile) == DIR_FIGURE_NONE) {
+            advance_action(ACTION_151_ENEMY_FAST_SWORD_INITIAL);
+            return;
+        }
+
+        set_destination(m->destination_building_id);
+        route_remove();
+    }
+
+    base.move_ticks(enemy_walk_ticks());
+    if (direction() == DIR_FIGURE_NONE || direction() == DIR_FIGURE_REROUTE || direction() == DIR_FIGURE_CAN_NOT_REACH) {
+        advance_action(ACTION_151_ENEMY_FAST_SWORD_INITIAL);
+    }
+}
+
+void figure_enemy_fast_sword::enemy_initial(formation *m) {
+    base.map_figure_update();
+    base.animctx.frame = 0;
+    route_remove();
+    base.wait_ticks--;
+
+    if (base.wait_ticks > 0) {
+        return;
+    }
+
+    // OG enemy_action INITIAL: ENEMY_ORDER_WAIT_TICKS + clear ghost (invisible).
+    base.wait_ticks = 50;
+    base.set_flag(e_figure_flag_invisible, false);
+
+    if (base.index_in_formation == 0) {
+        if (m->layout == FORMATION_ENEMY_MOB) {
+            g_sound.speech_play_file("Wavs/WEAPON.WAV", 255);
+        } else if (m->layout == FORMATION_ENEMY12) {
+            g_sound.speech_play_file("Wavs/CHARIOT.WAV", 255);
+        } else {
+            g_sound.speech_play_file("Wavs/BARRACK.WAV", 255);
+        }
+    }
+
+    if (m->recent_fight) {
+        advance_action(ACTION_154_ENEMY_FAST_SWORD_ATTACK);
+        return;
+    } 
+
+    if (base.destination_building_id) {
+        building *b = building_get(base.destination_building_id);
+        grid_tiles_sm adjacent_tiles = map_grid_get_adjacent_tiles_sm(b, 1);
+        auto it = std::find(adjacent_tiles.begin(), adjacent_tiles.end(), tile());
+        if (it != adjacent_tiles.end()) {
+            m->recent_fight = 3;
+            advance_action(ACTION_154_ENEMY_FAST_SWORD_ATTACK);
+            return;
+        }
+    }
+
+    tile2i formation_t = get_formation_position(m, base.index_in_formation);
+    base.destination_tile = m->destination.shifted(formation_t);
+
+    int dir = calc_general_direction(tile(), base.destination_tile);
+    if (dir < 8) {
+        advance_action(ACTION_153_ENEMY_FAST_SWORD_MARCHING);
+    }
+}
+
+void figure_enemy_fast_sword::update_animation() {
+    xstring animkey = animkeys().walk;
+    if (action_state() == ACTION_154_ENEMY_FAST_SWORD_ATTACK) {
+        animkey = animkeys().attack;
+    } else if (action_state() == FIGURE_ACTION_149_CORPSE) {
+        animkey = animkeys().death;
+    } else if (action_state() == ACTION_153_ENEMY_FAST_SWORD_MARCHING) {
+        animkey = animkeys().walk;
+    }
+
+    image_set_animation(animkey);
+}
+
+void figure_enemy_fast_sword::debug_draw(painter &ctx) {
+    if (!(base.draw_mode & e_figure_draw_routing)) {
+        return;
+    }
+
+    if (base.formation_id <= 0) {
+        return;
+    }
+
+    formation *m = formation_get(base.formation_id);
+    if (!m) {
+        return;
+    }
+
+    auto &dlines = base.debug_lines();
+    dlines.emplace_back().printf("formation_id: %d", base.formation_id);
+    dlines.emplace_back().printf("index_in_formation: %d", base.index_in_formation);
+    dlines.emplace_back().printf("destination_building_id: %d", m->destination_building_id);
+
+    // Draw target building
+    if (m->destination_building_id > 0) {
+        building *target_building = building_get(m->destination_building_id)->main();
+        if (target_building && target_building->state == BUILDING_STATE_VALID) {
+            tile2i offset = { 0, 0 };
+            int bsize = target_building->size - 1;
+            int city_orientation = g_camera.orientation / 2;
+            switch (city_orientation) {
+            case 0: offset = { 0, bsize }; break;
+            case 1: offset = { 0, 0 }; break;
+            case 2: offset = { bsize, 0 }; break;
+            case 3: offset = { bsize, bsize }; break;
+            }
+            vec2i target_coords = g_camera.lookup_tile_to_pixel(target_building->tile.shifted(offset));
+
+            auto &command = ImageDraw::create_command(ctx, render_command_t::ert_drawtile_full);
+            command.image_id = map_image_at(target_building->tile);
+            command.pixel = target_coords;
+            command.mask = COLOR_LIGHT_RED;
+            command.location = SOURCE_LOCATION;
+        }
+    }
+
+    {
+        vec2i target_coords = g_camera.lookup_tile_to_pixel(base.destination_tile);
+        auto &command = ImageDraw::create_command(ctx, render_command_t::ert_drawtile);
+        command.image_id = map_image_at(base.destination_tile);
+        command.pixel = target_coords;
+        command.mask = COLOR_LIGHT_BLUE;
+        command.location = SOURCE_LOCATION;
+    }
+
+    {
+        vec2i target_coords = g_camera.lookup_tile_to_pixel(m->destination);
+        auto &command = ImageDraw::create_command(ctx, render_command_t::ert_drawtile);
+        command.image_id = map_image_at(m->destination);
+        command.pixel = target_coords;
+        command.mask = COLOR_BLUE;
+        command.location = SOURCE_LOCATION;
+    }
+
+    // Draw target figure
+    if (base.target_figure_id > 0) {
+        figure *target_f = figure_get(base.target_figure_id);
+        if (target_f && target_f->is_valid() && !target_f->is_dead()) {
+            vec2i target_coords = g_camera.lookup_tile_to_pixel(target_f->tile);
+            debug_draw_tile_box(target_coords.x, target_coords.y, COLOR_YELLOW, COLOR_FONT_YELLOW);
+        }
+    }
+}

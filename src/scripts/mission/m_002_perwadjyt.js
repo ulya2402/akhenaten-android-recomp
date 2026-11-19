@@ -1,0 +1,230 @@
+log_info("akhenaten: mission 2 started")
+
+// Mission 2 — Perwadjyt (Buto), "The Precarious Nile". Rank 0 (Village Elder). Tutorial.
+//
+// Goals:     population 600, housing count 10, housing level 6, plus the tutorial steps: 800 figs in a granary,
+//            100 and then 200 pottery in storage yards.
+// Start:     funds 3750, rescue loan 3750 (normal difficulty).
+// Gods:      Osiris.
+// Monuments: none.
+// Trade:     none (empire map off).
+// Enemies:   none (the map has a sea invasion point, but nothing is sent).
+// Timeline:  population capped at 500 until 100 pottery are stored. 800 figs in one granary — clay pit,
+//            pottery workshop, storage yard; 200 pottery — roadblock, statues, gardens, plaza, low bridge,
+//            ferry; first disease — apothecary and physician.
+//
+// Notes for developers:
+// - Victory also waits a few days after the last tutorial step (victory_last_action_delay).
+
+mission2 {
+	map_file : "data/maps/m_002_perwadjyt.map"
+
+	// Map points from data/maps/m_002_perwadjyt.map.
+	herd_points_predator [ [71, 36], [17, 65] ]
+
+	start_message : "message_farming_along_the_nile"
+	selection_title : "Perwadjyt"
+	env {
+		has_animals : true
+	    gods_least_mood : 50
+		marshland_grow : default_marshland_grow
+	    tree_grow : default_tree_grow
+	}
+	player_rank : 0,
+	initial_funds [7500, 5000, 3750, 2500, 2000]
+	rescue_loans [7500, 5000, 3750, 2500, 2000]
+
+	buildings [
+				BUILDING_FIREHOUSE, BUILDING_ARCHITECT_POST, BUILDING_POLICE_STATION, BUILDING_VILLAGE_PALACE, BUILDING_WATER_SUPPLY,
+				BUILDING_FIGS_FARM, BUILDING_WORK_CAMP, BUILDING_BOOTH, BUILDING_JUGGLER_SCHOOL, BUILDING_BAZAAR, BUILDING_GRANARY,
+				BUILDING_TEMPLE_OSIRIS, BUILDING_SHRINE_OSIRIS, BUILDING_FESTIVAL_SQUARE
+			  ]
+
+	sounds {
+		briefing : "Voice/Mission/202_mission.mp3"
+		victory : "Voice/Mission/202_victory.mp3"
+	}
+
+
+	win_criteria {
+		population    {enabled : true, goal : 600 }
+		prosperity    {enabled : false, goal : 0 }
+		housing_count {enabled : true, goal : 10 }
+		housing_level {enabled : true, goal : 6 }
+	}
+
+	// Map invasion points from original campaign scenario 2.
+	invasion_points_sea [ [36, 22] ]
+
+	vars {
+		figs_stored : 800
+		pottery_step1_stored : 100
+		pottery_step1_population_cap : 500
+		pottery_step2_stored : 200
+		victory_last_action_delay : 3
+
+		figs_stored_handled : false
+		disease_handled : false
+		pottery_step1_stored_handled : false
+		pottery_step2_stored_handled : false
+		start_message_shown : false
+	}
+
+	goal_tooltip: function() {
+		if (!mission.figs_stored_handled) {
+			return "#mission2_store_figs"
+		}
+
+		if (!mission.pottery_step1_stored_handled) {
+			return "#mission2_pottery_step1"
+		}
+
+		if (!mission.pottery_step2_stored_handled) {
+			return "#mission2_pottery_step2"
+		}
+
+		return ""
+	}
+}
+
+[es=event_migration_update, mission=mission2]
+function mission2_handle_population_cap(ev) {
+    var max_pop = (!mission.pottery_step1_stored_handled) ? mission.pottery_step1_population_cap : 0;
+    migration.set_population_cap("pottery_not_produced_population_cap", max_pop)
+}
+
+[es=event_mission_start, mission=mission2]
+function mission2_on_start(ev) {
+	mission_show_start_message(mission, "message_farming_along_the_nile")
+	city.set_empire_available(-1)
+
+	for (var i = 0; i <= ADVISOR_DIPLOMACY; i++) {
+		city.set_advisor_available(i, 0)
+	}
+
+	if (mission.figs_stored_handled) {
+		city.use_building(BUILDING_CLAY_PIT, true)
+		city.use_building(BUILDING_POTTERY_WORKSHOP, true)
+		city.use_building(BUILDING_STORAGE_YARD, true)
+		city.set_advisor_available(ADVISOR_LABOR, 1)
+	}
+
+	if (mission.pottery_step2_stored_handled) {
+		city.use_building(BUILDING_ROADBLOCK, true)
+		city.use_building(BUILDING_SMALL_STATUE, true)
+		city.use_building(BUILDING_MEDIUM_STATUE, true)
+		city.use_building(BUILDING_LARGE_STATUE, true)
+		city.use_building(BUILDING_GARDENS, true)
+		city.use_building(BUILDING_PLAZA, true)
+		city.use_building(BUILDING_LOW_BRIDGE, true)
+		city.use_building(BUILDING_FERRY, true)
+	}
+
+	if (mission.disease_handled) {
+	   city.use_building(BUILDING_APOTHECARY, true)
+	   city.use_building(BUILDING_PHYSICIAN, true)
+	   city.set_advisor_available(ADVISOR_HEALTH, 1)
+	}
+
+	city.set_advisor_available(ADVISOR_POPULATION, 1)
+	city.set_advisor_available(ADVISOR_ENTERTAINMENT, 1)
+	city.set_advisor_available(ADVISOR_RELIGION, 1)
+}
+
+[es=event_granary_resource_added, mission=mission2]
+function mission2_on_filled_granary(ev) {
+    if (mission.figs_stored_handled) {
+        return
+    }
+
+    var granary = city.get_granary(ev.bid)
+    var figs_stored = granary ? granary.amount(RESOURCE_FIGS) : 0
+
+    if (figs_stored < mission.figs_stored) {
+        return
+    }
+
+	mission.figs_stored_handled = true
+	mission.last_action_time = game.absolute_day
+
+	city.use_building(BUILDING_CLAY_PIT, true)
+	city.use_building(BUILDING_POTTERY_WORKSHOP, true)
+	city.use_building(BUILDING_STORAGE_YARD, true)
+
+	city.set_advisor_available(ADVISOR_LABOR, 1)
+
+	ui.popup_message("message_tutorial_industry")
+}
+
+[es=event_warehouse_filled, mission=mission2]
+function mission2_warehouse_pottery_1_check(ev) {
+    if (mission.pottery_step1_stored_handled) {
+        return
+    }
+
+    var amount = city.yards_stored(RESOURCE_POTTERY)
+    if (amount < mission.pottery_step1_stored) {
+        return
+    }
+
+	mission.pottery_step1_stored_handled = true
+	mission.last_action_time = game.absolute_day
+}
+
+[es=event_warehouse_filled, mission=mission2]
+function mission2_warehouse_pottery_2_check(ev) {
+	if (!mission.pottery_step1_stored_handled) {
+        return
+    }
+
+	if (mission.pottery_step2_stored_handled) {
+        return
+    }
+
+	var amount = city.yards_stored(RESOURCE_POTTERY)
+    if (amount < mission.pottery_step2_stored) {
+        return
+    }
+
+	mission.pottery_step2_stored_handled = true
+	mission.last_action_time = game.absolute_day
+
+	city.use_building(BUILDING_ROADBLOCK, true)
+	city.use_building(BUILDING_SMALL_STATUE, true)
+	city.use_building(BUILDING_MEDIUM_STATUE, true)
+	city.use_building(BUILDING_LARGE_STATUE, true)
+	city.use_building(BUILDING_GARDENS, true)
+	city.use_building(BUILDING_PLAZA, true)
+	city.use_building(BUILDING_LOW_BRIDGE, true)
+	city.use_building(BUILDING_FERRY, true)
+
+	ui.popup_message("message_tutorial_municipal_structures")
+}
+
+[es=event_city_disease, mission=mission2]
+function mission2_on_disease(ev) {
+    if (mission.disease_handled) {
+        return
+    }
+
+    mission.last_action_time = game.absolute_day
+    mission.disease_handled = true
+
+	city.use_building(BUILDING_WATER_SUPPLY, true)
+	city.use_building(BUILDING_APOTHECARY, true)
+	city.use_building(BUILDING_PHYSICIAN, true)
+
+	city.set_advisor_available(ADVISOR_HEALTH, 1)
+
+	ui.popup_message("message_basic_healthcare")
+}
+
+[es=event_update_victory_state, mission=mission2]
+function mission2_handle_victory_state(ev) {
+	city.victory.set_reason("figs_stored_handled", mission.figs_stored_handled)
+	city.victory.set_reason("pottery_step1_stored_handled", mission.pottery_step1_stored_handled)
+	city.victory.set_reason("pottery_step2_stored_handled", mission.pottery_step2_stored_handled)
+
+	var some_days_after_last_action = (game.absolute_day - mission.last_action_time) > mission.victory_last_action_delay;
+	city.victory.set_reason("some_days_after_last_action", some_days_after_last_action)
+}

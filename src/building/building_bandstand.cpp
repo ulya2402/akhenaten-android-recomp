@@ -1,0 +1,250 @@
+﻿#include "building_bandstand.h"
+
+#include "building/building.h"
+#include "city/object_info.h"
+#include "city/city_warnings.h"
+#include "construction/build_planner.h"
+#include "city/city_labor.h"
+#include "city/city.h"
+#include "game/resource.h"
+#include "grid/property.h"
+#include "grid/image.h"
+#include "grid/building.h"
+#include "grid/building_tiles.h"
+#include "graphics/elements/panel.h"
+#include "graphics/elements/lang_text.h"
+#include "graphics/graphics.h"
+#include "grid/orientation.h"
+#include "graphics/image.h"
+#include "io/gamefiles/lang.h"
+#include "game/game_config.h"
+#include "window/building/common.h"
+#include "window/building/figures.h"
+#include "widget/city/ornaments.h"
+#include "widget/city/flat_draw.h"
+#include "widget/city/building_ghost.h"
+#include "figuretype/figure_entertainer.h"
+#include "sound/sound_building.h"
+#include "figure/figure.h"
+#include "grid/routing/routing_grids.h"
+#include "core/profiler.h"
+
+#include "js/js_register.h"
+
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(building_bandstand);
+
+namespace parts {
+    xstring stand_sn_n("stand_sn_n");
+    xstring stand_sn_s("stand_sn_s");
+    xstring stand_we_w("stand_we_w");
+    xstring stand_we_e("stand_we_e");
+    xstring musician_sn("musician_sn");
+    xstring musician_we("musician_we");
+    xstring booth("booth");
+}
+
+bool building_bandstand::get_route_citizen_land_type(int grid_offset, int &land_result) const {
+    if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+        land_result = CITIZEN_0_ROAD;
+        return true;
+    }
+
+    land_result = CITIZEN_N1_BLOCKED;
+    return true;
+}
+
+bool building_bandstand::target_route_tile_blocked(int grid_offset) const {
+    return false;
+}
+
+void building_bandstand::preview::ghost_preview(build_planner &planer, painter &ctx, tile2i start, tile2i end, vec2i pixel) const {
+    const auto &params = building_static_params::get(planer.build_type);
+    int orientation = 0;
+    const bool can_build = map_venue_ghost_orientation(end, e_venue_mode_bandstand, &orientation);
+
+    if (!can_build) {
+        for (int i = 0; i < params.building_size * params.building_size; i++) {
+            planer.draw_flat_tile(ctx, pixel + VIEW_OFFSETS[i], COLOR_MASK_RED);
+        }
+    } else {
+        int square_id = params.first_img(animkeys().square);
+        for (int i = 0; i < params.building_size * params.building_size; i++) {
+            const int x = ((i % params.building_size) - (i / params.building_size)) * 30;
+            const int y = ((i % params.building_size) + (i / params.building_size)) * 15;
+            ctx.img_isometric(square_id + i, pixel + vec2i{ x, y }, COLOR_MASK_GREEN, 1.f, ImgFlag_None);
+        }
+
+        switch (orientation / 2) {
+        case 0:
+            planer.draw_building_ghost(ctx, params.first_img(parts::stand_sn_n), pixel, COLOR_MASK_GREEN);
+            planer.draw_building_ghost(ctx, params.first_img(parts::stand_sn_s), pixel + vec2i{ -30, 15 }, COLOR_MASK_GREEN);
+            planer.draw_building_ghost(ctx, params.first_img(parts::booth), pixel + vec2i{ 60, 30 }, COLOR_MASK_GREEN);
+            break;
+        case 1:
+            planer.draw_building_ghost(ctx, params.first_img(parts::stand_we_w), pixel + vec2i{ 30, 15 }, COLOR_MASK_GREEN);
+            planer.draw_building_ghost(ctx, params.first_img(parts::stand_we_e), pixel + vec2i{ 60, 30 }, COLOR_MASK_GREEN);
+            planer.draw_building_ghost(ctx, params.first_img(parts::booth), pixel + vec2i{ 0, 60 }, COLOR_MASK_GREEN);
+            break;
+        case 2:
+            planer.draw_building_ghost(ctx, params.first_img(parts::stand_sn_n), pixel + vec2i{ -30, 15 }, COLOR_MASK_GREEN);
+            planer.draw_building_ghost(ctx, params.first_img(parts::stand_sn_s), pixel + vec2i{ -60, 30 }, COLOR_MASK_GREEN);
+            planer.draw_building_ghost(ctx, params.first_img(parts::booth), pixel + vec2i{ 0, 60 }, COLOR_MASK_GREEN);
+            break;
+        case 3:
+            planer.draw_building_ghost(ctx, params.first_img(parts::stand_we_w), pixel, COLOR_MASK_GREEN);
+            planer.draw_building_ghost(ctx, params.first_img(parts::stand_we_e), pixel + vec2i{ 30, 15 }, COLOR_MASK_GREEN);
+            planer.draw_building_ghost(ctx, params.first_img(parts::booth), pixel + vec2i{ -60, 30 }, COLOR_MASK_GREEN);
+            break;
+        }
+    }
+}
+
+void building_bandstand::on_place(int orientation, int variant) {
+    auto &d = runtime_data();
+    d.booth_corner_grid_offset = tile().grid_offset();
+    base.orientation = orientation;
+
+    building_impl::on_place(orientation, variant);
+}
+
+void building_bandstand::on_post_load() {
+    auto& d = runtime_data();
+    if (!d.latched_venue_main_grid_offset || !d.latched_venue_add_grid_offset) {
+        latch_stand_offsets(current_params().place_dir[base.orientation % 4]);
+    }
+
+    building_entertainment::on_post_load();
+}
+
+void building_bandstand::on_place_update_tiles(int /*orientation*/, int /*variant*/) {
+    int size = current_params().building_size;
+    int image_id = anim(animkeys().square).first_img();
+
+    // Match roads before plaza marks TERRAIN_BUILDING (matcher rejects buildings).
+    int map_orientation = 0;
+    map_orientation_for_venue(tile().x(), tile().y(), e_venue_mode_bandstand, &map_orientation);
+    base.orientation = map_orientation / 2;
+
+    map_add_venue_plaza_tiles(id(), size, tile(), image_id, false);
+    place_venue_items(current_params().place_dir[base.orientation % 4], base.orientation);
+}
+
+void building_bandstand::update_map_orientation(int map_orientation) {
+    int plaza_image_id = anim(animkeys().square).first_img();
+    auto &d = runtime_data();
+
+    tile2i btile(d.booth_corner_grid_offset);
+    map_add_venue_plaza_tiles(id(), base.size, btile, plaza_image_id, true);
+    map_add_bandstand_tiles(base.orientation);
+}
+
+// OG building_count_update: a working bandstand is also an active booth.
+void building_bandstand::update_count() const {
+    building_entertainment::update_count();
+    if (base.num_workers > 0) {
+        g_city.buildings.increase_active(BUILDING_BOOTH);
+    }
+}
+
+void building_bandstand::spawn_figure() {
+    if (!is_main()) {
+        return;
+    }
+
+    auto &d = runtime_data();
+    if (common_spawn_figure_trigger(current_params().min_houses_coverage, BUILDING_SLOT_JUGGLER)) {
+        if (d.juggler_visited > 0) {
+            create_roaming_figure(FIGURE_JUGGLER, (e_figure_action)ACTION_4_ENTERTAINER_ROAMING, BUILDING_SLOT_JUGGLER);
+            return;
+        }
+    }
+
+    if (common_spawn_figure_trigger(current_params().min_houses_coverage, BUILDING_SLOT_MUSICIAN)) {
+        if (d.musician_visited > 0) {
+            create_roaming_figure(FIGURE_MUSICIAN, (e_figure_action)ACTION_4_ENTERTAINER_ROAMING, BUILDING_SLOT_MUSICIAN);
+            return;
+        }
+    }
+}
+
+bool building_bandstand::force_draw_flat_tile(painter &ctx, tile2i tile, vec2i pixel, color mask) {
+    OZZY_PROFILER_FUNCTION()
+    xstring imgs[] = { parts::booth, parts::stand_sn_n, parts::stand_sn_s, parts::stand_we_e, parts::stand_we_w };
+    int image_id = map_image_at(tile);
+    const auto it = std::find_if(std::begin(imgs), std::end(imgs), [&] (auto &p) { return first_img(p) == image_id; });
+    return (it == std::end(imgs));
+}
+
+bool building_bandstand::force_draw_height_tile(painter &ctx, tile2i tile, vec2i pixel, color mask) {
+    OZZY_PROFILER_FUNCTION()
+
+    if (city_flat_should_flatten_building(base)) {
+        return false;
+    }
+
+    xstring imgs[] = {parts::booth, parts::stand_sn_n, parts::stand_sn_s, parts::stand_we_e, parts::stand_we_w};
+    int image_id = map_image_at(tile);
+    const auto it = std::find_if(std::begin(imgs), std::end(imgs), [&] (auto &p) { return first_img(p) == image_id; });
+    if (it != std::end(imgs)) {
+        auto& command = ImageDraw::create_subcommand(ctx, render_command_t::ert_drawtile_full);
+        command.image_id = image_id;
+        command.pixel = pixel;
+        command.mask = mask;
+    }
+    return false;
+}
+
+void building_bandstand::on_undo() {
+    auto &d = runtime_data();
+    const int s = size();
+    for (int dy = 0; dy < s; dy++) {
+        for (int dx = 0; dx < s; dx++) {
+            if (map_building_at(d.booth_corner_grid_offset + GRID_OFFSET(dx, dy)) == 0)
+                map_building_set(d.booth_corner_grid_offset + GRID_OFFSET(dx, dy), id());
+        }
+    }
+}
+
+void building_bandstand::draw_shows_musicians(painter &ctx, vec2i pixel, tile2i tile, int direction, color color_mask) {
+    if (direction < 0) {
+        return;
+    }
+
+    auto &d = runtime_data();
+    if (!d.musician_visited) {
+        return;
+    }
+
+    building* next_tile = base.next();
+    const xstring& anim_key = (direction == 0) ? parts::musician_sn : parts::musician_we;
+    base.anims[musician_anim] = anim(anim_key);
+
+    draw_normal_anim(ctx, base.anims[musician_anim], pixel, tile, color_mask);
+}
+
+void building_bandstand::draw_shows_juggler(painter &ctx, vec2i pixel, tile2i tile, int direction, color color_mask) {
+    auto &d = runtime_data();
+    if (!d.juggler_visited) {
+        return;
+    }
+
+    if (map_image_at(tile) != first_img(parts::booth)) {
+        return;
+    }
+
+    base.anims[juggler_anim] = anim(animkeys().juggler);
+    draw_normal_anim(ctx, base.anims[juggler_anim], pixel, tile, color_mask);
+}
+
+bool building_bandstand::draw_ornaments_and_animations_height(painter &ctx, vec2i point, tile2i tile, color mask) {
+    const bool is_deleted = drawing_building_as_deleted(&base) || map_property_is_deleted(tile);
+    int color_mask = is_deleted ? COLOR_MASK_RED : COLOR_MASK_NONE;
+
+    const int direction = (map_image_at(tile) == first_img(parts::stand_sn_n)) ? 1 :
+                          (map_image_at(tile) == first_img(parts::stand_we_e)) ? 0 : -1;
+
+    draw_shows_juggler(ctx, point, tile, direction, color_mask);
+    draw_shows_musicians(ctx, point, tile, direction, color_mask);
+
+    return false;
+}

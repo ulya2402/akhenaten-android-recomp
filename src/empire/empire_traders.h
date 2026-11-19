@@ -1,0 +1,62 @@
+#pragma once
+
+#include "core/vec2i.h"
+#include "figure/figure.h"
+#include "empire/empire_object.h"
+
+struct empire_trader {
+    enum e_state {
+        estate_moving_to_destination,
+        estate_trading,
+        estate_returning_home,
+        estate_count
+    };
+
+    uint8_t id;
+    uint8_t trade_route_id;
+    figure_id owner_figure_id;
+    uint8_t destination_city_id;
+    vec2i current_position;
+    uint8_t current_route_point;
+    uint8_t movement_delay;
+    uint8_t movement_delay_max;
+
+    bool is_ship;
+    bool is_active;
+    e_state state;
+
+    uint16_t bought_amount;
+    uint16_t bought_value;
+    uint16_t bought_resources[RESOURCES_MAX];
+
+    uint16_t sold_amount;
+    uint16_t sold_value;
+    uint16_t sold_resources[RESOURCES_MAX];
+
+    void update();
+    bool is_at_destination() const;
+    void complete_trade();
+    bool faces_left() const;
+};
+ANK_CONFIG_PROPERTY(empire_trader, current_position, is_ship, is_active, id, trade_route_id, destination_city_id)
+
+class empire_traders_manager {
+public:
+    void init();
+    void update();
+    void create_trader(int trade_route_id, int destination_city_id);
+    void remove_trader(int trader_id);
+    void clear_all();
+    void purge_dead();
+
+    std::array<empire_trader, 100> traders;
+    vec2i ship_movement_delay;
+    vec2i land_movement_delay;
+
+private:
+    empire_trader* get_free_trader();
+    vec2i get_position_on_route(int route_id, int point_index);
+};
+ANK_CONFIG_STRUCT(empire_traders_manager, ship_movement_delay, land_movement_delay)
+
+extern empire_traders_manager g_empire_traders;

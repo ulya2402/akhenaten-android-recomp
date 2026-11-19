@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maritis — Caesar and Cleopatra — Akhenaten Wiki</title>
+  <link rel="stylesheet" href="../../../style.css" />
+  <style>
+    .mission-infobox { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0.9rem 1.1rem; }
+    .mission-infobox dl { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; margin: 0; }
+    .mission-infobox dt { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; }
+    .mission-infobox dd { margin: 0; font-size: 0.85rem; }
+    .mission-infobox .funds-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .mission-infobox .funds-row span { font-size: 0.75rem; color: var(--text-muted); }
+    .mission-infobox .funds-row span strong { color: var(--text); }
+    .dev-section { margin-top: 2.5rem; }
+    .dev-section h2 { color: var(--text-muted); font-size: 1rem; letter-spacing: 0.04em; text-transform: uppercase; }
+    details { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.75rem; }
+    summary { padding: 0.7rem 1rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; list-style: none; }
+    summary::-webkit-details-marker { display: none; }
+    .details-body { padding: 1rem 1.1rem; font-size: 0.85rem; line-height: 1.6; }
+    .file-ref { font-family: Consolas, monospace; font-size: 0.78rem; color: var(--gold); }
+    .msg-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+    .msg-table th, .msg-table td { padding: 0.3rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
+    .objectives-list { list-style: none; padding: 0; }
+    .objectives-list li { display: flex; gap: 0.6rem; padding: 0.3rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .obj-label { font-weight: 600; min-width: 8rem; }
+    .deviation-note { background: rgba(201,120,76,0.08); border: 1px solid rgba(201,120,76,0.3); border-radius: 4px; padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--text-muted); margin: 0.75rem 0; }
+    .mission-nav { display: flex; justify-content: space-between; margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; }
+    .mission-nav a { color: var(--gold); }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="../../../index.html" class="nav-logo">Akhenaten</a>
+      <ul>
+        <li><a href="../../index.html" class="active">Wiki</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main class="wiki-layout">
+    <aside class="wiki-sidebar">
+      <div class="wiki-sidebar-section">
+        <div class="wiki-sidebar-title"><a href="index.html">← All Missions</a></div>
+      </div>
+      <div class="wiki-sidebar-section">
+        <div class="wiki-sidebar-title">Cleopatra's Capital</div>
+        <ul>
+          <li><a href="alexandria-1.html">48 · Alexandria₁</a></li>
+          <li><a href="alexandria-2.html">49 · Alexandria₂</a></li>
+          <li><a href="maritis.html" class="active">50 · Maritis</a></li>
+          <li><a href="alexandria-3.html">51 · Alexandria₃</a></li>
+          <li><a href="actium.html">52 · Actium</a></li>
+        </ul>
+      </div>
+    </aside>
+    <div class="wiki-content">
+      <div class="wiki-breadcrumb"><a href="index.html">Missions</a> / Maritis</div>
+      <h1>Maritis <span style="color:var(--text-muted);font-weight:normal;font-size:0.65em">— Caesar and Cleopatra</span></h1>
+      <div class="mission-infobox">
+        <dl>
+          <dt>Mission</dt><dd>50 — Cleopatra's Capital (campaign 8)</dd>
+          <dt>Era</dt><dd>~50 BC (pak start year)</dd>
+          <dt>Starting funds</dt>
+          <dd><div class="funds-row">
+            <span><strong>Normal</strong> 11 000 Db (pak)</span>
+            <span><strong>loan</strong> 1 500</span>
+            <span><strong>debt</strong> 7%</span>
+          </div></dd>
+          <dt>Deities</dt><dd>Ra · Ptah (2)</dd>
+          <dt>Trade</dt><dd>Men-nefer · Meidum · Migdol · Tyre (Gaza / Alexandria display-only)</dd>
+          <dt>Previous</dt><dd><a href="alexandria-2.html">Alexandria₂ (49)</a></dd>
+          <dt>Next</dt><dd><a href="alexandria-3.html">Alexandria₃ (51)</a></dd>
+          <dt>Status</dt><dd><span class="mission-badge badge-impl">Full empire redefine</span></dd>
+        </dl>
+      </div>
+
+      <div class="deviation-note">
+        <strong>Briefing:</strong> Command Mithradates' Roman force at Maritis (east shore of Lake Mariut) to defeat Ptolemy XIII's army and relieve Caesar and Cleopatra in Alexandria. Land battle — <em>not</em> an Alexandria city-build.
+        <br /><strong>Messages:</strong> start <code>message_mission_maritis</code> (444); alt <code>…_2</code> (459).
+        <br /><strong>Monuments:</strong> none (<code>first=second=third=0</code>; monuments win off). No Library / Pharos / Caesareum / Mausoleum.
+        <br /><strong>JS:</strong> full empire redefine — <code>events[]</code> ×25 (4 <code>already_fired</code> gift seeds kept for index fidelity; the 3 Egyptian invasions are JS raids), cities ×7, routes ×6, ornaments ×5, texts ×16. No burial. Inv land/sea points empty → raids enter at the map exit <code>[106,100]</code>.
+        <br /><strong>Enemy:</strong> pak <code>ENEMY_9_PERSIAN</code> (briefing = Roman / Egyptian clash — pak id wins).
+        <br /><strong>editor_allow:</strong> forts + weaponsmith + chariot + zoo + gold on; recruiter / water supply / palace / academy / warship off.
+      </div>
+
+      <h2 id="objectives">Objectives</h2>
+      <ul class="objectives-list">
+        <li><span class="obj-label">Population</span><span class="obj-value">1 000</span></li>
+        <li><span class="obj-label">Culture</span><span class="obj-value">10</span></li>
+        <li><span class="obj-label">Prosperity</span><span class="obj-value">25</span></li>
+        <li><span class="obj-label">Monuments</span><span class="obj-value">off</span></li>
+        <li><span class="obj-label">Kingdom</span><span class="obj-value">35</span></li>
+        <li><span class="obj-label">Housing</span><span class="obj-value">15 × level 4</span></li>
+        <li><span class="obj-label">Survival</span><span class="obj-value">7 years (milestones 3 / 4 / 5)</span></li>
+        <li><span class="obj-label">Burial</span><span class="obj-value">none</span></li>
+      </ul>
+
+      <h2 id="events">Scripted events (summary)</h2>
+      <p>JS <code>events[]</code> ×25 from pak (CC50.2): reeds / troops / papyrus / fish requests; gift and city-status chains. Cities ×7 / routes ×6 / ornaments ×5 / texts ×16. SKIP empty map_obj idx=2.</p>
+      <p>Egyptian raids from mission JS, all at the map exit. Each raid follows the OG invasion cycle: from the event&rsquo;s month the OG warnings (announcement, then reminders at 24/12/6/1 months left), the attack <code>months_initial</code> months later. Announced <strong>y2m7</strong> &rarr; attack <strong>y3m1</strong> ×30 (target troops), which chains ×25 announced <strong>y3m2</strong>, attacking <strong>y3m8</strong> (troops; Pharaoh&rsquo;s gift of 10 weapons as it attacks) · ×26 (random) announced <strong>2 months</strong> after the y4m4 troop request is refused or lost, attacking 6 months later, with three trade routes lost one after another as it attacks.</p>
+
+      <div class="dev-section">
+        <h2 id="dev">Developer reference</h2>
+        <details open>
+          <summary>Mission script</summary>
+          <div class="details-body">
+            <p><span class="file-ref">src/scripts/mission/m_050_maritis.js</span></p>
+            <p>Raids: <code>mission50_raid_list</code> (line 680) holds pak i=3, i=4 (chained a month after i=3 attacks, its <code>time.year</code>) and i=13; <code>mission50_raids</code> (line 693) runs them through <code>mission_raids_month</code> (<span class="file-ref">src/scripts/missions.js</span>:305), and <code>mission50_on_request_cleared</code> (line 700) schedules i=13 on the refusal or defeat of pak i=9 (<code>tag_id : 1009</code>, line 235). Their <code>events[]</code> slots (lines 163, 166, 298) are <code>EVENT_TYPE_NONE</code> so the other indexes keep. As they attack, i=4 fires i=17 (<code>tag_id : 1017</code>, line 352) and i=13 fires i=14 (<code>tag_id : 1014</code>, line 303; then 15, 16), as OG <code>invasion_attack</code> chains <code>on_completed</code>.</p>
+            <p><code>map_file</code>: <span class="file-ref">data/maps/m_050_maritis.map</span>. Empire id <strong>0</strong>, <code>map_background</code> pack empire id 26. Full <code>hide_pak_*</code>: cities ×7, routes ×6 (1–6), ornaments ×5, texts ×16. SKIP empty map_obj idx=2. Dump 2026-08-01 Cleop. Rank 1. <code>next_mission: 51</code>.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Messages</summary>
+          <div class="details-body">
+            <table class="msg-table">
+              <tr><th>Key</th><th>Id</th></tr>
+              <tr><td><code>message_mission_maritis</code></td><td>444</td></tr>
+              <tr><td><code>message_mission_maritis_2</code></td><td>459</td></tr>
+            </table>
+          </div>
+        </details>
+      </div>
+
+      <div class="mission-nav">
+        <a href="alexandria-2.html">← 49 Alexandria₂</a>
+        <span style="color:var(--text-muted)">51 Alexandria₃ →</span>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,145 @@
+log_info("akhenaten: ui bazaar window started")
+
+function bazaar_info_window_text_overlay(window) {
+    var b = city.get_building(city.object_info.bid)
+    return (city.current_overlay == b.overlay ? "V" : "v")
+}
+
+function bazaar_info_window_text_mothball() {
+    var b = city.get_building(city.object_info.bid)
+    return (b.state == 1 ? "x" : "")
+}
+
+[es=building_info_window]
+bazaar_info_window {
+    related_buildings [BUILDING_BAZAAR, BUILDING_BAZAAR_UP]
+    ui {
+        background   : outer_panel({size[29, 17]})
+        title        : text({text: "#bazaar_info_title", pos[0, 10], size: [16 * 29, 0], font : FONT_LARGE_BLACK_ON_LIGHT, align:"center"})
+        warning_text : text({pos[32, 36], wrap:px(27), font : FONT_NORMAL_BLACK_ON_LIGHT, multiline:true})
+
+        food0_icon   : resource_icon({pos[32, 85]})
+        food0_text   : text({pos: [64, 90], font: FONT_NORMAL_BLACK_ON_LIGHT })
+        food1_icon   : resource_icon({pos[142, 85] })
+        food1_text   : text({pos[174, 90], font: FONT_NORMAL_BLACK_ON_LIGHT })
+        food2_icon   : resource_icon({pos[252, 85] })
+        food2_text   : text({pos[284, 90], font: FONT_NORMAL_BLACK_ON_LIGHT })
+        food3_icon   : resource_icon({pos[362, 85] })
+        food3_text   : text({pos[394, 90], font: FONT_NORMAL_BLACK_ON_LIGHT })
+        good0_icon   : resource_icon({pos[32, 110] })
+        good0_text   : text({pos[64, 114], font: FONT_NORMAL_BLACK_ON_LIGHT })
+        good1_icon   : resource_icon({pos[142, 110] })
+        good1_text   : text({pos[174, 114], font: FONT_NORMAL_BLACK_ON_LIGHT })
+        good2_icon   : resource_icon({pos[252, 110] })
+        good2_text   : text({pos[284, 114], font: FONT_NORMAL_BLACK_ON_LIGHT })
+        good3_icon   : resource_icon({pos[362, 110] })
+        good3_text   : text({pos[394, 114], font: FONT_NORMAL_BLACK_ON_LIGHT })
+
+        workers_panel: inner_panel({pos[16, 136], size[27, 4] })
+        workers_img  : image({pack:PACK_GENERAL, id:134, offset:14, pos:[40, 142 + 6] })
+        workers_text : text({pos[70, 142 + 12], text:"${building.num_workers} ${8.12} ( ${model.laborers} ${69.0}", font: FONT_NORMAL_BLACK_ON_DARK, multiline:true, wrap:px(24) })
+        workers_desc : text({pos[70, 142 + 26], font: FONT_NORMAL_BLACK_ON_DARK })
+        orders       : button({margin{left:100, bottom:-40}, size[270, 25], text:"${98.5}" })
+
+        show_overlay : button({
+                               margin{right:-64, bottom:-40}, size[23, 23]
+                               textfn: bazaar_info_window_text_overlay
+                              })
+
+        mothball     : button({
+                               margin{right:-90, bottom:-40}, size[23, 23]
+                               textfn: bazaar_info_window_text_mothball
+                              })
+
+        button_help  : help_button({})
+        button_close : close_button({})
+    }
+}
+
+[es=(bazaar_info_window, orders)]
+function bazaar_info_window_orders(window) {
+    emit event_show_window{ id: "bazaar_orders_window" }
+}
+
+[es=(bazaar_info_window, init)]
+function bazaar_info_window_init(window) {
+    var bazaar = city.get_bazaar(window.bid)
+    var meta_text_id = bazaar.meta_text_id
+    var reason = { group: 0, id: 0 }
+
+    if (bazaar.has_road_access == false) {
+        reason = { key: "#building_no_road_access" }
+    } else if (bazaar.num_workers <= 0) {
+        reason = { group: meta_text_id, id: 2 }
+    }
+
+    if (reason.group || reason.key) {
+        window.workers_desc.text = ""
+        window.workers_desc.text = __loc(reason)
+    }
+}
+
+[es=(bazaar_info_window, init)]
+function bazaar_info_window_init_warning_text(window) {
+    var bazaar = city.get_bazaar(window.bid)
+    var meta_text_id = bazaar.meta_text_id
+
+    var warning_text = ""
+    var amount = bazaar.idx_amount(0) || bazaar.idx_amount(1) || bazaar.idx_amount(2) || bazaar.idx_amount(3)
+    if (amount > 0) {
+        var buyer = bazaar.get_figure(BUILDING_SLOT_MARKET_BUYER)
+        var buyer2 = bazaar.get_figure(BUILDING_SLOT_MARKET_BUYER_2)
+        var trader = bazaar.get_figure(BUILDING_SLOT_SERVICE)
+        var any_buyer = (buyer.valid || buyer2.valid)
+
+        if (any_buyer && trader.valid) {
+            warning_text = __loc(meta_text_id, 1)
+        } else if (any_buyer) {
+            warning_text = __loc(meta_text_id, 10)
+        } else if (trader.valid) {
+            var state = (trader.action_state == ACTION_126_ROAMER_RETURNING) ? 12 : 11
+            warning_text = __loc(meta_text_id, state)
+        }
+    } else {
+       warning_text = __loc(meta_text_id, 4)
+    }
+
+    if (bazaar.waiting_for_mill_variety && bazaar.waiting_for_mill_variety()) {
+        warning_text = __loc("#bazaar_waiting_mill_variety")
+    }
+
+    window.warning_text.text = warning_text
+}
+
+[es=(bazaar_info_window, init)]
+function bazaar_info_window_draw_foods(window) {
+    var bazaar = city.get_bazaar(window.bid)
+
+    function draw_food(bazaar, index, icon, text) {
+        var resource = city.allowed_foods(index)
+        icon.image = resource
+        text.text = (resource != RESOURCE_NONE) ? (" " + bazaar.resource_amount(resource)) : ""
+        text.font = bazaar.idx_accepted(index) ? FONT_NORMAL_BLACK_ON_LIGHT : FONT_NORMAL_YELLOW
+    }
+
+    draw_food(bazaar, 0, window.food0_icon, window.food0_text)
+    draw_food(bazaar, 1, window.food1_icon, window.food1_text)
+    draw_food(bazaar, 2, window.food2_icon, window.food2_text)
+    draw_food(bazaar, 3, window.food3_icon, window.food3_text)
+}
+
+[es=(bazaar_info_window, init)]
+function bazaar_info_window_draw_goods(window) {
+    var bazaar = city.get_bazaar(window.bid)
+
+    function draw_good(bazaar, resource, index, icon, text) {
+        icon.image = resource
+        text.font = bazaar.idx_accepted(index) ? FONT_NORMAL_BLACK_ON_LIGHT : FONT_NORMAL_YELLOW
+        text.text = " " + bazaar.resource_amount(resource)
+    }
+
+    draw_good(bazaar, RESOURCE_POTTERY, 4, window.good0_icon, window.good0_text)
+    draw_good(bazaar, RESOURCE_LUXURY_GOODS, 5, window.good1_icon, window.good1_text)
+    draw_good(bazaar, RESOURCE_LINEN, 6, window.good2_icon, window.good2_text)
+    draw_good(bazaar, RESOURCE_BEER, 7, window.good3_icon, window.good3_text)
+}

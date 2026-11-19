@@ -1,0 +1,249 @@
+﻿#include "building.h"
+#include "io/io_buffer.h"
+#include "grid/building_chunks.h"
+#include "js/js_register.h"
+
+#include "building/building.h"
+#include "building/building_wall.h"
+#include "grid/grid.h"
+#include "grid/orientation.h"
+#include "grid/property.h"
+#include "grid/image.h"
+#include "game/game_config.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "widget/city/ornaments.h"
+
+const e_highlight_mode_tokens_t ANK_CONFIG_ENUM(e_highlight_mode_tokens);
+
+grid_xx g_highlight_grid(FS_UINT8);
+grid_xx g_height_building_grid(FS_UINT8);
+
+int map_building_at(int grid_offset) {
+    return map_grid_is_valid_offset(grid_offset) ? map_grid_get(building_grid_chunk::grid, grid_offset) : 0;
+}
+
+int map_building_at(tile2i tile) {
+    const int grid_offset = tile.grid_offset();
+    return map_grid_is_valid_offset(grid_offset) ? map_grid_get(building_grid_chunk::grid, grid_offset) : 0;
+}
+
+void map_building_set(int grid_offset, int building_id) {
+    map_grid_set(building_grid_chunk::grid, grid_offset, building_id);
+}
+
+e_building_type map_building_type_at(tile2i tile) {
+    const int bid = map_building_at(tile);
+    const building *b = building_get(bid);
+    return b->type;
+}
+
+bool map_building_type_is(tile2i tile, e_building_type type) {
+    const auto btype = map_building_type_at(tile);
+    return (btype == type);
+}
+
+bool map_building_continues_cliff(int grid_offset) {
+    const int bid = map_building_at(grid_offset);
+    if (bid <= 0) {
+        return false;
+    }
+    building* b = building_get(bid);
+    return b->type != BUILDING_NONE && b->dcast()->continues_cliff();
+}
+
+void map_building_damage_clear(int grid_offset) {
+    map_grid_set(building_damage_grid_chunk::grid, grid_offset, 0);
+}
+
+void map_building_damage_set(int grid_offset, int value) {
+    if (!map_grid_is_valid_offset(grid_offset)) {
+        return;
+    }
+    map_grid_set(building_damage_grid_chunk::grid, grid_offset, value < 0 ? 0 : value);
+}
+
+void map_highlight_set(int grid_offset, e_highlight_mode mode) {
+    if (grid_offset < 0) {
+        return;
+    }
+
+    map_grid_set(g_highlight_grid, grid_offset, mode);
+}
+
+e_highlight_mode map_is_highlighted(int grid_offset) {
+    if (!!game_features::gameui_walker_waypoints) {
+        return (e_highlight_mode)map_grid_get(g_highlight_grid, grid_offset);
+    }
+
+    return HIGHLIGHT_NONE;
+}
+
+void map_highlight_clear(int grid_offset) {
+    map_grid_set(g_highlight_grid, grid_offset, 0);
+}
+
+int map_building_height_at(int grid_offset) {
+    return map_grid_is_valid_offset(grid_offset) ? map_grid_get(g_height_building_grid, grid_offset) : 0;
+}
+
+void map_building_height_set(int grid_offset, int8_t height) {
+    map_grid_set(g_height_building_grid, grid_offset, height);
+}
+
+int map_get_building_damage(int grid_offset) {
+    return map_grid_is_valid_offset(grid_offset) ? map_grid_get(building_damage_grid_chunk::grid, grid_offset) : 0;
+}
+
+int map_rubble_building_type(int grid_offset) {
+    return map_grid_get(rubble_type_grid_chunk::grid, grid_offset);
+}
+
+void map_set_rubble_building_type(int grid_offset, int type) {
+    map_grid_set(rubble_type_grid_chunk::grid, grid_offset, type);
+}
+
+void map_building_clear() {
+    map_grid_clear(building_grid_chunk::grid);
+    map_grid_clear(building_damage_grid_chunk::grid);
+    map_grid_clear(rubble_type_grid_chunk::grid);
+    map_grid_clear(g_height_building_grid);
+}
+
+void map_clear_highlights() {
+    map_grid_clear(g_highlight_grid);
+}
+
+int map_building_is_reservoir(tile2i tile) {
+    if (!map_grid_is_inside(tile, 3))
+        return 0;
+
+    int grid_offset = tile.grid_offset();
+    int building_id = map_building_at(grid_offset);
+    if (!building_id || building_get(building_id)->type != BUILDING_WATER_LIFT)
+        return 0;
+
+    for (int dy = 0; dy < 3; dy++) {
+        for (int dx = 0; dx < 3; dx++) {
+            if (building_id != map_building_at(grid_offset + GRID_OFFSET(dx, dy)))
+                return 0;
+        }
+    }
+    return 1;
+}
+
+adjust_orientation map_adjust_building_determine_orientation(tile2i tile, int size, bool adjust_xy, bool adjacent, e_building_type btype) {
+    int x = tile.x();
+    int y = tile.y();
+
+    if (adjust_xy) {
+        switch (g_camera.orientation) {
+        case DIR_0_TOP_RIGHT:
+            break;
+
+        case DIR_2_BOTTOM_RIGHT:
+            x -= size - 1;
+            break;
+
+        case DIR_6_TOP_LEFT:
+            y -= size - 1;
+            break;
+
+        case DIR_4_BOTTOM_LEFT:
+            x -= size - 1;
+            y -= size - 1;
+            break;
+        }
+    }
+
+    if (!map_grid_is_inside(tile2i(x, y), size)) {
+        return { false, 0 };
+    }
+
+    // actually... check also the bordering blocks on each side.
+    size += 2;
+    x--;
+    y--;
+
+    // fill in tile cache first
+    struct building_tiles_t {
+        int _size;
+        std::array<int, 36> _data = { 0 };
+        building_tiles_t(int size) : _size(size) {}
+        int &at(int row, int column) { return _data[row * _size + column]; }
+    } b_tiles(size);
+    assert((size *size) < 36);
+
+    for (int row = 0; row < size; ++row) {
+        for (int column = 0; column < size; ++column) {
+            const tile2i ctile(x + column, y + row);
+            int bid = map_building_at(ctile);
+            e_building_type ctype = building_get(bid)->type;
+            b_tiles.at(row, column) = (ctype == btype);
+        }
+    }
+
+    // check -- north
+    bool matches = true;
+    for (int row = 0; row < size; ++row) {
+        for (int column = 0; column < size; ++column) {
+            if ((b_tiles.at(row, column) && row > (!adjacent) && (column > 0 && column < size - 1 && row < size - 1))
+                || (!b_tiles.at(row, column) && row <= (!adjacent) && (column >= adjacent && column <= size - (1 + adjacent))))
+                matches = false;
+        }
+    }
+
+    if (matches) {
+        return { true, 0 };
+    }
+
+    // check -- east
+    matches = true;
+    for (int row = 0; row < size; ++row) {
+        for (int column = 0; column < size; ++column) {
+            if ((b_tiles.at(row, column) == true && column < size - (1 + !adjacent) && (row > 0 && row < size - 1 && column > 0))
+                || (b_tiles.at(row, column) == false && column >= size - (1 + !adjacent) && (row >= adjacent && row <= size - (1 + adjacent))))
+                matches = false;
+        }
+    }
+
+    if (matches) {
+        return { true, 1 };
+    }
+
+    // check -- south
+    matches = true;
+    for (int row = 0; row < size; ++row) {
+        for (int column = 0; column < size; ++column) {
+            if ((b_tiles.at(row, column) == true && row < size - (1 + !adjacent) && (column > 0 && column < size - 1 && row > 0))
+                || (b_tiles.at(row, column) == false && row >= size - (1 + !adjacent) && (column >= adjacent && column <= size - (1 + adjacent))))
+                matches = false;
+        }
+    }
+
+    if (matches) {
+        return { true, 2 };
+    }
+
+    // check -- west
+    matches = true;
+    for (int row = 0; row < size; ++row) {
+        for (int column = 0; column < size; ++column) {
+            if ((b_tiles.at(row, column) == true && column > (!adjacent) && (row > 0 && row < size - 1 && column < size - 1))
+                || (b_tiles.at(row, column) == false && column <= (!adjacent) && (row >= adjacent && row <= size - (1 + adjacent))))
+                matches = false;
+        }
+    }
+
+    if (matches) {
+        return { true, 3 };
+    }
+
+    // no match.
+    return { false, -1 };
+}
+
+void map_building_update_all_tiles() {
+    map_orientation_update_buildings();
+    building_mud_wall::update_all_walls();
+}

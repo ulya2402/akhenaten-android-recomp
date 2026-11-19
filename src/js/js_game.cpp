@@ -1,0 +1,765 @@
+#include "js_game.h"
+
+#include "content/vfs.h"
+#include "core/log.h"
+#include "core/settings_vars.h"
+#include "platform/arguments.h"
+
+#include "sound/sound_building.h"
+#include "sound/sound_walker.h"
+#include "sound/sound.h"
+
+#include "overlays/city_overlay.h"
+#include "graphics/image.h"
+#include "graphics/image_desc.h"
+#include "figure/figure.h"
+#include "io/gamefiles/lang.h"
+#include "platform/version.hpp"
+#include "graphics/elements/lang_text.h"
+#include "graphics/screen.h"
+#include "core/app.h"
+#include "game/file_editor.h"
+#include "game/game.h"
+#include "game/game_config.h"
+#include "editor/editor.h"
+#include "game/mission.h"
+#include "game/game_events.h"
+#include "scenario/scenario.h"
+#include "scenario/editor_map.h"
+#include "core/encoding.h"
+#include "core/locale.h"
+#include "game/game_environment.h"
+#include "city/city.h"
+#include "city/city_finance.h"
+#include "city/city_warnings.h"
+#include "io/gamestate/boilerplate.h"
+#include "io/chunk_serializer.h"
+#include "window/autoconfig_window.h"
+#include "window/intro_video.h"
+#include "window/plain_message_dialog.h"
+#include "core/profiler.h"
+#include "core/system_time.h"
+#include "js.h"
+#include "mujs/mujs.h"
+#include "mujs/jsi.h"
+#include "mujs/jsvalue.h"
+#include "mujs/jscompile.h"
+#include "mujs/jsstring.h"
+#include "graphics/window.h"
+#include "graphics/video.h"
+#include "graphics/elements/ui.h"
+#include "graphics/elements/ui_js.h"
+#include "window/file_dialog_common.h"
+#include <vector>
+#include <sstream>
+#include <string>
+#include <iostream>
+
+using event_handlers = hvector<xstring, 16>;
+std::unordered_map<xstring, event_handlers> event_type_handlers;
+
+void js_log_info_native(js_State *J) {
+    if (J->isundefined(1)) {
+        logs::info("log() Try to print undefined object", 0, 0);
+    } else {
+        logs::info("%s", js_toxstring(J, 1).c_str());
+    }
+    J->pushundefined();
+}
+
+void js_log_warn_native(js_State *J) {
+    if (J->isundefined(1)) {
+        logs::info("warning() Try to print undefined object", 0, 0);
+    } else {
+        logs::info("WARN: %s", js_toxstring(J, 1).c_str());
+    }
+    J->pushundefined();
+}
+
+void js_loc_native(js_State *J) {
+    if (J->isstring(1)) {
+        const xstring key = js_toxstring(J, 1);
+        const xstring resolved = lang_xtext_from_key(key);
+        J->pushstring(resolved.c_str());
+        return;
+    }
+
+    // __loc is registered with arity 2, so a one-arg call still has gettop==3
+    // (arg2 is undefined). Treat that as the object form, not group/id 0/0.
+    if (J->isobject(1) && !J->isarray(1) && (J->gettop() < 3 || J->isundefined(2))) {
+        J->getproperty(1, js_intern("key"));
+        if (J->isstring(-1)) {
+            const xstring key_node = js_toxstring(J, -1); js_pop(J, 1);
+            const xstring resolved = lang_xtext_from_key(key_node);
+            J->pushstring((js_StringNode)resolved._get());
+            return;
+        }
+        js_pop(J, 1);
+
+        J->getproperty(1, js_intern("group")); const int group = js_tointeger(J, -1); js_pop(J, 1);
+        J->getproperty(1, js_intern("id")); const int id = js_tointeger(J, -1); js_pop(J, 1);
+        verify_no_crash(group >= 0 && id >= 0);
+        J->pushstring(lang_get_string(group, id));
+        return;
+    }
+
+    int p1 = js_tointeger(J, 1);
+    int p2 = js_tointeger(J, 2);
+    verify_no_crash(p1 >= 0 && p2 >= 0);
+    pcstr result = lang_get_string(p1, p2);
+    J->pushstring(result);
+}
+
+void js_game_load_text(js_State *J) {
+    xstring path = js_toxstring(J, 1);
+
+    vfs::reader ftext = vfs::file_open(path.c_str(), "rt");
+    if (!ftext) {
+        return;
+    }
+
+    J->pushstring(ftext->begin());
+}
+
+namespace js_helpers {
+    js_StringNode property_x = js_intern("x");
+    js_StringNode property_y = js_intern("y");
+    js_StringNode property_minx = js_intern("minx");
+    js_StringNode property_miny = js_intern("miny");
+    js_StringNode property_maxx = js_intern("maxx");
+    js_StringNode property_maxy = js_intern("maxy");
+}
+
+static js_StringNode property_pack = js_intern("pack");
+static js_StringNode property_offset = js_intern("offset");
+static js_StringNode property_id = js_intern("id");
+static js_StringNode property_tid = js_intern("tid");
+static js_StringNode property_width = js_intern("width");
+static js_StringNode property_height = js_intern("height");
+
+void js_game_get_image(js_State *J) {
+    if (J->gettop() < 1) {
+        js_pushnull(J);
+        return;
+    }
+
+    int tid;
+    if (J->isstring(1)) {
+        xstring path = js_toxstring(J, 1);
+        image_desc desc;
+        desc.path = path.c_str();
+        tid = desc.tid();
+    } else if (J->isobject(1) && !J->isarray(1)) {
+        J->getproperty(1, property_tid);
+        if (!J->isundefined(-1)) {
+            tid = (int)js_tointeger(J, -1);
+            js_pop(J, 1);
+        } else {
+            js_pop(J, 1);
+
+            J->getproperty(1, property_pack);
+            int16_t pack = !J->isundefined(-1) ? (int16_t)js_tointeger(J, -1) : 0;
+            js_pop(J, 1);
+
+            J->getproperty(1, property_id);
+            int16_t id = !J->isundefined(-1) ? (int16_t)js_tointeger(J, -1) : 0;
+            js_pop(J, 1);
+
+            J->getproperty(1, property_offset);
+            int16_t offset = !J->isundefined(-1) ? (int16_t)js_tointeger(J, -1) : 0;
+            js_pop(J, 1);
+
+            image_desc desc{ pack, id, offset };
+            tid = desc.tid();
+        }
+    } else if (J->isnumber(1) || J->iscnumber(1)) {
+        int16_t pack = js_touint32(J, 1);
+        int16_t id = (J->isnumber(2) || J->iscnumber(2)) ? js_touint32(J, 2) : 0;
+        int16_t offset = (J->isnumber(3) || J->iscnumber(3)) ? js_touint32(J, 3) : 0;
+
+        image_desc desc{ pack, id, offset };
+        tid = desc.tid();
+    } else {
+        js_pushnull(J);
+        return;
+    }
+
+    const image_t *img = image_get(tid);
+
+    if (!img) {
+        js_pushnull(J);
+        return;
+    }
+
+    J->newobject();
+
+    js_pushnumber(J, tid);
+    js_setproperty(J, -2, property_tid);
+
+    js_pushnumber(J, img->width);
+    js_setproperty(J, -2, property_width);
+
+    js_pushnumber(J, img->height);
+    js_setproperty(J, -2, property_height);
+
+    js_pushnumber(J, img->animation.speed_id);
+    js_setproperty(J, -2, js_intern("animation_speed_id"));
+
+    js_pushnumber(J, img->animation.sprite_offset.x);
+    js_setproperty(J, -2, js_intern("animation_offset_x"));
+
+    js_pushnumber(J, img->animation.sprite_offset.y);
+    js_setproperty(J, -2, js_intern("animation_offset_y"));
+}
+
+bool js_has_event_handlers(const xstring &event_name) {
+    auto it = event_type_handlers.find(event_name);
+    return (it != event_type_handlers.end());
+}
+
+static void js_create_element_proxy(js_State *J, ui::widget* w, pcstr element_id) {
+    OZZY_PROFILER_FUNCTION();
+
+    ui::element &el = (*w)[element_id];
+    js_Object *type_proto = js_ui_element_proto_for_kind(el.kind());
+    verify_no_crash(type_proto);
+
+    js_pushobject(J, jsV_newobject(J, JS_COBJECT, type_proto));
+    J->pushstring(element_id);
+    js_setproperty(J, -2, property_id);
+    js_setproperty(J, -2, js_intern(element_id));  // event_obj at -2, proxy at -1
+}
+
+js_StringNode property_mission = js_intern("mission");
+js_StringNode property_event = js_intern("event");
+js_StringNode property_es = js_intern("es");
+js_StringNode property_memory = js_intern("memory");
+js_StringNode property_frame = js_intern("frame");
+
+static bool js_callable_wants_frame(js_State *J, int idx) {
+    return js_hasmodifier(J, idx, property_memory)
+        && (js_getmodifier(J, idx, property_memory) == property_frame);
+}
+
+void js_call_event_handlers(const xstring &event_name, const bvariant_map &object) {
+    OZZY_PROFILER_SECTION(_, event_name.c_str())
+
+    auto it = event_type_handlers.find(event_name);
+    if (it == event_type_handlers.end()) {
+        return;
+    }
+
+    // copy handlers because some events may clear global handlers
+    hvector<xstring, 16> handler_names = it->second;
+
+    auto J = js_vm_state();
+    if (js_vm_have_error() || J == nullptr) {
+        return;
+    }
+
+    for (const xstring &handlerName : handler_names) {
+        pcstr funcname = handlerName.c_str();
+
+        OZZY_PROFILER_SECTION(_, funcname)
+
+        int savetop = J->gettop();
+        js_getglobal(J, funcname);
+
+        bool iscallable = J->iscallable(-1);
+        verify_no_crash(iscallable);
+        if (!iscallable) {
+            logs::info("JS event handler '%s' is not callable, skipping", funcname);
+            js_pop(J, 1);
+            continue;
+        }
+
+        const bool use_frame = js_callable_wants_frame(J, -1);
+        js_frame_zone zone(use_frame ? J : nullptr);
+
+        js_pushnull(J); // this
+
+        J->newobject();
+
+        // First pass: add regular properties and collect UI element IDs
+        hvector<bstring64, 64> ui_element_ids;
+        for (const auto &kv : object) {
+            const xstring &key = kv.first;
+            const bvariant &val = kv.second;
+
+            bstring64 keystr = key.c_str();
+            if (keystr.starts_with("__ui_elem_")) {
+                ui_element_ids.push_back(keystr.substr(10, -1));
+                continue;
+            }
+
+            switch (val.value_type()) {
+            case bvariant::etype_bool: js_pushboolean(J, val.as_bool()); break;
+            case bvariant::etype_int32: js_pushnumber(J, (double)val.as_int32()); break;
+            case bvariant::etype_uint32: js_pushnumber(J, (double)val.as_uint32()); break;
+            case bvariant::etype_u16: js_pushnumber(J, (double)val.as_u16()); break;
+            case bvariant::etype_float: js_pushnumber(J, (double)val.as_float()); break;
+            case bvariant::etype_str: J->pushstring(val.as_str().c_str()); break;
+            case bvariant::etype_ptr:
+                // No direct pointer transport to JS; pass null
+                js_pushnull(J);
+                break;
+
+            case bvariant::etype_vec2i: {
+                    const vec2i pos = val.as_vec2i();
+                    J->newvec2i(pos.x, pos.y);
+                }
+                break;
+            case bvariant::etype_tile2i: {
+                    const tile2i pos = val.as_tile2i();
+                    J->newvec2i(pos.x(), pos.y());
+                }
+                break;
+            case bvariant::etype_none:
+            default:
+                J->pushundefined();
+                break;
+            }
+
+            js_setproperty(J, -2, js_intern(key.c_str()));
+        }
+
+        if (!ui_element_ids.empty()) {
+            OZZY_PROFILER_SECTION(_, "has_ui_elements")
+            auto w = ui::get_current_widget();
+            for (const auto &element_id : ui_element_ids) {
+                js_create_element_proxy(J, w, element_id.c_str());
+            }
+        }
+
+        // Call with 1 argument (the object)
+        int ok;
+        {
+            OZZY_PROFILER_SECTION(_, "function_call")
+            ok = js_vm_trypcall(J, 1);
+        }
+        if (!ok) {
+            logs::error("Fatal error on call function %s", funcname);
+        }
+
+        int current_top = J->gettop();
+        if (current_top > savetop) {
+            js_pop(J, current_top - savetop);
+        } else if (current_top < savetop) {
+            // Stack underflow - this shouldn't happen, but log it
+            logs::info("STACK underflow for %s [%d] (expected %d)", funcname, current_top, savetop);
+        }
+
+        // Verify stack is correct
+        int final_top = J->gettop();
+        if (final_top != savetop) {
+            logs::info("STACK mismatch for %s [%d] (expected %d) - forcing cleanup", funcname, final_top, savetop);
+            // Force cleanup to prevent stack overflow
+            while (J->gettop() > savetop) {
+                js_pop(J, 1);
+            }
+        }
+    }
+}
+
+xstring to_xstring(const js_StringNode str) {
+    xstring r;
+    r._set(str);
+    return r;
+}
+
+void js_register_game_handlers(xstring missionid) {
+    auto J = js_vm_state();
+    js_Object *global = J->G;
+    if (!global) {
+        logs::info("JS: Global object is null");
+        return;
+    }
+
+    logs::info("JS: Scanning for functions with modifiers...");
+
+    js_Property *prop = global->head;
+    int function_count = 0;
+    event_type_handlers.clear();
+
+    while (prop) {
+        if (prop->value.type == JS_TOBJECT && prop->value.u.object) {
+            xstring prop_name = to_xstring(prop->name);
+            js_Object *obj = prop->value.u.object;
+            if (obj->type == JS_CFUNCTION || obj->type == JS_CSCRIPT) {
+                js_Function *func = obj->u.f.function;
+
+                if (func && func->modifiers && !!prop->name) {
+                    if (g_args.is_log_js_handlers()) {
+                        logs::info("JS: Function '%s' has modifiers:", js_strnode_cstr(prop->name));
+                    }
+                    function_count++;
+
+                    js_FunctionModifier *mod = func->modifiers;
+                    while (mod) {
+                        xstring mod_value = to_xstring(mod->value);
+                        xstring mod_key = to_xstring(mod->key);
+
+                        if (g_args.is_log_js_handlers()) {
+                            logs::info("  - %s: %s", !!mod_key ? mod_key.c_str() : "<no-key>", !!mod_value ? mod_value.c_str() : "<no-value>");
+                        }
+                        mod = mod->next;
+                    }
+
+                    xstring require_mission_id;
+                    mod = func->modifiers;
+                    while (mod) {
+                        xstring mod_value = to_xstring(mod->value);
+                        if (!!mod->key && (mod->key == property_mission)) {
+                            require_mission_id = mod_value;
+                            break;
+                        }
+                        mod = mod->next;
+                    }
+
+                    bool should_handle_this_function = true;
+                    // If function has a mission modifier, it must match the current mission
+                    // If function has no mission modifier, it's a global handler (register for all missions)
+                    if (!!require_mission_id) {
+                        // Function has a mission modifier - only register if it matches current mission
+                        if (!!missionid) {
+                            should_handle_this_function = (missionid == require_mission_id);
+                        } else {
+                            // No current mission, but function requires one - don't register
+                            should_handle_this_function = false;
+                        }
+                    }
+                    // If no mission modifier, function is global - register it (should_handle_this_function stays true)
+
+                    if (should_handle_this_function) {
+                        mod = func->modifiers;
+                        auto is_es = [](auto k) { return (k == property_event) || (k == property_es); };
+                        while (mod) {
+                            xstring mod_value = to_xstring(mod->value);
+                            xstring mod_key = to_xstring(mod->key);
+
+                            if (!!mod_key && is_es(mod->key)) {
+                                auto r = event_type_handlers.insert(std::make_pair(mod_value, event_handlers{}));
+                                auto &handlers = r.first->second;
+                                handlers.push_back(prop_name);
+                                if (g_args.is_log_js_handlers()) {
+                                    logs::info("JS: Registered handler '%s' for event '%s' (mission: '%s')", prop_name.c_str(), mod_value.c_str(), missionid.c_str());
+                                }
+                            } else if (!!mod->key) {
+                                for (config::ModifierIteratorEntry *e = config::ModifierIteratorEntry::tail; e; e = e->next) {
+                                    if (!!e->modifier_key && (mod_key == e->modifier_key)) {
+                                        const xstring value = !!mod_value ? mod_value : prop_name;
+                                        e->callback(J, prop_name.c_str(), value.c_str());
+                                        if (g_args.is_log_js_handlers()) {
+                                            logs::info("JS: Modifier '%s' -> '%s' (name=%s)", js_strnode_cstr(mod->key), value.c_str(), js_strnode_cstr(prop->name));
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                            mod = mod->next;
+                        }
+                    }
+                }
+            }
+        }
+        prop = prop->next;
+    }
+
+    logs::info("JS: Found %d functions with modifiers", function_count);
+}
+
+config::ESIteratorEntry *config::ESIteratorEntry::tail = nullptr;
+config::ModifierIteratorEntry *config::ModifierIteratorEntry::tail = nullptr;
+
+void js_register_entity_systems() {
+    for (config::ESIteratorEntry *e = config::ESIteratorEntry::tail; e; e = e->next) {
+        e->clear();
+    }
+
+    js_State *J = js_vm_state();
+    if (!J || !J->G) {
+        return;
+    }
+
+    g_config_arch = {J};
+
+    js_Property *prop = J->G->head;
+    int window_count = 0;
+
+    while (prop) {
+        if (prop->value.type == JS_TOBJECT && prop->value.u.object && !!prop->name) {
+            js_Object *obj = prop->value.u.object;
+
+            if (obj->type == JS_COBJECT) {
+                const auto name = prop->name;
+                js_getglobal(J, name->value.c_str());
+
+                if (js_hasobject_modifier(J, -1, property_es)) {
+                    auto es_value = js_getobject_modifier(J, -1, property_es);
+                    for (config::ESIteratorEntry *e = config::ESIteratorEntry::tail; e; e = e->next) {
+                        if (!!e->es_type && es_value && (es_value == e->es_type._get())) {
+                            window_count++;
+                            e->regnew(name->value.c_str());
+                            logs::info("JS: Registered '%s' [es=%s]", name->value.c_str(), e->es_type.c_str());
+                            break;
+                        }
+                    }
+                }
+
+                js_pop(J, 1);
+            }
+        }
+
+        prop = prop->next;
+    }
+
+    logs::info("JS: Registered %d dynamic windows", window_count);
+}
+
+pcstr __game_get_last_loaded_file(int type) {
+    return file_data_for_file_type((file_type)type)->last_loaded_file;
+}
+ANK_FUNCTION_1(__game_get_last_loaded_file)
+
+int __game_screen_width() { return screen_width(); } ANK_FUNCTION(__game_screen_width);
+int __game_screen_height() { return screen_height(); } ANK_FUNCTION(__game_screen_height)
+int __game_frame() { return game.frame; } ANK_FUNCTION(__game_frame)
+int __game_time_millis() { return (int)time_get_millis(); } ANK_FUNCTION(__game_time_millis)
+bool __game_session_active() { return game.session.active; } ANK_FUNCTION(__game_session_active)
+int __game_session_last_loaded_kind() { return (int)game.session.last_loaded; } ANK_FUNCTION(__game_session_last_loaded_kind)
+xstring __game_session_last_loaded_mission() { return game.session.last_loaded_mission.empty() ? "" : game.session.last_loaded_mission; } ANK_FUNCTION(__game_session_last_loaded_mission)
+xstring __game_version() { return get_version(); } ANK_FUNCTION(__game_version)
+xstring __game_recent_log_errors(int max_lines) { return logs::recent_errors(max_lines); } ANK_FUNCTION_1(__game_recent_log_errors)
+xstring __game_recent_log_tail(int max_lines) { return logs::recent_log_tail(max_lines); } ANK_FUNCTION_1(__game_recent_log_tail)
+int __game_io_file_schema_version() { return g_chunk_io.get_file_version(); } ANK_FUNCTION(__game_io_file_schema_version)
+bool __game_load_savegame(pcstr filename) { return GamestateIO::load_savegame(filename); } ANK_FUNCTION_1(__game_load_savegame)
+bool __game_write_savegame(pcstr filename_short) { return GamestateIO::write_savegame(filename_short); } ANK_FUNCTION_1(__game_write_savegame)
+bool __game_delete_savegame(pcstr filename_short) { return GamestateIO::delete_savegame(filename_short); } ANK_FUNCTION_1(__game_delete_savegame)
+bool __game_delete_map(pcstr filename_short) { return GamestateIO::delete_map(filename_short); } ANK_FUNCTION_1(__game_delete_map)
+bool __game_editor_load_scenario(pcstr path) { return game_file_editor_load_scenario(path) != 0; } ANK_FUNCTION_1(__game_editor_load_scenario)
+bool __game_editor_write_scenario(pcstr path) { return game_file_editor_write_scenario(path) != 0; } ANK_FUNCTION_1(__game_editor_write_scenario)
+void __game_editor_create_scenario(int size) { game_file_editor_create_scenario(size); } ANK_FUNCTION_1(__game_editor_create_scenario)
+bool __game_init_editor() { return game_init_editor(); } ANK_FUNCTION(__game_init_editor)
+void __game_exit_editor() { game_exit_editor(); } ANK_FUNCTION(__game_exit_editor)
+bool __editor_is_active() { return editor_is_active() != 0; } ANK_FUNCTION(__editor_is_active)
+bool __scenario_is_saved() { return g_scenario.is_saved; } ANK_FUNCTION(__scenario_is_saved)
+void __scenario_editor_clear_predator_herd_points() { scenario_editor_clear_predator_herd_points(); } ANK_FUNCTION(__scenario_editor_clear_predator_herd_points)
+void __scenario_editor_clear_fishing_points() { scenario_editor_clear_fishing_points(); } ANK_FUNCTION(__scenario_editor_clear_fishing_points)
+void __scenario_editor_clear_invasion_points() { scenario_editor_clear_invasion_points(); } ANK_FUNCTION(__scenario_editor_clear_invasion_points)
+void __video_stop() { video_stop(); } ANK_FUNCTION(__video_stop)
+void __game_load_mission(int scenario_id, int start_immediately) { GamestateIO::load_mission(scenario_id, !!start_immediately); } ANK_FUNCTION_2(__game_load_mission)
+bool __game_load_map(pcstr filename_short, int start_immediately) { return GamestateIO::load_map(filename_short, true, !!start_immediately); } ANK_FUNCTION_2(__game_load_map)
+void __game_start_loaded_file() { GamestateIO::start_loaded_file(); } ANK_FUNCTION(__game_start_loaded_file)
+bool __game_mission_is_valid(int scenario_id) { const mission_step_t *s = get_scenario_step_data(scenario_id); return s && s->campaign_id >= 0; } ANK_FUNCTION_1(__game_mission_is_valid)
+bool __game_has_campaign_data() { return game_has_campaign_data(); } ANK_FUNCTION(__game_has_campaign_data)
+int __game_campaign_id_for_scenario(int scenario_id) { return get_scenario_campaign_id(scenario_id); } ANK_FUNCTION_1(__game_campaign_id_for_scenario)
+void __game_speech_stop() { g_sound.speech_stop(); } ANK_FUNCTION(__game_speech_stop)
+bool __game_file_exists(pcstr path) { return path && *path && vfs::file_exists(path); } ANK_FUNCTION_1(__game_file_exists)
+bool __game_gods_enabled() { return game_features::gameopt_gods_enabled.to_bool(); } ANK_FUNCTION(__game_gods_enabled)
+bool __game_is_integral_tests() { return g_args.is_integral_tests(); } ANK_FUNCTION(__game_is_integral_tests)
+
+void __log_marker(pcstr message) {
+    if (g_args.is_integral_tests()) {
+        logs::info("[test-marker] %s", message);
+    }
+
+    logs::info("%s", message);
+}
+ANK_FUNCTION_1(__log_marker);
+void __scenario_init() { g_scenario.init(); } ANK_FUNCTION(__scenario_init)
+void __debug_crash() {
+    events::emit(event_city_warning{ "Trying to crash the game" });
+    const int *p = nullptr;
+    std::cout << *p;
+}
+ANK_FUNCTION(__debug_crash)
+
+void js_register_game_functions(js_State *J) {
+    REGISTER_GLOBAL_FUNCTION(J, js_log_info_native, "__log_info_native", 1);
+    REGISTER_GLOBAL_FUNCTION(J, js_log_warn_native, "__log_warning_native", 1);
+    REGISTER_GLOBAL_FUNCTION(J, js_loc_native, "__loc", 2);
+    REGISTER_GLOBAL_FUNCTION(J, js_game_load_text, "load_text", 1);
+    REGISTER_GLOBAL_FUNCTION(J, js_game_get_image, "get_image", 1);
+    REGISTER_GLOBAL_FUNCTION(J, js_register_console_command, "__register_console_command", 3);
+
+    animation_t::global_hashtime = game.frame;
+    for (config::FunctionIterator *s = config::FunctionIterator::tail; s; s = s->next) {
+        s->func(J);
+    }
+
+    if (g_args.is_integral_tests()) {
+        for (config::TestFunctionIterator* s = config::TestFunctionIterator::tail; s; s = s->next) {
+            s->func(J);
+        }
+    }
+}
+
+void js_unref_function(xstring onclick_ref) {
+    if (onclick_ref.empty()) {
+        return;
+    }
+
+    if (js_vm_state()) {
+        js_unref(js_vm_state(), onclick_ref.c_str());
+    }
+}
+
+static pcstr js_error_message(js_State *J, int idx) {
+    // Error objects are not JS strings; js_toxstring would yield empty/(null) in logs.
+    static js_StringNode property_message = js_intern("message");
+    if (J->isobject(idx) && J->hasproperty(idx, property_message)) {
+        J->getproperty(idx, property_message);
+        pcstr msg = js_strnode_cstr(js_tostring(J, -1));
+        js_pop(J, 1);
+        if (msg && msg[0]) {
+            return msg;
+        }
+    }
+    return js_strnode_cstr(js_tostring(J, idx));
+}
+
+void js_call_function(xstring js_ref) {
+    if (js_ref.empty()) {
+        return;
+    }
+
+    js_State *J = js_vm_state();
+    assert(J);
+
+    js_getregistry(J, (js_StringNode)js_ref._get());
+    if (J->iscallable(-1)) {
+        js_frame_zone zone(js_callable_wants_frame(J, -1) ? J : nullptr);
+        js_pushnull(J);  // 'this' context
+        int result = J->pcall(0);
+        if (result != 0) {
+            logs::error("JS onclick callback error: %s", js_error_message(J, -1));
+        }
+        js_pop(J, 1); // result or error
+    } else {
+        js_pop(J, 1);
+    }
+}
+
+void js_call_function_bool(xstring js_ref, bool param) {
+    if (js_ref.empty()) {
+        return;
+    }
+
+    js_State *J = js_vm_state();
+    verify_no_crash(J);
+
+    js_getregistry(J, (js_StringNode)js_ref._get());
+    if (J->iscallable(-1)) {
+        js_frame_zone zone(js_callable_wants_frame(J, -1) ? J : nullptr);
+        js_pushnull(J);
+        js_pushboolean(J, param);
+        int result = J->pcall(1);
+        if (result != 0) {
+            logs::error("JS dialog callback error: %s", js_error_message(J, -1));
+        }
+        js_pop(J, 1); // result or error
+    } else {
+        js_pop(J, 1);
+    }
+}
+
+bvariant js_call_function(xstring js_ref, int param1, int param2) {
+    if (js_ref.empty()) {
+        return bvariant();
+    }
+
+    js_State *J = js_vm_state();
+    assert(J);
+
+    js_getregistry(J, (js_StringNode)js_ref._get());
+    if (J->iscallable(-1)) {
+        js_frame_zone zone(js_callable_wants_frame(J, -1) ? J : nullptr);
+        js_pushnull(J);  // 'this' context
+        js_pushnumber(J, (double)param1);
+        js_pushnumber(J, (double)param2);
+        int result = J->pcall(2);
+        if (result != 0) {
+            logs::error("JS textfn callback error: %s", js_error_message(J, -1));
+            js_pop(J, 1);
+            return bvariant();
+        }
+
+        bvariant out = js_helpers::js_bvariant_from_js_stack(J, -1);
+        js_pop(J, 1);  // Pop the result
+        return out;
+    } else {
+        js_pop(J, 1);
+    }
+
+    return bvariant();
+}
+
+static void js_push_bvariant_map_object(js_State *J, const bvariant_map &params) {
+    js_helpers::js_push_bvariant_map_as_js_object(J, params);
+}
+
+bvariant js_call_function(xstring js_ref, const bvariant_map &params) {
+    if (js_ref.empty()) {
+        return bvariant();
+    }
+
+    js_State *J = js_vm_state();
+
+    js_getregistry(J, (js_StringNode)js_ref._get());
+    if (J->iscallable(-1)) {
+        js_frame_zone zone(js_callable_wants_frame(J, -1) ? J : nullptr);
+        js_pushnull(J);
+        js_push_bvariant_map_object(J, params);
+        int result = J->pcall(1);
+        if (result != 0) {
+            logs::error("JS callback error (bvariant_map): %s", js_error_message(J, -1));
+            js_pop(J, 1);
+            return bvariant();
+        }
+
+        bvariant out = js_helpers::js_bvariant_from_js_stack(J, -1);
+        js_pop(J, 1);
+        return out;
+    } else {
+        js_pop(J, 1);
+    }
+
+    return bvariant();
+}
+
+void __lang_text_draw_multiline(int group, int number, int x, int y, int box_width, int font) {
+    lang_text_draw_multiline(group, number, vec2i{x, y}, box_width, (e_font)font);
+}
+ANK_FUNCTION_6(__lang_text_draw_multiline)
+
+int __game_locale_year_before_ad() {
+    return locale_year_before_ad() ? 1 : 0;
+}
+ANK_FUNCTION(__game_locale_year_before_ad)
+
+xstring __game_window_get_id() {
+    return window_get_id();
+}
+ANK_FUNCTION(__game_window_get_id)
+
+void window_show_by_id(pcstr section) { autoconfig_window::show(section); }
+ANK_FUNCTION_1(window_show_by_id)
+
+void __window_plain_message_dialog_show(pcstr title, pcstr message) {
+    window_plain_message_dialog_show(title, message, "");
+}
+ANK_FUNCTION_2(__window_plain_message_dialog_show)
+
+void config::refresh(archive arch) {
+    g_config_arch = {arch.state};
+    animation_t::global_hashtime = game.frame;
+    for (ArchiveIterator *s = ArchiveIterator::tail; s; s = s->next) {
+        s->func();
+    }
+}
+
+archive config::load(pcstr filename) {
+    vfs::path fspath = vfs::path(filename).resolve();
+    js_vm_load_file_and_exec(fspath);
+    return {js_vm_state()};
+}

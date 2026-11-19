@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Devblog — Akhenaten</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="index.html" class="nav-logo">Akhenaten</a>
+      <ul>
+        <li><a href="about.html">About</a></li>
+        <li><a href="devblog.html" class="active">Devblog</a></li>
+        <li><a href="wiki/index.html">Wiki</a></li>
+        <li><a href="screenshots.html">Screenshots</a></li>
+        <li><a href="downloads.html">Downloads</a></li>
+        <li><a href="contributors.html">Contributors</a></li>
+        <li><a href="contact.html">Join us</a></li>
+        <li><a href="reportbug.html">Report Bug</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="page-content">
+    <h1>Devblog</h1>
+
+    <article class="post">
+      <div class="post-meta"><time>November 17, 2026</time></div>
+      <h2><a href="devblog/ra-029-release-notes.html">Akhenaten RA 0.29 — Five Months of Original Pharaoh Logic</a></h2>
+      <p>Release notes for <strong>RA 0.29</strong>: about 1,600 commits since RA 0.27 — original Pharaoh behaviour as the default profile, walkers, predators (asp, lion, scorpion), frog and locust plagues, mummies, enemy ships and Bedouin raiders ported from the original, mission raids on the original invasion cycle, monuments rebuilt from the original layouts (pyramids, royal tombs, Abu Simbel, the Pharos lighthouse), the Flathub package and its engine-data fix, and an integral test suite of 549 tests that now runs in parallel shards in about 75 seconds.</p>
+      <a href="devblog/ra-029-release-notes.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>July 24, 2026</time></div>
+      <h2><a href="devblog/how-to-build-a-sphinx.html">How to build a sphinx</a></h2>
+      <img src="images/sphinx-city.jpg" alt="The completed sphinx in a desert city" class="post-preview" loading="lazy" style="image-rendering:pixelated" />
+      <p>The sphinx is one statue made of three independent 6×6 buildings chained together like a fort — paws, body-and-head, and haunches — each with two diagonal sprites for camera rotation and six carving stages you watch the face emerge through. A look at the composite-building trick inherited from the mastaba, the <code>s&lt;stage&gt;&lt;part&gt;&lt;diagonal&gt;</code> sprite grammar, how the monument is built with labor and guilds rather than raw stone, and what it is actually for — from the Rostja mission to your Kingdom rating.</p>
+      <a href="devblog/how-to-build-a-sphinx.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>June 20, 2026</time></div>
+      <h2><a href="devblog/why-pharaoh-best.html">Why Pharaoh remains the best game in the series</a></h2>
+      <img src="https://habrastorage.org/r/w780/getpro/habr/upload_files/af5/d0c/251/af5d0c2516e020f285cfc1f9a9bde779.png" alt="A Pharaoh city in Akhenaten" class="post-preview" loading="lazy" style="image-rendering:pixelated" />
+      <p>English translation of the Habr essay comparing the original Pharaoh (1999) with Zeus and the A New Era remake: labor-seeker recruiters vs a global worker pool, why poor houses pay no tax, the per-mission restart, 20 housing levels and the migration model, and the random-turn "Egyptian stupidity" of service walkers — illustrated with code recovered in Akhenaten.</p>
+      <a href="devblog/why-pharaoh-best.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>June 19, 2026</time></div>
+      <h2><a href="devblog/pharaoh-house-evolution.html">House Evolution Mechanics in Pharaoh (1999)</a></h2>
+      <img src="https://habrastorage.org/r/w780/getpro/habr/upload_files/f84/c59/c21/f84c59c21506838ac105d2c3c937e51d.png" alt="Houses evolving in a Pharaoh city" class="post-preview" loading="lazy" style="image-rendering:pixelated" />
+      <p>English translation of the Habr deep dive into Pharaoh's house-evolution system: every dwelling as an FSM, the hidden needs/attributes model (desirability, taxes, fire safety, health), overlays, the evolution switch recovered from the original, food and resource consumption, the shared 512-byte runtime_data buffer, and house texture updates — with screenshots from Akhenaten.</p>
+      <a href="devblog/pharaoh-house-evolution.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>June 14, 2026</time></div>
+      <h2><a href="devblog/pharaoh-engine-ecs-dynvtbl.html">ECS, DynVMT, Logical Threads, and Pharaoh</a></h2>
+      <img src="https://habrastorage.org/r/w780/getpro/habr/upload_files/12d/11f/ecf/12d11fecf12c0f418b2613b87ece6473.png" alt="Desirability grid in Akhenaten" class="post-preview" loading="lazy" style="image-rendering:pixelated" />
+      <p>English translation of the Habr deep dive into the Impressions engine: tile-indexed ECS-style grids for desirability and water, callback-based UI dispatch (DynVMT), tick-sliced city updates, and the figure god-object — with screenshots from Akhenaten and code from the reimplementation.</p>
+      <a href="devblog/pharaoh-engine-ecs-dynvtbl.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>June 14, 2026</time></div>
+      <h2><a href="devblog/ra-027-release-notes.html">Akhenaten RA 0.27 — Eight Months of Script, Simulation, and Polish</a></h2>
+      <img src="images/overlay-menu-js.png" alt="Overlay menu and script-driven UI" class="post-preview" loading="lazy" />
+      <p>Release notes for <strong>RA 0.27</strong>: roughly two thousand commits since RA 0.26 — every city overlay on script, advisor windows and victory logic migrated to MuJS, BIK intro playback, combat and monument-rating fixes, resource depletion and irrigation, campaign mission corrections, integral tests in CI, and builds for Windows, Linux, macOS, Android, and the browser.</p>
+      <a href="devblog/ra-027-release-notes.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>June 13, 2026</time></div>
+      <h2><a href="devblog/statue-preview-and-rotation.html">Statue Preview and Rotation Move to Script</a></h2>
+      <img src="images/statue-preview-and-rotation.gif" alt="Placing statues: the ghost preview cycles variants and rotates with the R hotkey" class="post-preview" loading="lazy" style="image-rendering:pixelated" />
+      <p>The statue placement preview — its sprite, variant, and facing — now lives entirely in script. Two fixes came with it: pressing <code>R</code> finally rotates a statue ghost (the preview used to ignore orientation and hand back the base frame), and a new per-building <code>allow_rotate</code> flag lets statues rotate manually even when the global auto-rotate option is off. The preview pipeline left <code>building_statue.cpp</code> behind a set of <code>[es=...]</code> hooks plus one new <code>__city_planner_set_tiles_building</code> binding, and the old combined block was split into self-contained <code>statue_small.js</code>, <code>statue_medium.js</code>, and <code>statue_large.js</code> files.</p>
+      <a href="devblog/statue-preview-and-rotation.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>June 10, 2026</time></div>
+      <h2><a href="devblog/script-defined-overlays-es.html">Overlays Become Script-Declared</a></h2>
+      <img src="images/script-defined-overlays-es.png" alt="Apothecary building info window showing employee count and an operational-status tooltip under the apothecary overlay" class="post-preview" loading="lazy" style="image-rendering:pixelated" />
+      <p>City overlays can now be declared entirely in JavaScript with an <code>[es=city_overlay]</code> block instead of a hand-written C++ slot. A new entity-system registry scans for those declarations, validates the overlay <code>id</code>, and registers each into the engine's slot table after config load — refusing duplicates and unknown ids. The Apothecary health overlay is the first migration: its declaration plus tooltip and column-height handlers now live in a self-contained <code>overlays/apothecary.js</code>, with handlers writing through the new <code>city.overlay_tooltip</code> / <code>city.overlay_column_height</code> properties. Adding an overlay no longer needs a new <code>.cpp</code> or a recompile.</p>
+      <a href="devblog/script-defined-overlays-es.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>June 7, 2026</time></div>
+      <h2><a href="devblog/camera-refactor-and-wiki-pages.html">Camera Consolidation and a Growing Player Guide</a></h2>
+      <img src="wiki/player/interface/Sidebar_Expanded.webp" alt="The expanded in-game control panel documented on the new wiki page" class="post-preview" loading="lazy" width="185" height="464" style="width:auto;max-height:200px;display:block;image-rendering:pixelated" />
+      <p>Two halves this time: an engine refactor and new wiki pages. The city camera is consolidated into a single <code>viewport_t</code> with cached state — <code>g_city_view</code> is now <code>g_camera</code>, and screen/tile lookups became viewport methods. The Clouds, Game Features, and Game Time debug panels moved to script, and more main-loop / input / platform glue shifted into the platform layer. On the docs side, the Player Guide gained an <strong>Interface</strong> section with a full <a href="wiki/player/interface/control-panel.html">Control Panel</a> page, plus dedicated <a href="wiki/player/buildings/booth.html">Booth</a>, <a href="wiki/player/buildings/juggler-school.html">Juggler School</a>, and <a href="wiki/player/buildings/vacant-lot.html">Vacant Lot</a> pages — all built from live engine data.</p>
+      <a href="devblog/camera-refactor-and-wiki-pages.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>June 3, 2026</time></div>
+      <h2><a href="devblog/road-construction-js.html">Road Construction Moves to MuJS</a></h2>
+      <img src="images/road-construction-js.png" alt="Green map-order road preview dragged across the city between two temples" class="post-preview" loading="lazy" />
+      <p>Road building — path routing, junction sprites, and placement validity — has moved out of C++ and into <code>road.js</code>. The dragged preview now places tiles on the map temporarily to read their real sprites, so half-drawn roads show correct corners and intersections. A new option renders the green preview inside the isometric map pass instead of as a HUD overlay, plus fixes for placing over existing roads and a new integral test for routed segment placement.</p>
+      <a href="devblog/road-construction-js.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>May 22, 2026</time></div>
+      <h2><a href="devblog/terrain-paint-brush.html">Painting Terrain at Runtime: The Debug Brush</a></h2>
+      <img src="images/terrain-paint-brush.png" alt="Debug terrain paint panel with rocks painted along a coastline" class="post-preview" loading="lazy" />
+      <p>A new debug panel lets you paint terrain directly on a live map — land, trees, water, floodplain, reeds, rocks, ore-bearing rock, dunes, meadow — with a 1-5 tile brush. The brush enforces the physics the scenario editor used to skip: water depth recomputes around the stroke so deepwater stays 2 tiles from any shore, moisture regrows from the map's authored profile, floodplain row order rebuilds, and demolition releases homeless and walks multi-tile chains. Contributed by <strong>@cwshields</strong>.</p>
+      <a href="devblog/terrain-paint-brush.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>May 18, 2026</time></div>
+      <h2><a href="devblog/overlay-menu-js.html">Overlay Menu Goes Script-Driven</a></h2>
+      <img src="images/overlay-menu-js.png" alt="Overlay menu with categories and submenus" class="post-preview" loading="lazy" />
+      <p>The overlay menu — the dropdown for switching between city views like Water, Health, Religion, and Food — has been fully migrated to JavaScript. Category lists, hover detection, submenu state, and localized titles are now defined in <code>ui_overlay_menu.js</code>; the C++ side keeps only a thin window shell.</p>
+      <a href="devblog/overlay-menu-js.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>May 16, 2026</time></div>
+      <h2><a href="devblog/scenario-selection-js.html">Scenario Selection Window Goes Script-Driven</a></h2>
+      <img src="images/scenario-selection-mission.png" alt="Scenario selection info panel" class="post-preview" loading="lazy" />
+      <p>The campaign and custom-map selection screen is now fully driven by JavaScript. Period picker, mission info panel, and custom map browser — all three views have been stripped of their C++ draw functions and rebuilt as script-configured widgets with hot-reload support.</p>
+      <a href="devblog/scenario-selection-js.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>May 12, 2026</time></div>
+      <h2><a href="devblog/mission-debug-panel-js.html">Mission Debug Panel Moves to JavaScript</a></h2>
+      <p>The Mission Info debug overlay — which shows live scenario state during playtesting — is now rendered from a script instead of hardcoded C++. ImGui bindings landed in <code>ui_common.js</code>, and C++ now fires an event that JavaScript catches to draw the panel. Editing the debug view no longer requires a recompile.</p>
+      <a href="devblog/mission-debug-panel-js.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>April 28, 2026</time></div>
+      <h2><a href="devblog/mission-select-window-js.html">Mission Selection: Script-Driven Windows</a></h2>
+      <img src="images/mission-select-window.png" alt="Mission selection window" class="post-preview" loading="lazy" />
+      <p>The mission selection and briefing flow is now fully script-driven. The new <code>ui_mission_choice_window.js</code> replaces <code>mission_next.cpp</code>, the briefing window switches to autoconfig init, and branching mission paths can now be defined in script files without recompiling.</p>
+      <a href="devblog/mission-select-window-js.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>April 26, 2026</time></div>
+      <h2><a href="devblog/tax-collector-window-js.html">Tax Collector Window: Script-Driven UI</a></h2>
+      <img src="images/tax-collector-window.png" alt="Tax Collector window" class="post-preview" loading="lazy" />
+      <p>The Tax Collector's info window is now fully script-driven. This migration from C++ to JavaScript allows modders to customize window behavior without recompiling. Includes hot-reloading support and event-driven tax rate controls.</p>
+      <a href="devblog/tax-collector-window-js.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>April 25, 2026</time></div>
+      <h2><a href="devblog/sound-settings-window.html">Sound Settings Window</a></h2>
+      <img src="images/sound-settings.png" alt="Sound settings window" class="post-preview" loading="lazy" />
+      <p>Redesigned sound options window with individual volume controls for music, speech, effects, ambient, and city audio channels. Migrated to JavaScript configuration as part of ongoing UI modernization.</p>
+      <a href="devblog/sound-settings-window.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>May 29, 2014</time></div>
+      <h2><a href="devblog/reverse-engineering-caesar3-game-logic.html">Reverse-engineering Caesar III: Game Logic (Part 3)</a></h2>
+      <img src="images/caesar3-game-logic-routes.png" alt="Caesar III walker route planning" class="post-preview" loading="lazy" />
+      <p>The algorithms for extracting textures and rendering the city are done — now for the game logic. This article covers walkers and routing, house evolution, population ageing, religion, festivals, finances, taxes, emperor favor, culture rating, and resource production. All formulas and data tables recovered from the original executable.</p>
+      <a href="devblog/reverse-engineering-caesar3-game-logic.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>May 15, 2014</time></div>
+      <h2><a href="devblog/reverse-engineering-caesar3-rendering.html">Reverse-engineering Caesar III: City Rendering (Part 2)</a></h2>
+      <img src="images/caesar3-rendering-10.jpg" alt="Caesar III rendering" class="post-preview" loading="lazy" />
+      <p>Deep dive into Caesar III's isometric rendering system: tile format, map structure, rendering order algorithm, and the .map file format. Covers how to properly draw a 2.5D city with moving objects, animations, and multi-tile buildings.</p>
+      <a href="devblog/reverse-engineering-caesar3-rendering.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>January 12, 2026</time></div>
+      <h2><a href="devblog/changes-in-akhenaten-for-2025.html">Changes in Akhenaten for 2025</a></h2>
+      <p>A comprehensive changelog covering major work done in 2025: architecture refactoring, migration to JS configs, new enemy types, language support, new buildings, resource depletion, UI improvements, deferred rendering, mod system, and more.</p>
+      <a href="devblog/changes-in-akhenaten-for-2025.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>May 26, 2025</time></div>
+      <h2><a href="devblog/game-cooking-vectors-part-2.html">Game++. Cooking Vectors (Part 2)</a></h2>
+      <p>Discusses <strong><code>hybrid_vector</code></strong> — a <code>static_vector</code> that falls back to heap allocation when exceeding a threshold. Draws a parallel to SSO (Short String Optimization). Covers when <code>hybrid_vector</code> helps vs. when it doesn't, and how C++17's <code>std::pmr</code> can emulate the pattern.</p>
+      <a href="devblog/game-cooking-vectors-part-2.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>May 21, 2025</time></div>
+      <h2><a href="devblog/game-cooking-vectors-part-1.html">Game++. Cooking Vectors (Part 1)</a></h2>
+      <p>Explores performance tradeoffs of <code>std::vector</code> in game dev: allocation costs, memory layout, <code>std::array</code> vs <code>static_vector</code>, and the PS4→Switch porting story with 480KB stack limits.</p>
+      <a href="devblog/game-cooking-vectors-part-1.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>May 9, 2025</time></div>
+      <h2><a href="devblog/game-string-interning.html">Game++. String Interning</a></h2>
+      <p>Covers string interning (string pools) as a game engine optimization: compiler-level interning, fragility with <code>char[]</code> and <code>std::string</code>, custom <code>xstring</code> class using CRC hashes, and a 30% animation performance boost in practice.</p>
+      <a href="devblog/game-string-interning.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>April 17, 2025</time></div>
+      <h2><a href="devblog/should-players-be-hand-held.html">Should Players Be Hand-Held?</a></h2>
+      <p>A game design essay analyzing level design techniques from Witcher 3, Zelda, and Metro Exodus: landmarks/weenies, golden path, breadcrumbs, affordance, leading lines, and more.</p>
+      <a href="devblog/should-players-be-hand-held.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>March 19, 2025</time></div>
+      <h2><a href="devblog/working-on-walls-logic.html">Working on Walls Logic</a></h2>
+      <p>New logic for walls — buildings now connect and render properly.</p>
+      <a href="devblog/working-on-walls-logic.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>February 18, 2025</time></div>
+      <h2><a href="devblog/temple-complex.html">Temple Complex</a></h2>
+      <p>Screenshot gallery showing temple complex buildings added to the game — multiple new structures extending the religious building set.</p>
+      <img src="images/temple-complex-1.png" alt="Temple Complex" class="post-image" loading="lazy" />
+      <a href="devblog/temple-complex.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>February 6, 2025</time></div>
+      <h2><a href="devblog/works-in-browser.html">Works in Browser</a></h2>
+      <p>
+        Credits <strong>@ololoken</strong> for getting the game running in-browser via <strong>Emscripten/WASM</strong>.
+        Try it at <a href="https://dalerank.github.io/Akhenaten/play/" target="_blank">dalerank.github.io/Akhenaten/play</a>.
+      </p>
+      <img src="images/wasm.png" alt="WASM build in browser" class="post-image" loading="lazy" />
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>January 10, 2025</time></div>
+      <h2><a href="devblog/sprite-tool-added.html">Sprite Tool Added</a></h2>
+      <p>A new sprite viewer tool for inspecting runtime animations by selecting items from a list. Useful for verifying animations during development.</p>
+      <img src="images/sprites.gif" alt="Sprite tool demo" class="post-image" loading="lazy" />
+      <a href="devblog/sprite-tool-added.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>January 7, 2025</time></div>
+      <h2><a href="devblog/base-class-for-hyena-animal.html">Base Class for Hyena Animal</a></h2>
+      <p>
+        Added a base class for hyenas: "It's not very functional yet, but it's another step toward restoring the game."
+        See <a href="https://github.com/dalerank/Akhenaten/blob/master/src/figuretype/figure_hyena.h" target="_blank"><code>figure_hyena.h</code></a> on GitHub.
+      </p>
+      <a href="devblog/base-class-for-hyena-animal.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>May 28, 2019</time></div>
+      <h2><a href="devblog/story-of-pharaoh-game.html">The Story of Original Pharaoh Game</a></h2>
+      <p>A history of Pharaoh (1999) by Impressions Games: development origins, key figures like Simon Bradbury and Chris Beatrice, the ping-pong texturing art technique, and how the game sold 1.7 million copies on a sub-$2M budget.</p>
+      <a href="devblog/story-of-pharaoh-game.html" class="read-more">Read more →</a>
+    </article>
+
+    <article class="post">
+      <div class="post-meta"><time>May 28, 2019</time></div>
+      <h2><a href="devblog/how-to-build-a-mastaba.html">How to Build a Mastaba</a></h2>
+      <p>Technical deep-dive into recreating the mastaba monument system: the .sg3/.555 texture format, decomposing the original single-pass render into independent isometric parts, and the 8-stage construction process requiring 400 stones per segment.</p>
+      <a href="devblog/how-to-build-a-mastaba.html" class="read-more">Read more →</a>
+    </article>
+  </main>
+
+  <footer>
+    <p>Akhenaten is an open-source, non-commercial project. All rights to Pharaoh, its mechanics and setting belong to their respective copyright owners.</p>
+    <p><a href="https://github.com/dalerank/Akhenaten" target="_blank">github.com/dalerank/Akhenaten</a></p>
+  </footer>
+</body>
+</html>
+

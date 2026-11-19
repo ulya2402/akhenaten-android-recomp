@@ -1,0 +1,518 @@
+#include "rich_text.h"
+
+#include "core/calc.h"
+#include "core/string.h"
+#include "graphics/graphics.h"
+#include "graphics/elements/image_button.h"
+#include "graphics/view/view.h"
+#include "graphics/elements/panel.h"
+#include "graphics/image.h"
+#include "graphics/image_groups.h"
+#include "graphics/window.h"
+#include "game/game.h"
+
+int rich_text_t::init(pcstr text, vec2i ptext, int width_blocks, int height_blocks, bool adjust_width_on_no_scroll) {
+    x_text = ptext.x;
+    y_text = ptext.y;
+    if (!num_lines) {
+        clear_links();
+
+        text_height_blocks = height_blocks;
+        text_height_lines = height_blocks - 1;
+        text_width_blocks = width_blocks;
+
+        // Calculate available width and height considering margins
+        int available_width = 16 * text_width_blocks - 16 - margin.left - margin.right;
+        int margin_top_lines = (margin.top + 15) / 16;
+        int margin_bottom_lines = (margin.bottom + 15) / 16;
+        int available_height_lines = text_height_lines - margin_top_lines - margin_bottom_lines;
+        if (available_height_lines < 1) {
+            available_height_lines = 1;  // At least one line
+        }
+        
+        num_lines = draw(text, vec2i(x_text + 8 + margin.left, y_text + 6 + margin.top), available_width, available_height_lines, /*meaure_only*/true);
+        dscrollbar.pos.x = x_text + 16 * text_width_blocks - 1;
+        dscrollbar.pos.y = y_text;
+        dscrollbar.height = 16 * text_height_blocks;
+        dscrollbar.init(0, num_lines - text_height_lines);
+        if (num_lines <= text_height_lines && adjust_width_on_no_scroll) {
+            text_width_blocks += 2;
+        }
+    }
+
+    dscrollbar.onscroll([this] {
+        clear_links();
+    });
+
+    return text_width_blocks;
+}
+
+void rich_text_t::set_fonts(e_font normal_font, e_font link_font) {
+    normal_font_def = font_definition_for(normal_font);
+    link_font_def = font_definition_for(link_font);
+}
+
+void rich_text_t::reset(int scroll_position) {
+    scrollbar_reset(&dscrollbar, scroll_position);
+    num_lines = 0;
+    clear_links();
+}
+
+void rich_text_t::clear_links(void) {
+    links.clear();
+}
+
+int rich_text_t::get_clicked_link(const mouse* m) {
+    if (m->left.went_up) {
+        for (int i = 0; i < links.size(); i++) {
+            if (m->x >= links[i].x_min && m->x <= links[i].x_max && m->y >= links[i].y_min && m->y <= links[i].y_max) {
+                return links[i].message_id;
+            }
+        }
+    }
+    return -1;
+}
+
+void rich_text_t::add_link(int message_id, int x_start, int x_end, int y) {
+    if (!links.full()) {
+        links.push_back({});
+        auto &link = links.back();
+        link.message_id = message_id;
+        link.x_min = x_start - 2;
+        link.x_max = x_end + 2;
+        link.y_min = y - 1;
+        link.y_max = y + 13;
+    }
+}
+
+int rich_text_t::get_lexem_width(pcstr str, int in_link) {
+    if (!str) {
+        return 0;
+    }
+
+    int width = 0;
+    int guard = 0;
+    int word_char_seen = 0;
+    int num_bytes = 1;
+    int last_letter_spacing = 0;
+    
+    while (*str && ++guard < 2000) {
+        if (*str == ' ') {
+            if (word_char_seen) {
+                break;
+            }
+
+            width += normal_font_def->space_width;
+            last_letter_spacing = 0;
+            num_bytes = 1;
+        } else if ((unsigned char)*str > ' ') {
+            // normal char
+            const auto glyph = font_letter_id(normal_font_def, (const uint8_t*)str, &num_bytes);
+            if (glyph.imagid >= 0) {
+                const image_t *letter = image_letter(glyph.imagid);
+                if (letter) {
+                    width += letter->width + normal_font_def->letter_spacing;
+                    last_letter_spacing = normal_font_def->letter_spacing;
+                    word_char_seen = 1;
+                }
+            }
+        }
+        str += num_bytes;
+    }
+    
+    // Remove letter_spacing after the last character
+    if (word_char_seen && last_letter_spacing > 0) {
+        width -= last_letter_spacing;
+    }
+
+    return width;
+}
+
+int rich_text_t::get_word_width(pcstr str, int in_link, int* num_chars) {
+    if (!str) {
+        return 0;
+    }
+
+    int width = 0;
+    int guard = 0;
+    int word_char_seen = 0;
+    int start_link = 0;
+    int last_letter_spacing = 0;
+    *num_chars = 0;
+    
+    while (*str && ++guard < 2000) {
+        if (*str == '@') {
+            str++;
+            if (!word_char_seen) {
+                if (*str == 'P' || *str == 'L') {
+                    *num_chars += 2;
+                    width = 0;
+                    break;
+                } else if (*str == 'G') {
+                    // skip graphic
+                    *num_chars += 2;
+                    while (*str >= '0' && *str <= '9') {
+                        str++;
+                        (*num_chars)++;
+                    }
+                    width = 0;
+                    break;
+                } else {
+                    (*num_chars)++;
+                    const bool is_link = (*str >= '0' && *str <= '9');
+                    while (*str >= '0' && *str <= '9') {
+                        str++;
+                        (*num_chars)++;
+                    }
+                    if (is_link) {
+                        in_link = 1;
+                        start_link = 1;
+                    }
+                }
+            }
+        }
+        int num_bytes = 1;
+        if (*str == ' ') {
+            if (word_char_seen) {
+                break;
+            }
+
+            width += normal_font_def->space_width;
+            last_letter_spacing = 0;
+            start_link = 0;
+        } else if (*str == '&' && in_link) {
+            width += normal_font_def->space_width;
+            last_letter_spacing = 0;
+            word_char_seen = 1;
+        } else if ((unsigned char)*str > ' ') {
+            // normal char
+            const auto glyph = font_letter_id(normal_font_def, (const uint8_t*)str, &num_bytes);
+            if (glyph.imagid >= 0) {
+                const image_t *letter = image_letter(glyph.imagid);
+                if (letter) {
+                    width += letter->width + normal_font_def->letter_spacing;
+                    last_letter_spacing = normal_font_def->letter_spacing;
+                }
+            }
+
+            word_char_seen = 1;
+            if (start_link) {
+                // In CJK charsets (Chinese, Korean - 3-byte UTF-8 glyphs) a link
+                // can start with a wide glyph with no space before it; insert a
+                // leading space so it doesn't glue to the preceding text.
+                // Accented Latin / Cyrillic (2-byte) must NOT get this space.
+                if (num_bytes > 2) {
+                    width += normal_font_def->space_width;
+                }
+                start_link = 0;
+            }
+        }
+        str += num_bytes;
+        *num_chars += num_bytes;
+    }
+    
+    // Remove letter_spacing after the last character
+    if (word_char_seen && last_letter_spacing > 0) {
+        width -= last_letter_spacing;
+    }
+    
+    return width;
+}
+
+void rich_text_t::draw_line(painter &ctx, pcstr str, int x, int y, color clr, bool measure_only) {
+    int start_link = 0;
+    int num_link_chars = 0;
+    color saved_color = clr;
+    bool long_colored_string = false;
+    const font_definition* def = normal_font_def;
+
+    while (*str) {
+        if (*str == '@') {
+            if (*(str + 1) == 'Y') {
+                str += 2;
+                long_colored_string = true;
+                def = font_definition_for(FONT_NORMAL_YELLOW);
+            } else if (*(str + 1) == 'I') {
+                str += 2; // skip @I
+                int small_image_id = atoi(str);
+                while (*str >= '0' && *str <= '9') {
+                    str++;
+                }
+
+                const image_t* letter = image_letter('@');
+                if (letter) {
+                    x -= letter->width;
+                }
+                const image_t *img = ctx.img_generic(small_image_id, { x, y });
+                if (img) {
+                    x += img->width;
+                }
+                continue;
+            } else {
+                int message_id = atoi(++str);
+                while (*str >= '0' && *str <= '9') {
+                    str++;
+                }
+                int width = get_word_width(str, 1, &num_link_chars);
+                add_link(message_id, x, x + width, y);
+                start_link = 1;
+            }
+        }
+
+        if (*str == '&' && long_colored_string) {
+            long_colored_string = false;
+            clr = saved_color;
+            def = normal_font_def;
+            str++;
+        }
+
+        if ((unsigned char)*str >= ' ') {
+           
+            if (num_link_chars > 0) {
+                def = link_font_def;
+            }
+
+            int num_bytes = 1;
+            
+            // Handle spaces separately, just like text_draw does.
+            if (*str == ' ' || (*str == '&' && num_link_chars > 0)) {
+                x += def->space_width;
+                num_bytes = 1;
+                start_link = 0;
+            } else {
+                const auto glyph = font_letter_id(def, (const uint8_t*)str, &num_bytes);
+                if (glyph.imagid >= 0) {
+                    if (start_link) {
+                        if (num_bytes > 2) {
+                            x += def->space_width;
+                        }
+                        start_link = 0;
+                    }
+
+                    const image_t* img = image_letter(glyph.imagid);
+                    if (img) {
+                        if (!measure_only) {
+                            int height = def->image_y_offset((const uint8_t *)str, img->height, def->line_height);
+                            ctx.img_letter(img, def->font, glyph.imagid, x, y - height - glyph.bearing.y, clr);
+                        }
+                        // Same word-end rule as the measuring code: no spacing after the last letter of a word.
+                        const bool word_ends = !str[num_bytes] || str[num_bytes] == ' ' || str[num_bytes] == '&';
+                        x += img->width + (word_ends ? 0 : def->letter_spacing);
+                    }
+                }
+            }
+
+            if (num_link_chars > 0) {
+                num_link_chars -= num_bytes;
+                if (num_link_chars == 0) {
+                    def = normal_font_def;
+                }
+            }
+
+            str += num_bytes;
+        } else {
+            str++;
+        }
+    }
+}
+
+int rich_text_t::draw_impl(pcstr text, vec2i offset, int box_width, int height_lines, color color, bool measure_only, bool centered) {
+    int image_height_lines = 0;
+    int image_id = 0;
+    int lines_before_image = 0;
+    int paragraph = 0;
+    int has_more_characters = 1;
+    
+    // Apply margins to offset and box width
+    vec2i adjusted_offset = { offset.x + margin.left, offset.y + margin.top };
+    int adjusted_box_width = box_width - margin.left - margin.right;
+    int margin_top_lines = (margin.top + 15) / 16;
+    int margin_bottom_lines = (margin.bottom + 15) / 16;
+    int adjusted_height_lines = height_lines - margin_top_lines - margin_bottom_lines;
+    if (adjusted_height_lines < 1) {
+        adjusted_height_lines = 1;  // At least one line
+    }
+    
+    int y = adjusted_offset.y;
+    int guard = 0;
+    int line = 0;
+    int num_lines = 0;
+    painter ctx = game.painter();
+    struct line_image {
+        int pos;
+        int img;
+    };
+    bstring256 tmp_line;
+    while (has_more_characters || image_height_lines) {
+        if (++guard >= 1000) {
+            break;
+        }
+
+        tmp_line.clear();
+
+        int current_width, x_line_offset;
+        current_width = x_line_offset = paragraph ? 50 : 0;
+        paragraph = 0;
+        int line_has_content = (current_width > 0) ? 1 : 0;
+        
+        while ((has_more_characters || image_height_lines) && current_width < adjusted_box_width) {
+            if (image_height_lines) {
+                image_height_lines--;
+                break;
+            }
+            int word_num_chars;
+            int last_word_width = get_word_width(text, 0, &word_num_chars);
+            
+            // If adding this word would exceed box width and we already have content, break to next line
+            if (line_has_content && current_width + last_word_width >= adjusted_box_width) {
+                break;
+            }
+
+            current_width += last_word_width;
+
+            for (int i = 0; i < word_num_chars; i++) {
+                char c = *text++;
+                if (c == '@') {
+                    if (*text == 'P') {
+                        paragraph = 1;
+                        text++;
+                        current_width = adjusted_box_width;
+                        break;
+                    } else if (*text == 'L') {
+                        text++;
+                        current_width = adjusted_box_width;
+                        break;
+                    } else if (*text == 'I') {
+                        int small_image_id = atoi(text + 1);
+                        int id_word_width = get_lexem_width(text - 2, 0);
+
+                        const image_t *img = image_get(small_image_id);
+                        const int img_width = img ? img->width : 0;
+
+                        current_width -= id_word_width;
+                        current_width -= img_width;
+
+                        tmp_line.append('@');
+                        while (c >= '0' && c <= '9') {
+                            tmp_line.append(c);
+                            c = *text++;
+                        }
+                        break;
+                    } else if (*text == 'G') {
+                        if (!tmp_line.empty()) {
+                            num_lines++;
+                        }
+
+                        text++; // skip 'G'
+                        current_width = adjusted_box_width;
+                        image_id = atoi(text);
+                        c = *text++;
+                        while (c >= '0' && c <= '9') {
+                            c = *text++;
+                        }
+                        const int message_images = image_id_from_group(GROUP_MESSAGE_IMAGES);
+                        if (message_images < 0) {
+                            image_id = 0;
+                            image_height_lines = 0;
+                        } else {
+                            image_id += message_images - 1;
+                            if (const image_t *img = image_get(image_id)) {
+                                image_height_lines = img->height / 16 + 2;
+                            } else {
+                                image_id = 0;
+                                image_height_lines = 0;
+                            }
+                        }
+                        if (line > 0) {
+                            lines_before_image = 1;
+                        }
+
+                        break;
+                    }
+                }
+
+                if (!tmp_line.empty() || c != ' ') { // no space at start of line, should we need this trim?
+                    tmp_line.append(c);
+                }
+            }
+
+            line_has_content = 1;
+
+            if (!text || !*text) {
+                has_more_characters = 0;
+            }
+        }
+
+        int outside_viewport = 0;
+        if (!measure_only) {
+            if (line < dscrollbar.scroll_position || line >= dscrollbar.scroll_position + adjusted_height_lines)
+                outside_viewport = 1;
+        }
+
+        if (!outside_viewport) {
+            int centering_offset = 0;
+            if (centered) {
+                centering_offset = (adjusted_box_width - current_width) / 2;
+            }
+            draw_line(ctx, tmp_line, x_line_offset + adjusted_offset.x + centering_offset, y, color, measure_only);
+        }
+
+        if (!measure_only) {
+            if (image_id) {
+                if (lines_before_image)
+                    lines_before_image--;
+                else {
+                    const image_t* img = image_get(image_id);
+                    if (!img) {
+                        image_id = 0;
+                    } else {
+                        image_height_lines = img->height / 16 + 2;
+                        int image_offset_x = adjusted_offset.x + (adjusted_box_width - img->width) / 2 - 4;
+                        if (line < adjusted_height_lines + dscrollbar.scroll_position) {
+                            if (line >= dscrollbar.scroll_position)
+                                ctx.img_generic(image_id, { image_offset_x, y + 8 });
+                            else {
+                                ctx.img_generic(image_id, { image_offset_x, y + 8 - 16 * (dscrollbar.scroll_position - line) });
+                            }
+                        }
+                        image_id = 0;
+                    }
+                }
+            }
+        }
+        line++;
+        num_lines++;
+        if (!outside_viewport) {
+            y += 16;
+        }
+    }
+    return num_lines;
+}
+
+int rich_text_t::draw(pcstr text, vec2i offset, int box_width, int height_lines, bool measure_only, bool centered) {
+    return draw_impl(text, offset, box_width, height_lines, 0, measure_only, centered);
+}
+
+int rich_text_t::draw_colored(pcstr text, vec2i offset, int box_width, int height_lines, color color) {
+    return draw_impl(text, offset, box_width, height_lines, color, 0, false);
+}
+
+void rich_text_t::draw_scrollbar(vec2i pos) {
+    if (dscrollbar.max_scroll_position > 0 || dscrollbar.always_visible) {
+        inner_panel_draw(dscrollbar.pos + pos + vec2i{ 3, 16 }, vec2i{ 2, (dscrollbar.height - 2) / 16 });
+    }
+    scrollbar_draw(pos, &dscrollbar);
+}
+
+int rich_text_t::handle_mouse(const mouse* m, vec2i pos) {
+    dscrollbar.offset = pos;
+    return scrollbar_handle_mouse(&dscrollbar, m);
+}
+
+int rich_text_t::scroll_position() {
+    return dscrollbar.scroll_position;
+}
+
+scrollbar_t *rich_text_t::scrollbar() {
+    return &dscrollbar;
+}

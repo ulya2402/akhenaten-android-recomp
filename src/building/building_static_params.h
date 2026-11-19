@@ -1,0 +1,103 @@
+#pragma once
+
+#include "building_type.h"
+#include "building_fwd.h"
+#include "core/archive.h"
+#include "city/labor_category.h"
+#include "figure/figure_type.h"
+#include "graphics/animation.h"
+#include "game/difficulty.h"
+#include "game/resource.h"
+#include "overlays/city_overlay_fwd.h"
+#include "core/xfunction.h"
+#include "sound/sound_city.h"
+
+#include <unordered_map>
+
+struct building_overlay_anim : animation_t {
+    e_resource resource = RESOURCE_NONE;
+    bool stack = false;
+    vec2i step = {5, -5};
+    int8_t max_count = 8;
+    bool default_active = false;
+
+    bool archive_load(archive arch);
+};
+
+struct building_static_params {
+    static building_static_params dummy;
+    e_building_type type;
+    pcstr name;
+    bool fire_proof, damage_proof;
+    xstring meta_id;
+    metainfo meta;
+    building_input input;
+    building_output output;
+    int output_resource_second_rate;
+    e_labor_category labor_category;
+    animations_t animations;
+    std::unordered_map<xstring, building_overlay_anim> overlay_anims;
+    uint8_t building_size;
+    uint8_t min_houses_coverage;
+
+    uint8_t nearby_houses_radius;
+    bool always_work;
+    uint8_t road_access_distance;
+    uint16_t production_rate;
+    uint16_dcy production_rate_dcy;
+    xstring info_title_id;
+    uint16_dcy cost;
+    building_desirability_t desirability;
+    building_crime_t crime;
+    uint16_t progress_max;
+    e_overlay overlay;
+    e_sound_channel_city sound_channel;
+    uint16_t max_service;
+    uint16_t max_storage_amount;
+    uint16_t max_serve_clients;
+    uint8_t max_gatherers;
+
+    uint8_dcy laborers;
+    int8_dcy fire_risk;
+    int8_dcy damage_risk;
+    uint8_t max_walkers;
+    int8_t guild_worker_terrain = TERRAIN_USAGE_PREFER_ROADS;
+
+    building_planner_update_rule planner_update_rule;
+    building_planner_need_rule needs;
+    building_flags_rule flags;
+    xstring build_menu_text;
+    xstring info_sound;
+
+    bool archive_load(archive arch);
+    void archive_unload();
+    void initialize();
+
+    virtual bool is_unique_building() const { return planner_update_rule.unique_building; }
+    virtual uint16_t get_cost() const;
+
+    inline const int first_img(const xstring &anim_key) const { return animations[anim_key].first_img(); }
+    const int base_img() const;
+
+    using handler = xfunction<void(const building_static_params &params)>;
+    static void for_each(handler f);
+
+    static void register_model(e_building_type, const building_static_params &);
+    static void unregister_model(e_building_type);
+    static const building_static_params &get(e_building_type);
+    static building_static_params &ref(e_building_type e);
+};
+ANK_CONFIG_STRUCT(building_overlay_anim,
+    pos, pack, id, offset, path, max_frames, duration, start_frame, can_reverse, reverse,
+    resource, stack, step, max_count, default_active)
+
+ANK_CONFIG_STRUCT(building_static_params, labor_category, fire_proof, damage_proof, input, output, animations,
+  overlay_anims, laborers, fire_risk, damage_risk, max_walkers, planner_update_rule, needs, flags, build_menu_text,
+  info_sound, cost, desirability, crime, output_resource_second_rate, building_size, info_title_id, progress_max,
+  overlay, sound_channel, max_service, max_storage_amount, max_serve_clients, max_gatherers, meta_id, meta,
+  production_rate, production_rate_dcy, min_houses_coverage, nearby_houses_radius, always_work, road_access_distance)
+
+ANK_CONFIG_PROPERTY(building_static_params, labor_category, fire_proof, damage_proof, laborers, fire_risk, damage_risk,
+  max_walkers, guild_worker_terrain, build_menu_text, info_sound, cost, output_resource_second_rate, building_size,
+  info_title_id, progress_max, overlay, sound_channel, max_service, max_storage_amount, max_serve_clients,
+  max_gatherers, meta_id, production_rate, production_rate_dcy, min_houses_coverage, nearby_houses_radius)

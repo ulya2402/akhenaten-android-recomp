@@ -1,0 +1,38 @@
+#include "price_change.h"
+
+#include "game/game_events.h"
+#include "city/city_message.h"
+#include "core/random.h"
+#include "empire/trade_prices.h"
+#include "game/simulation.h"
+#include "scenario/scenario.h"
+
+void scenario_price_change_init(void) {
+    for (int i = 0; i < MAX_PRICE_CHANGES; i++) {
+        random_generate_next();
+        if (g_scenario.price_changes[i].year)
+            g_scenario.price_changes[i].month = (random_byte() & 7) + 2;
+    }
+}
+
+void scenario_price_change_process(void) {
+    for (int i = 0; i < MAX_PRICE_CHANGES; i++) {
+        if (!g_scenario.price_changes[i].year)
+            continue;
+
+        if (g_simulation.simtime.year != g_scenario.price_changes[i].year + g_scenario.start_year
+            || g_simulation.simtime.month != g_scenario.price_changes[i].month) {
+            continue;
+        }
+        int amount = g_scenario.price_changes[i].amount;
+        e_resource resource = g_scenario.price_changes[i].resource;
+        if (g_scenario.price_changes[i].is_rise) {
+            if (trade_price_change(resource, amount))
+                events::emit(event_message{ true, "message_price_increased", amount, resource, SOURCE_LOCATION });
+
+        } else {
+            if (trade_price_change(resource, -amount))
+                events::emit(event_message{ true, "message_price_decreased", amount, resource, SOURCE_LOCATION });
+        }
+    }
+}

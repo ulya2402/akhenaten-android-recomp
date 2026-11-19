@@ -1,0 +1,229 @@
+#ifndef mujs_h
+#define mujs_h
+
+/* noreturn is a GCC extension */
+#ifdef __GNUC__
+#define JS_NORETURN __attribute__((noreturn))
+#else
+#ifdef _MSC_VER
+#define JS_NORETURN __declspec(noreturn)
+#else
+#define JS_NORETURN
+#endif
+#endif
+
+/* GCC can do type checking of printf strings */
+#ifdef __printflike
+#define JS_PRINTFLIKE __printflike
+#else
+#if __GNUC__ > 2 || __GNUC__ == 2 && __GNUC_MINOR__ >= 7
+#define JS_PRINTFLIKE(fmtarg, firstvararg) \
+  __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
+#else
+#define JS_PRINTFLIKE(fmtarg, firstvararg)
+#endif
+#endif
+
+#include "jsstring.h"
+
+#include <cstddef>
+#include <cstdint>
+
+struct js_State;
+
+typedef void *(*js_Alloc)(void *memctx, void *ptr, int size);
+typedef void (*js_Panic)(js_State *J);
+typedef void (*js_CFunction)(js_State *J);
+typedef void (*js_Finalize)(js_State *J, void *p);
+typedef int (*js_HasProperty)(js_State *J, void *p, const char *name);
+typedef int (*js_Put)(js_State *J, void *p, const char *name);
+typedef int (*js_Delete)(js_State *J, void *p, const char *name);
+typedef int (*js_Import)(js_State *J, const char *name);
+typedef int (*js_Emit)(js_State *J, const char *name);
+
+/* Debug hook: called on every source line change (OP_LINE opcode).
+   file and line identify the current position in the JS source.
+   udata is the pointer passed to js_setdebughook.
+   The hook may block to implement breakpoints / step commands. */
+typedef void (*js_DebugHook)(js_State *J, const char *file, int line, void *udata);
+void js_setdebughook(js_State *J, js_DebugHook hook, void *udata);
+
+/* Native storage type behind a JS_CPTR / JS_CPTROFF binding (see js_State::bind_*). */
+enum js_CPtrType {
+    JS_PTR_INT,
+    JS_PTR_BOOL,
+    JS_PTR_FLOAT,
+    JS_PTR_INT8,
+    JS_PTR_UINT8,
+    JS_PTR_UINT16,
+    JS_PTR_INT16,
+    JS_PTR_XSTRING
+};
+
+/* Basic functions */
+js_State *js_newstate(js_Alloc alloc, void *actx, int flags);
+void js_setcontext(js_State *J, void *uctx);
+void *js_getcontext(js_State *J);
+void js_set_framealloc(js_State *J, js_Alloc frame_alloc, void *frame_actx);
+typedef void (*js_FrameArenaRelease)(void *actx);
+void js_set_frame_arena_release(js_State *J, js_FrameArenaRelease fn, void *actx);
+
+/** Draw frame-zone: temps allocate from frame arena; must not escape to heap objects. */
+void js_enter_frame_zone(js_State *J);
+void js_leave_frame_zone(js_State *J);
+int js_in_frame_zone(js_State *J);
+unsigned js_frame_escape_count(js_State *J);
+
+struct js_frame_zone {
+	js_State *J;
+	explicit js_frame_zone(js_State *state) : J(state) {
+		if (J)
+			js_enter_frame_zone(J);
+	}
+	~js_frame_zone() {
+		if (J)
+			js_leave_frame_zone(J);
+	}
+	js_frame_zone(const js_frame_zone &) = delete;
+	js_frame_zone &operator=(const js_frame_zone &) = delete;
+};
+
+/* Global: when enable != 0, property AA-tree miss scans the object's enumeration list (slow). */
+void js_set_property_list_lookup_fallback(int enable);
+js_Panic js_atpanic(js_State *J, js_Panic panic);
+void js_freestate(js_State *J);
+
+int js_dostring(js_State *J, const char *source);
+int js_dofile(js_State *J, const char *filename);
+int js_ploadstring(js_State *J, const char *filename, const char *source);
+int js_ploadfile(js_State *J, const char *filename);
+int js_pconstruct(js_State *J, int n);
+
+/* Exception handling */
+
+void *js_savetry(js_State *J); /* returns a jmp_buf */
+
+#define js_try(J) \
+  setjmp(*((jmp_buf *)js_savetry(J)))
+
+void js_endtry(js_State *J);
+
+/* State constructor flags */
+enum {
+  JS_STRICT = 1,
+};
+
+/* RegExp flags */
+enum {
+  JS_REGEXP_G = 1,
+  JS_REGEXP_I = 2,
+  JS_REGEXP_M = 4,
+};
+
+/* Property attribute flags */
+enum {
+  JS_READONLY = 1,
+  JS_DONTENUM = 2,
+  JS_DONTCONF = 4,
+};
+
+void js_newerror(js_State *J, const char *message);
+void js_newevalerror(js_State *J, const char *message);
+void js_newrangeerror(js_State *J, const char *message);
+void js_newreferenceerror(js_State *J, const char *message);
+void js_newsyntaxerror(js_State *J, const char *message);
+void js_newtypeerror(js_State *J, const char *message);
+void js_newurierror(js_State *J, const char *message);
+
+JS_NORETURN void js_error(js_State *J, const char *fmt, ...) JS_PRINTFLIKE(2,3);
+JS_NORETURN void js_evalerror(js_State *J, const char *fmt, ...) JS_PRINTFLIKE(2,3);
+JS_NORETURN void js_rangeerror(js_State *J, const char *fmt, ...) JS_PRINTFLIKE(2,3);
+JS_NORETURN void js_referenceerror(js_State *J, const char *fmt, ...) JS_PRINTFLIKE(2,3);
+JS_NORETURN void js_syntaxerror(js_State *J, const char *fmt, ...) JS_PRINTFLIKE(2,3);
+JS_NORETURN void js_typeerror(js_State *J, const char *fmt, ...) JS_PRINTFLIKE(2,3);
+JS_NORETURN void js_urierror(js_State *J, const char *fmt, ...) JS_PRINTFLIKE(2,3);
+JS_NORETURN void js_throw(js_State *J);
+
+void js_loadstring(js_State *J, const char *filename, const char *source);
+void js_loadfile(js_State *J, const char *filename);
+void js_importfile(js_State *J, const char *filename);
+void js_emit(js_State *J, const char *name);
+
+js_Import js_registerimport(js_State *J, js_Import importFunc);
+js_Emit js_registeremit(js_State *J, js_Emit emitFunc);
+
+void js_eval(js_State *J);
+/** Dump current JS call stack (name, file, line) to stdout. Use when id/undefined to find caller. */
+void js_stacktrace(js_State *J);
+
+js_StringNode js_ref(js_State *J);
+void js_unref(js_State *J, const char *ref);
+
+void js_getregistry(js_State* J, const js_StringNode name);
+void js_setregistry(js_State* J, const js_StringNode name);
+void js_delregistry(js_State* J, const js_StringNode name);
+
+void js_getglobal(js_State *J, const char *name);
+void js_setglobal(js_State *J, const char *name);
+void js_defglobal(js_State *J, const js_StringNode name, int atts);
+
+void js_setproperty(js_State* J, int idx, const js_StringNode name);
+void js_defproperty(js_State *J, int idx, const js_StringNode name, int atts);
+void js_delproperty(js_State* J, int idx, const js_StringNode name);
+void js_defaccessor(js_State* J, int idx, const js_StringNode name, int atts);
+
+void js_setdumping(js_State *J, void (*dumpfun)(js_State *, const char *));
+void js_dumpobject_ex(js_State *J, int idx);
+
+int js_getlength(js_State *J, int idx);
+void js_setlength(js_State *J, int idx, int len);
+int js_hasindex(js_State *J, int idx, int i);
+void js_getindex(js_State *J, int idx, int i);
+void js_setindex(js_State *J, int idx, int i);
+void js_delindex(js_State *J, int idx, int i);
+
+void js_currentfunction(js_State *J);
+void js_pushglobal(js_State *J);
+
+
+/* Function modifiers API */
+int js_hasmodifier(js_State* J, int idx, const js_StringNode key);
+js_StringNode js_getmodifier(js_State* J, int idx, const js_StringNode key);
+void js_pushnull(js_State *J);
+void js_pushboolean(js_State *J, int v);
+void js_pushnumber(js_State *J, double v);
+void js_pushlstring(js_State* J, const js_StringNode v);
+void js_pushlstring(js_State* J, const char* v, int n);
+
+
+void js_pushiterator(js_State *J, int idx, int own);
+const js_StringNode js_nextiterator(js_State *J, int idx);
+
+void *js_frame_alloc(js_State *J, int size);
+void js_frame_free(js_State *J, void *ptr);
+
+/* Object modifiers */
+int js_hasobject_modifier(js_State* J, int idx, const js_StringNode key);
+js_StringNode js_getobject_modifier(js_State* J, int idx, const js_StringNode key);
+
+int js_toboolean(js_State *J, int idx);
+double js_tonumber(js_State *J, int idx);
+js_StringNode js_tostring(js_State *J, int idx);
+void *js_touserdata(js_State *J, int idx, const char *tag);
+
+int js_tointeger(js_State *J, int idx);
+int js_toint32(js_State *J, int idx);
+unsigned int js_touint32(js_State *J, int idx);
+short js_toint16(js_State *J, int idx);
+unsigned short js_touint16(js_State *J, int idx);
+
+void js_pop(js_State *J, int n);
+
+void js_concat(js_State *J);
+int js_compare(js_State *J, int *okay);
+int js_equal(js_State *J);
+int js_strictequal(js_State *J);
+int js_instanceof(js_State *J);
+
+
+#endif

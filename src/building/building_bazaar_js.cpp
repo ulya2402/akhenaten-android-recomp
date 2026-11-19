@@ -1,0 +1,79 @@
+#include "building_bazaar.h"
+
+#include "city/city_buildings.h"
+#include "js/js_game.h"
+#include "core/profiler.h"
+
+int __bazaar_idx_amount(int bid, int index) {
+    auto b = building_get(bid)->dcast_bazaar();
+    return b ? b->get_idx_amount(index) : 0;
+}
+ANK_FUNCTION_2(__bazaar_idx_amount)
+
+bool __bazaar_idx_accepted(int bid, int index) {
+    auto b = building_get(bid)->dcast_bazaar();
+    return b ? b->idx_accepted(index) : false;
+}
+ANK_FUNCTION_2(__bazaar_idx_accepted)
+
+bool __bazaar_res_accepted(int bid, e_resource res) {
+    auto b = building_get(bid)->dcast_bazaar();
+    return b ? b->res_accepted(res) : false;
+}
+ANK_FUNCTION_2(__bazaar_res_accepted)
+
+int __bazaar_resource_amount(int bid, e_resource resource) {
+    auto b = building_get(bid)->dcast_bazaar();
+    return b ? b->get_resource_amount(resource) : 0;
+}
+ANK_FUNCTION_2(__bazaar_resource_amount)
+
+void __bazaar_unaccept_all_goods(int bid) {
+    auto b = building_get(bid)->dcast_bazaar();
+    if (b) {
+        b->unaccept_all_goods();
+    }
+}
+ANK_FUNCTION_1(__bazaar_unaccept_all_goods)
+
+void __bazaar_toggle_res_accepted(int bid, int resource) {
+    auto b = building_get(bid)->dcast_bazaar();
+    if (b) {
+        b->toggle_res_accepted((e_resource)resource);
+    }
+}
+ANK_FUNCTION_2(__bazaar_toggle_res_accepted)
+
+int __bazaar_desired_variety(int bid) {
+    auto b = building_get(bid)->dcast_bazaar();
+    return b ? b->desired_variety() : 0;
+}
+ANK_FUNCTION_1(__bazaar_desired_variety)
+
+int __bazaar_min_variety(int bid) {
+    auto b = building_get(bid)->dcast_bazaar();
+    return b ? b->min_variety() : 0;
+}
+ANK_FUNCTION_1(__bazaar_min_variety)
+
+void __bazaar_set_desired_variety(int bid, int value) {
+    auto b = building_get(bid)->dcast_bazaar();
+    if (b) {
+        b->set_desired_variety((uint8_t)value);
+    }
+}
+ANK_FUNCTION_2(__bazaar_set_desired_variety)
+
+void __bazaar_set_min_variety(int bid, int value) {
+    auto b = building_get(bid)->dcast_bazaar();
+    if (b) {
+        b->set_min_variety((uint8_t)value);
+    }
+}
+ANK_FUNCTION_2(__bazaar_set_min_variety)
+
+bool __bazaar_waiting_for_mill_variety(int bid) {
+    auto b = building_get(bid)->dcast_bazaar();
+    return b ? b->waiting_for_mill_variety() : false;
+}
+ANK_FUNCTION_1(__bazaar_waiting_for_mill_variety)

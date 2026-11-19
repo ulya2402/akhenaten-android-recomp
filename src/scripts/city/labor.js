@@ -1,0 +1,44 @@
+log_info("akhenaten: city labor started")
+
+function get_labor_category(index) {
+    return {
+        __property_getter: function(property) { return __city_get_labor_category_property(index, property) }
+        @workers_needed { }
+        @workers_allocated { }
+        @priority { }
+    }
+}
+
+city.labor = extend(__city_labor, {
+    get_category: get_labor_category
+    set_priority: __city_labor_set_priority
+    max_selectable_priority: __city_labor_max_selectable_priority
+    priority_rank_max: __city_labor_priority_rank_max
+    category_split_enabled: __city_labor_category_split_enabled
+    calc_fixed_workers_available: __city_labor_calc_fixed_workers_available
+    calculate_workers: __city_labor_calculate_workers
+    update: __city_labor_update
+
+    food_production : get_labor_category(LABOR_CATEGORY_FOOD_PRODUCTION)
+    industry_commerce : get_labor_category(LABOR_CATEGORY_INDUSTRY_COMMERCE)
+    entertainment : get_labor_category(LABOR_CATEGORY_ENTERTAINMENT)
+    religion : get_labor_category(LABOR_CATEGORY_RELIGION)
+    education : get_labor_category(LABOR_CATEGORY_EDUCATION)
+    water_health : get_labor_category(LABOR_CATEGORY_WATER_HEALTH)
+    infrastructure : get_labor_category(LABOR_CATEGORY_INFRASTRUCTURE)
+    government : get_labor_category(LABOR_CATEGORY_GOVERNMENT)
+    military : get_labor_category(LABOR_CATEGORY_MILITARY)
+    culture : get_labor_category(LABOR_CATEGORY_CULTURE)
+    house : get_labor_category(LABOR_CATEGORY_HOUSE)
+    storage : get_labor_category(LABOR_CATEGORY_STORAGE)
+})
+
+[es=(city_warnings, update_monthly)]
+function city_warnings_needs_more_workers() {
+    var avail = city.labor.workers_available
+    var needed = city.labor.workers_needed
+    var pct = avail ? Math.calc_percentage(needed, avail) : (needed > 0 ? 100 : 0)
+    if (pct >= 15) {
+        city.warnings.add("#city_needs_more_workers")
+    }
+}

@@ -1,0 +1,39 @@
+#pragma once
+
+#include "figure/figure.h"
+
+enum e_architector_action {
+    ACTION_0_ENGINEER_NONE = 0,
+    ACTION_1_ENGINEER_CREATED = 1,
+    ACTION_2_ENGINEER_ENTERING_EXITING = 2,
+    ACTION_3_ENGINEER_ROAMING = 3,
+    ACTION_4_ENGINEER_RETURNING = 4,
+    ACTION_5_ENGINEER_GOING_TO_DAMAGE = 5,
+
+    ACTION_64_ENGINEER_MAX
+};
+using figure_architector_action_tokens_t = token_holder<e_architector_action, ACTION_0_ENGINEER_NONE, ACTION_64_ENGINEER_MAX>;
+extern const figure_architector_action_tokens_t figure_architector_action_tokens;
+
+class figure_architector : public figure_impl {
+public:
+    FIGURE_METAINFO(FIGURE_ARCHITECT, figure_architector)
+    figure_architector(figure *f) : figure_impl(f) {}
+
+    struct static_params : public figure_static_params {
+        int max_service_buildings;
+        int effect_radius;
+        int risk_reduction_strength; // remake: % clear (100 = zero damage)
+        int risk_reduction_amount;   // OG (--og / gameplay_og_architect): absolute subtract per pass
+    } FIGURE_STATIC_DATA_T;
+
+    virtual void figure_action() override;
+    virtual void figure_before_action() override;
+    virtual int provide_service() override;
+    virtual void on_action_changed(int saved_action) override;
+
+    bool seek_damaged_building();
+    building_id find_most_damaged_building();
+};
+ANK_CONFIG_STRUCT(figure_architector::static_params,
+    max_service_buildings, effect_radius, risk_reduction_strength, risk_reduction_amount)

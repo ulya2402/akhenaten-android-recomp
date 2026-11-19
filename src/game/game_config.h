@@ -1,0 +1,274 @@
+#pragma once
+
+#include "core/vec2i.h"
+#include "core/xstring.h"
+#include "core/settings_vars.h"
+#include "core/typename.h"
+#include "core/custom_span.hpp"
+#include "core/hvector.h"
+#include "city/constants.h"
+#include <array>
+#include <utility>
+#include <vector>
+
+namespace game_features {
+    using cli_overrides_t = hvector<std::pair<xstring, xstring>, 32>;
+
+    struct game_feature {
+        const xstring name;
+        const xstring text;
+        const setting_variant defaultv;
+        const setting_variant ogv;
+
+        game_feature(const xstring &n, const xstring &t, setting_variant def, setting_variant og);
+        bool to_bool() const;
+        xstring to_string() const;
+        float to_float() const;
+        int to_int() const;
+        vec2i to_vec2i() const;
+        inline bool operator!() const { return !to_bool(); }
+        void set(bool value);
+        void set(float value);
+        void set(int value);
+        void set(vec2i value);
+        void set(const xstring &value);
+        void set(pcstr value);
+        setting_variant_type type() const;
+
+        inline game_feature& operator=(pcstr value) {
+            set(value);
+            return *this;
+        }
+
+        inline game_feature &operator=(const xstring& value) {
+            set(value.c_str());
+            return *this;
+        }
+    };
+
+    extern game_feature gameplay_fix_immigration;
+    extern game_feature gameplay_fix_100y_ghosts;
+    extern game_feature gameplay_fix_editor_events;
+    extern game_feature gameui_sidebar_info;
+    extern game_feature gameui_show_intro_video;
+    extern game_feature gameui_smooth_scrolling;
+    extern game_feature gameui_walker_waypoints;
+    extern game_feature gameui_visual_feedback_on_delete;
+    extern game_feature gameui_show_water_structure_range;
+    extern game_feature gameui_show_building_road_access;
+    extern game_feature gameui_show_delivery_paths;
+    extern game_feature gameui_flat_buildings;
+    extern game_feature gameui_show_construction_size;
+    extern game_feature gameui_show_current_select_tile;
+    extern game_feature gameui_show_input_near_cursor;
+    extern game_feature gameui_road_preview_in_map_order;
+    extern game_feature gameui_zoom;
+    extern game_feature gameui_smooth_zoom;
+    extern game_feature gameui_complete_ratings_columns;
+    extern game_feature gameui_highlight_legions;
+    extern game_feature gameui_rotate_manually;
+    extern game_feature gameplay_change_grandfestival;
+    extern game_feature gameplay_change_jealous_gods;
+    extern game_feature gameplay_change_global_labour;
+    extern game_feature gameplay_change_nobles_dont_provide_labor;
+    extern game_feature gameplay_change_school_walkers;
+    extern game_feature gameplay_change_retire_at_60;
+    extern game_feature gameplay_change_fixed_workers;
+    extern game_feature gameplay_fixed_worker_percent;
+    extern game_feature gameplay_enable_extra_forts;
+    extern game_feature gameplay_hyenas_block;
+    extern game_feature gameplay_dynamic_granaries;
+    extern game_feature gameplay_houses_stockpile_more;
+    extern game_feature gameplay_buyers_dont_distribute;
+    extern game_feature gameplay_change_immediate_delete;
+    extern game_feature gameplay_change_getting_granaries_go_offroad;
+    extern game_feature gameplay_change_granaries_get_double;
+    extern game_feature gameplay_change_dock_double_haul;
+    extern game_feature gameplay_change_dock_smart_routing;
+    extern game_feature gameplay_change_follower_runaway;
+    extern game_feature gameplay_change_sled_pullers_flee;
+    extern game_feature gameplay_change_sled_return_empty;
+    extern game_feature gameplay_change_robber_remake;
+    extern game_feature gameplay_change_tomb_robber_remake;
+    extern game_feature gameplay_change_police_weapons;
+    extern game_feature gameplay_change_walker_phrases_remake;
+    extern game_feature gameplay_change_protestor_hunt_nobles;
+    extern game_feature gameplay_change_fishing_boat_remake;
+    extern game_feature gameplay_change_plagued_citizen_remake;
+    extern game_feature gameplay_change_bazaar_multi_buyers;
+    extern game_feature gameplay_change_bazaar_buyer_spawn_timer;
+    extern game_feature gameplay_change_bazaar_demand_from_trader;
+    extern game_feature gameplay_change_market_distribute_remake;
+    extern game_feature gameplay_change_library_service_cap;
+    extern game_feature gameplay_change_dentist_service_cap;
+    extern game_feature gameplay_change_dentist_toothache;
+    extern game_feature gameplay_change_physician_service_cap;
+    extern game_feature gameplay_change_apothecary_remake;
+    extern game_feature gameplay_change_mortuary_service_cap;
+    extern game_feature gameplay_change_mortuary_linen_upkeep;
+    extern game_feature gameplay_change_mortuary_mothballed_linen;
+    extern game_feature gameplay_change_fort_rotation;
+    extern game_feature gameplay_change_fort_refund_carry_troops;
+    extern game_feature gameplay_change_statue_variants;
+    extern game_feature gameplay_change_guild_statue_service;
+    extern game_feature gameplay_change_mastaba_clay_delivery;
+    extern game_feature gameplay_change_recruit_nearest_fort;
+    extern game_feature gameplay_change_tower_sentries_go_offroad;
+    extern game_feature gameplay_change_farms_deliver_close;
+    extern game_feature gameplay_change_farm_harvest_fertility;
+    extern game_feature gameplay_change_farm_meadow_harvest_retry;
+    extern game_feature gameplay_change_industry_nearby_houses;
+    extern game_feature gameplay_change_jeweler_nearby_discount;
+    extern game_feature gameplay_change_only_deliver_to_accepting_granaries;
+    extern game_feature gameplay_change_all_houses_merge;
+    extern game_feature gameplay_change_random_mine_or_pit_collapses_take_money;
+    extern game_feature gameplay_change_multiple_barracks;
+    extern game_feature gameplay_change_warehouses_dont_accept;
+    extern game_feature gameplay_change_houses_dont_expand_into_gardens;
+    extern game_feature gameplay_change_irrigation_range_5x5;
+    extern game_feature gameplay_fix_farm_produce_quantity;
+    extern game_feature gameui_keep_camera_inertia;
+    extern game_feature gameplay_change_understaffed_accept_goods;
+    extern game_feature gameplay_change_multiple_temple_complexes;
+    extern game_feature gameplay_change_multiple_monuments;
+    extern game_feature gameplay_change_soil_depletion;
+    extern game_feature gameplay_change_multiple_gatherers;
+    extern game_feature gameplay_change_wood_cutter_single_gatherer;
+    extern game_feature gameplay_change_fireman_returning;
+    extern game_feature gameplay_change_fishing_points_monthly_respawn;
+    extern game_feature gameplay_change_fishing_points_drift;
+    extern game_feature gameplay_change_migration_unemployment;
+    extern game_feature gameplay_change_house_evolve_delay;
+    extern game_feature gameplay_change_abu_simbel_draw_scaffolds;
+    extern game_feature gameplay_change_food_consumption_remake;
+    extern game_feature gameplay_change_architect_patrol_most_damaged;
+    extern game_feature gameplay_og_architect;
+    extern game_feature gameplay_og_fireman;
+    extern game_feature gameplay_og_warehouseman;
+    extern game_feature gameplay_og_trader;
+    extern game_feature gameui_draw_fps;
+    extern game_feature gameplay_change_cart_speed_depends_quntity;
+    extern game_feature gameplay_change_citizen_road_offset;
+    extern game_feature gameplay_change_work_camp_one_worker_per_month;
+    extern game_feature gameplay_change_work_camp_destination_at_spawn;
+    extern game_feature gameplay_change_work_camp_distance_scaled_farm_workers;
+    extern game_feature gameplay_change_fire_risk_clay_pit_reduced;
+    extern game_feature gameplay_change_goldmine_reduced_production;
+    extern game_feature gameplay_change_industry_remake_rates;
+    extern game_feature gameplay_change_new_tax_collection_system;
+    extern game_feature gameplay_change_small_hut_not_create_emigrant;
+    extern game_feature gameplay_change_delivery_boy_goes_to_market_alone;
+    extern game_feature gameplay_change_religion_coverage_influence_sentiment;
+    extern game_feature gameplay_change_monuments_influence_sentiment;
+    extern game_feature gameplay_change_shrine_house_access;
+    extern game_feature gameplay_change_well_radius_depends_moisture;
+    extern game_feature gameplay_change_enter_point_on_nearest_tile;
+    extern game_feature gameplay_fishing_wharf_spawn_boats;
+    extern game_feature gameplay_city_flotsam_enabled;
+    extern game_feature gameplay_copper_mine_can_build_near_mountains;
+    extern game_feature gameplay_recruiter_not_need_forts;
+    extern game_feature gameui_highlight_top_menu_hover;
+    extern game_feature gameui_empire_city_old_names;
+    extern game_feature gameplay_draw_cloud_shadows;
+    extern game_feature gameplay_building_road_closest;
+    extern game_feature gameplay_floodplain_random_grow;
+    extern game_feature gameui_hide_new_game_top_menu;
+    extern game_feature gameplay_save_year_kingdome_rating;
+    extern game_feature gameopt_last_player;
+    extern game_feature gameopt_language;
+    extern game_feature gameopt_last_save_filename;
+    extern game_feature gameopt_enabled_mods;
+    extern game_feature gameopt_last_game_version;
+    extern game_feature gameopt_auto_update;
+    extern game_feature gameopt_scroll_speed;
+    extern game_feature gameopt_middle_mouse_camera_pan;
+    extern game_feature gameopt_middle_mouse_pan_speed;
+    extern game_feature gameopt_clouds_speed;
+    extern game_feature gameopt_game_speed;
+    extern game_feature gameopt_sound_effects_enabled;
+    extern game_feature gameopt_sound_effects_volume;
+    extern game_feature gameopt_sound_music_enabled;
+    extern game_feature gameopt_sound_music_volume;
+    extern game_feature gameopt_sound_speech_enabled;
+    extern game_feature gameopt_sound_speech_volume;
+    extern game_feature gameopt_sound_city_enabled;
+    extern game_feature gameopt_sound_city_volume;
+    extern game_feature gameplay_change_hasanimals;
+    extern game_feature gameplay_brewery_requires_water;
+    extern game_feature gameplay_conservatory_helps_dance_school;
+    extern game_feature gameplay_juggler_school_one_walker;
+    extern game_feature gameplay_jewels_workshops_culture_bonus;
+    extern game_feature gameui_overlay_show_gray_buildings;
+    extern game_feature gameplay_prevent_delete_near_burning_ruins;
+    extern game_feature gameplay_change_cartpushers_yield_by_id;
+    extern game_feature gameplay_rebalance_workshop_output;
+    extern game_feature gameplay_chariots_workshop_needs_weapons;
+    extern game_feature gameplay_sphinx_artisans;
+    extern game_feature gameopt_monthly_autosave;
+    extern game_feature gameopt_ironwill;
+    extern game_feature gameopt_unlock_all_campaigns;
+    extern game_feature gameopt_autosave_slots;
+    extern game_feature gameopt_tooltips_mode;
+    extern game_feature gameopt_warnings;
+    // Bitmask of e_popup_message_category (OG Popup Messages): bit set = banner, not modal.
+    extern game_feature gameopt_popup_messages;
+    extern game_feature gameopt_gods_enabled;
+    extern game_feature gameopt_victory_video;
+    extern game_feature gameopt_pyramid_speedup;
+    extern game_feature gameopt_fullscreen;
+    extern game_feature gameopt_difficulty;
+    extern game_feature gameopt_display_size;
+    extern game_feature gameopt_disable_victory;
+    extern game_feature gameopt_player_name;
+    extern game_feature gameplay_change_empire_map_runs_simulation;
+    extern game_feature gameui_disable_nilometer_popups;
+    extern game_feature gameui_enhanced_nilometer;
+    extern game_feature gameui_building_mothball_button;
+    extern game_feature gameui_enhanced_shrine_info;
+    extern game_feature gameui_prompt_save_on_exit;
+    extern game_feature gameplay_pause_sim_while_building;
+    extern game_feature gameplay_change_disaster_events_use_amount;
+    extern game_feature gameplay_change_trader_capacity_1600;
+    extern game_feature gameplay_change_trader_per_good_1600;
+    extern game_feature gameplay_bast_lion_raid;
+    extern game_feature gameplay_seth_asp_raid;
+    extern game_feature gameplay_ptah_scorpion_raid;
+    extern game_feature gameplay_enhanced_auto_resolve_invasions;
+    extern game_feature gameplay_enhanced_invasion_bribe;
+    extern game_feature gameplay_enhanced_flood_basins;
+    extern game_feature gameplay_enhanced_historical_economy;
+    extern game_feature gameplay_enhanced_food_mill;
+    extern game_feature gameplay_enhanced_industry_office;
+    extern game_feature gameplay_enhanced_labor_category_split;
+    extern game_feature gameplay_enhanced_walker_spawn_boost;
+    extern game_feature gameplay_enhanced_walker_move_boost;
+    extern game_feature gameplay_enhanced_city_ambient;
+    extern game_feature gameplay_enhanced_festival_calendar;
+    extern game_feature gameplay_enhanced_local_cults;
+    extern game_feature graphics_atlas_render;
+    extern game_feature graphics_atlas_max_sprite_width;
+    extern game_feature graphics_atlas_page_size;
+
+    xspan<game_feature*> all();
+    game_feature* find(const xstring& name);
+
+    // Bool features with localization text (shown in Enhanced settings / options window).
+    bool is_toggleable(const game_feature &feature);
+
+    // Reset toggleable features to ogv (original Pharaoh behavior).
+    void apply_og_profile();
+    // Enable every toggleable feature (full Akhenaten / Enhanced suite).
+    void apply_enhanced_profile();
+    void apply_cli_profiles(e_features_profile profile);
+
+    void load();
+    void load(e_features_profile profile, const cli_overrides_t &overrides = {});
+    void save();
+    globals_settings_t &settings();
+    void apply_cli_overrides(const cli_overrides_t &overrides);
+
+    // Values of all registered features, in registration order (integral tests restore them between tests).
+    using snapshot_t = std::vector<setting_variant>;
+    snapshot_t snapshot();
+    void restore(const snapshot_t& values);
+}

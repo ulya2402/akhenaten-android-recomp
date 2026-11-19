@@ -1,0 +1,304 @@
+#pragma once
+
+#include <cstdint>
+#include "core/tokenum.h"
+
+enum e_enemy_type {
+    ENEMY_0_BARBARIAN = 0,
+    ENEMY_1_ASSYRIAN = 1,
+    ENEMY_2_CANAANITE = 2,
+    ENEMY_3_EGYPTIAN = 3,
+    ENEMY_4_HITTITE = 4,
+    ENEMY_5_HYKSOS = 5,
+    ENEMY_6_KUSHITE = 6,
+    ENEMY_7_LIBIAN = 7,
+    ENEMY_8_NUBIAN = 8,
+    ENEMY_9_PERSIAN = 9,
+    ENEMY_10_PHOENICIAN = 10,
+    ENEMY_11_ROMAN = 11,
+    ENEMY_12_SEAPEOPLE = 12,
+    ENEMY_13_BEDOUIN = 13,
+
+    ENEMY_COUNT
+};
+using e_enemy_type_tokens_t = token_holder<e_enemy_type, ENEMY_0_BARBARIAN, ENEMY_COUNT>;
+extern const e_enemy_type_tokens_t e_enemy_type_tokens;
+
+enum e_figure_state {
+    FIGURE_STATE_NONE = 0,
+    FIGURE_STATE_ALIVE = 1,
+    FIGURE_STATE_DEAD = 2,
+    FIGURE_STATE_DYING = 3,
+
+    FIGURE_STATE_MAX
+};
+using e_figure_state_tokens_t = token_holder<e_figure_state, FIGURE_STATE_NONE, FIGURE_STATE_MAX>;
+extern const e_figure_state_tokens_t e_figure_state_tokens;
+
+enum e_terrain_usage {
+    TERRAIN_USAGE_ANY = 0,
+    TERRAIN_USAGE_ROADS = 1,
+    TERRAIN_USAGE_ENEMY = 2,
+    TERRAIN_USAGE_PREFER_ROADS = 3,
+    TERRAIN_USAGE_WALLS = 4,
+    TERRAIN_USAGE_ANIMAL = 5,
+    TERRAIN_USAGE_AMPHIBIA = 6,
+    TERRAIN_USAGE_ANYWHERE = 7,
+
+    TERRAIN_USAGE_MAX
+};
+using e_terrain_usage_tokens_t = token_holder<e_terrain_usage, TERRAIN_USAGE_ANY, TERRAIN_USAGE_MAX>;
+extern const e_terrain_usage_tokens_t e_terrain_usage_tokens;
+
+enum e_figure_type : uint16_t {
+    FIGURE_NONE = 0,
+    FIGURE_IMMIGRANT = 1,
+    FIGURE_EMIGRANT = 2,
+    FIGURE_HOMELESS = 3,
+    FIGURE_CART_PUSHER = 4,
+    FIGURE_LABOR_SEEKER = 5,
+    FIGURE_EXPLOSION = 6,
+    FIGURE_TAX_COLLECTOR = 7,
+    FIGURE_ARCHITECT = 8,
+    FIGURE_STORAGEYARD_CART = 9,
+    FIGURE_FIREMAN = 10,
+    FIGURE_ARCHER = 11,      // OG FIG_LEG_MISS
+    FIGURE_INFANTRY = 12,    // OG FIG_LEG_AUX (melee)
+    FIGURE_FCHARIOTEER = 13, // OG FIG_LEG_HEAVY (chariot)
+
+    FIGURE_STANDARD_BEARER = 14,
+    FIGURE_JUGGLER = 15,
+    FIGURE_MUSICIAN = 16,
+    FIGURE_DANCER = 17,
+    FIGURE_SENET_PLAYER = 18,
+    FIGURE_TRADE_CARAVAN = 19,
+    FIGURE_TRADE_SHIP = 20,
+    FIGURE_TRADE_CARAVAN_DONKEY = 21,
+    FIGURE_PROTESTER = 22,
+    FIGURE_ROBBER = 23,
+    FIGURE_TOMB_ROBER = 24,
+    FIGURE_FISHING_BOAT = 25,
+    FIGURE_MARKET_TRADER = 26,
+    FIGURE_PRIEST = 27,
+    FIGURE_BUBBLES = 28, // OG ambient bubbles (ship sink / water)
+    FIGURE_TEACHER = 29, // OG; was 28 in older Akhenaten (SCRIBER wrongly occupied 29)
+    FIGURE_LIBRARIAN = 30,
+    FIGURE_DENTIST = 31,
+    FIGURE_PHYSICIAN = 32,
+    FIGURE_HERBALIST = 33, // OG APOTHECARY
+    FIGURE_EMBALMER = 34,
+    FIGURE_WORKER = 35,   // dead enum; live work-camp walker = FIGURE_LABORER / figure_worker
+    FIGURE_MAP_FLAG = 36, // editor flags — legacy action.cpp case; optional METAINFO wrap
+    FIGURE_FLOTSAM = 37,
+    FIGURE_DOCKER = 38,
+    FIGURE_MARKET_BUYER = 39,
+    FIGURE_NOBLES = 40,
+    FIGURE_INDIGENOUS_NATIVE = 41,
+    FIGURE_TOWER_SENTRY = 42,
+    FIGURE_ENEMY_EGYPTIAN_SPEAR = 43, // default enemy soldier, egyptian
+    FIGURE_ENEMY_EGYPTIAN_ARCHER = 44,
+    FIGURE_ENEMY_EGYPTIAN_FAST_SWORD = 45,
+    FIGURE_ENEMY_EGYPTIAN_CAMEL = 46,
+    FIGURE_ENEMY_EGYPTIAN_ELEPHANT = 47,
+    FIGURE_ENEMY_EGYPTIAN_CHARIOT = 48,
+    FIGURE_ENEMY_EGYPTIAN_SWORD = 49,
+    FIGURE_ENEMY_EGYPTIAN_HEAVY_SWORD = 50,
+    FIGURE_ENEMY_RESERVED_51 = 51, // OG FIG_ENEMY_BARBARIAN_ARCHER
+    FIGURE_ENEMY_EGYPTIAN_MOUNTED_ARCHER = 52,
+    FIGURE_ENEMY_EGYPTIAN_AXE = 53,
+    FIGURE_RIOTER = 54,
+    FIGURE_ENEMY_KINGDOME_JAVELIN = 55,
+    FIGURE_ENEMY_KINGDOME_MOUNTED = 56,
+    FIGURE_ENEMY_KINGDOME_INFANTRY = 57,
+    FIGURE_NATIVE_TRADER = 58,
+    FIGURE_ARROW = 59,
+    FIGURE_JAVELIN = 60,
+    FIGURE_BOLT = 61,
+    FIGURE_BALLISTA = 62,
+    FIGURE_CREATURE = 63,   // Caesar leftover — won't implement
+    FIGURE_MISSIONARY = 64, // Caesar leftover (natives UNUSED) — won't implement
+    FIGURE_SEAGULLS = 65,   // OG fishing-point ghost stub (create_flotsam); ≠ JUMPING_FISH 95
+    FIGURE_DELIVERY_BOY = 66,
+    FIGURE_SHIPWRECK = 67,
+    FIGURE_BIRDS = 68,
+    FIGURE_OSTRICH = 69,
+    FIGURE_ANTELOPE = 70,
+    FIGURE_SPEAR = 71,
+    FIGURE_CHARIOR_RACER = 72, // Caesar hippodrome leftover — legacy hippodrome_horse_action stub
+    FIGURE_OSTRICH_HUNTER = 73,
+    FIGURE_HUNTER_SPEAR = 74, // OG FIG_HUNTER_SPEAR
+    FIGURE_LUMBERJACK = 75,
+    FIGURE_FERRY_BOAT = 76,
+    FIGURE_TRANSPORT_SHIP = 77,
+    FIGURE_WARSHIP = 78,
+    FIGURE_CARPENTER = 79,
+    FIGURE_BRICKLAYER = 80,
+    FIGURE_STONEMASON = 81,
+    FIGURE_CROCODILE = 82,
+    FIGURE_HYENA = 83,
+    FIGURE_HIPPO = 84,
+    FIGURE_LABORER = 85,
+    FIGURE_SLED = 86,
+    FIGURE_WATER_CARRIER = 87,
+    FIGURE_CONSTABLE = 88,
+    FIGURE_MAGISTRATE = 89,
+    FIGURE_REED_GATHERER = 90,
+    FIGURE_FESTIVAL_PRIEST = 91,
+    FIGURE_ENEMY_TRANSPORT = 92,
+    FIGURE_ENEMY_WARSHIP = 93,
+    FIGURE_FUNERAL_WALKER = 94,
+    FIGURE_FISHING_POINT = 95, // OG JUMPING_FISH — scenario fishing-point figure
+    FIGURE_SLED_PULLER = 96,
+    FIGURE_SHOWMAN = 97, // named lang slot only; no OG walker — won't implement
+    FIGURE_PLAGUED_CITIZEN = 98,
+    FIGURE_BEDOUIN = 99,
+    FIGURE_ENEMY_EGYPTIAN_WARSHIP = 100,
+    FIGURE_ENEMY_EGYPTIAN_TRANSPORT_SHIP = 101,
+    FIGURE_ASP = 102,
+    FIGURE_LION = 103,
+    FIGURE_SCORPION = 104,
+    FIGURE_ZOOKEEPER = 105,
+    FIGURE_FROG = 106,
+    FIGURE_LOCUST = 107,
+    FIGURE_TOMB_ARTISAN = 108,
+    FIGURE_MUMMY = 109,
+    FIGURE_PHARAOH = 110,
+    FIGURE_GOVERNOR = 111,
+    FIGURE_DRUNKARD = 112,
+
+    // barbarians
+    FIGURE_ENEMY_BARBARIAN_ARCHER = 113,
+    FIGURE_ENEMY_BARBARIAN_SWORD = 114,
+    FIGURE_ENEMY_BARBARIAN_TRANSPORT_SHIP = 115,
+
+    // canaanite
+    FIGURE_ENEMY_CANAANITE_ARCHER = 116,
+    FIGURE_ENEMY_CANAANITE_SWORD = 117,
+    FIGURE_ENEMY_CANAANITE_TRANSPORT_SHIP = 118,
+    FIGURE_ENEMY_CANAANITE_WAR_SHIP = 119,
+    FIGURE_ENEMY_CANAANITE_CHARIOT = 120,
+
+    // kushite
+    FIGURE_ENEMY_KUSHITE_SPEARMAN = 121,
+    FIGURE_ENEMY_KUSHITE_AXEMAN = 122,
+    FIGURE_ENEMY_KUSHITE_TRANSPORT_SHIP = 123,
+    FIGURE_ENEMY_KUSHITE_WAR_SHIP = 124,
+    FIGURE_ENEMY_KUSHITE_CHARIOT = 125,
+
+    // hittite
+    FIGURE_ENEMY_HITTITE_ARCHER = 126,
+    FIGURE_ENEMY_HITTITE_SPEARMAN = 127,
+    FIGURE_ENEMY_HITTITE_TRANSPORT_SHIP = 128,
+    FIGURE_ENEMY_HITTITE_WAR_SHIP = 129,
+    FIGURE_ENEMY_HITTITE_CHARIOT = 130,
+
+    // persian
+    FIGURE_ENEMY_PERSIAN_ARCHER = 131,
+    FIGURE_ENEMY_PERSIAN_SPEARMAN = 132,
+    FIGURE_ENEMY_PERSIAN_TRANSPORT_SHIP = 133,
+    FIGURE_ENEMY_PERSIAN_WAR_SHIP = 134,
+    FIGURE_ENEMY_PERSIAN_CHARIOT = 135,
+
+    // assyrian
+    FIGURE_ENEMY_ASSYRIAN_ARCHER = 136,
+    FIGURE_ENEMY_ASSYRIAN_SWORD = 137,
+    FIGURE_ENEMY_ASSYRIAN_TRANSPORT_SHIP = 138,
+    FIGURE_ENEMY_ASSYRIAN_WAR_SHIP = 139,
+    FIGURE_ENEMY_ASSYRIAN_CHARIOT = 140,
+
+    FIGURE_ENEMY_RESERVED_141 = 141,
+    FIGURE_ENEMY_RESERVED_142 = 142,
+
+    FIGURE_ENEMY_EGYPTIAN_GALERA = 143,
+
+    // libian
+    FIGURE_ENEMY_LIBIAN_ARCHER = 144,
+    FIGURE_ENEMY_LIBIAN_SWORDMAN = 145,
+    FIGURE_ENEMY_LIBIAN_TRANSPORT_SHIP = 146,
+    FIGURE_ENEMY_LIBIAN_WAR_SHIP = 147,
+    FIGURE_ENEMY_LIBIAN_CHARIOT = 148,
+
+    // nubian
+    FIGURE_ENEMY_NUBIAN_ARCHER = 149,
+    FIGURE_ENEMY_NUBIAN_AXEMAN = 150,
+    FIGURE_ENEMY_NUBIAN_TRANSPORT_SHIP = 151,
+    FIGURE_ENEMY_NUBIAN_WAR_SHIP = 152,
+    FIGURE_ENEMY_NUBIAN_CHARIOT = 153,
+
+    FIGURE_ENEMY_RESERVED_154 = 154,
+    FIGURE_ENEMY_RESERVED_155 = 155,
+
+    // phoenician
+    FIGURE_ENEMY_PHOENICIAN_SPEARMAN = 156,
+    FIGURE_ENEMY_PHOENICIAN_SWORDMAN = 157,
+    FIGURE_ENEMY_PHOENICIAN_TRANSPORT_SHIP = 158,
+    FIGURE_ENEMY_PHOENICIAN_WAR_SHIP = 159,
+    FIGURE_ENEMY_PHOENICIAN_CHARIOT = 160,
+
+    // roman
+    FIGURE_ENEMY_ROMAN_ARCHER = 161,
+    FIGURE_ENEMY_ROMAN_LEGIONER = 162,
+    FIGURE_ENEMY_ROMAN_TRANSPORT_SHIP = 163,
+    FIGURE_ENEMY_ROMAN_WAR_SHIP = 164,
+    FIGURE_ENEMY_ROMAN_CHARIOT = 165,
+
+    // seapeople
+    FIGURE_ENEMY_SEAPEOPLE_ARCHER = 166,
+    FIGURE_ENEMY_SEAPEOPLE_SWORDMAN = 167,
+    FIGURE_ENEMY_SEAPEOPLE_TRANSPORT_SHIP = 168,
+    FIGURE_ENEMY_SEAPEOPLE_WAR_SHIP = 169, // was colliding with transport (=168)
+    FIGURE_ENEMY_SEAPEOPLE_CHARIOT = 170,
+
+    // hyksos
+    FIGURE_ENEMY_HYKSOS_ARCHER = 171,
+    FIGURE_ENEMY_HYKSOS_SWORDMAN = 172,
+    FIGURE_ENEMY_HYKSOS_TRANSPORT_SHIP = 173,
+    FIGURE_ENEMY_HYKSOS_WAR_SHIP = 174,
+    FIGURE_ENEMY_HYKSOS_CHARIOT = 175,
+
+    FIGURE_SLAVE = 176,
+    FIGURE_ACADEMY_SCRIBER = 177,
+    FIGURE_ANTELOPE_HUNTER = 178,
+    FIGURE_ANTELOPE_HUNTER_JAVELIN = 179,
+    FIGURE_BIRDS_HUNTER = 180,
+    FIGURE_SCRIBER = 181, // Akhenaten-only; was wrongly 29 (OG teacher slot)
+
+    FIGURE_MAX,
+};
+
+using figure_id = uint16_t;
+constexpr figure_id INVALID_FIGURE_ID = 0;
+
+// Favour / Pharaoh-army figure IDs (55–57). Used by pause/retreat, kill tracking,
+// and city kingdome_soldiers counting.
+inline bool figure_is_kingdome_army(e_figure_type t) {
+    return t == FIGURE_ENEMY_KINGDOME_JAVELIN
+        || t == FIGURE_ENEMY_KINGDOME_MOUNTED
+        || t == FIGURE_ENEMY_KINGDOME_INFANTRY;
+}
+
+using e_figure_type_tokens_t = token_holder<e_figure_type, FIGURE_NONE, FIGURE_MAX>;
+extern const e_figure_type_tokens_t e_figure_type_tokens;
+
+enum e_figure_category {
+    figure_category_inactive = 0,
+    figure_category_citizen = 1,
+    figure_category_armed = 2,
+    figure_category_hostile = 3,
+    figure_category_criminal = 4,
+    figure_category_native = 5,
+    figure_category_animal = 6,
+    figure_category_missile = 7,
+    figure_category_military = 8,
+    figure_category_transport = 9,
+    figure_category_worker = 10,
+    figure_category_entertainer = 11,
+    figure_category_religious = 12,
+    figure_category_merchant = 13,
+    figure_category_special = 14,
+
+    figure_category_max = 15,
+};
+
+using e_figure_category_tokens_t = token_holder<e_figure_category, figure_category_inactive, figure_category_max>;
+extern const e_figure_category_tokens_t e_figure_category_tokens;

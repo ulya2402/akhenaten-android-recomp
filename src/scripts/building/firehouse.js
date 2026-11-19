@@ -1,0 +1,80 @@
+log_info("akhenaten: loading building_firehouse")
+
+city.get_firehouse = function(building_id) {
+    var b = city.get_building(building_id)
+    if (!b.valid || b.type != BUILDING_FIREHOUSE) {
+        return null
+    }
+    return b
+}
+
+[es=building]
+building_firehouse {
+    type: BUILDING_FIREHOUSE
+    animations {
+        _pack { pack:PACK_GENERAL }
+        preview { id:78 }
+        base { id:78 }
+        work { pos [25, -30], id:78, offset:1, max_frames:11 }
+    }
+
+    labor_category : LABOR_CATEGORY_INFRASTRUCTURE
+    overlay : OVERLAY_FIRE
+    min_houses_coverage : 101
+    meta { text_id: 164, help_link:"message_building_firehouse" }
+    info_sound : "Wavs/prefecture.wav"
+    building_size : 1
+    cost [ 6, 12, 25, 40, 60 ]
+    desirability { value[-2], step[1], step_size[1], range[2] }
+    laborers [6]
+    fire_risk [0]
+    damage_risk [0]
+    flags {
+        is_infrastructure: true
+        keeps_visitor_paths: true
+        draw_normal_anim: true
+    }
+}
+
+[es=(building_firehouse, spawn_figure)]
+function building_firehouse_spawn_figure(ev) {
+    var building = city.get_building(ev.bid)
+    building.common_spawn_roamer(FIGURE_FIREMAN, building_firehouse.min_houses_coverage, ACTION_0_FIREMAN_CREATED)
+}
+
+[es=(building_firehouse, update_graphic)]
+function building_firehouse_on_update_graphic(ev) {
+    var building = city.get_building(ev.bid)
+    var animkey = building.play_animation ? "work" : "none"
+    building.set_animation(animkey)
+}
+
+[es=(building_firehouse, draw_usable_paths)]
+function building_firehouse_draw_usable_paths(ev) {
+    city.get_building(ev.bid).draw_usable_paths()
+}
+
+[es=(building_firehouse, update_month)]
+function building_firehouse_update_month(ev) {
+    var b = city.get_firehouse(ev.bid)
+    if (!b) {
+        return
+    }
+
+    var served = b.buildings_served_this_month
+    if (served > 0) {
+        b.months_active += 1
+    }
+    b.total_buildings_served += served
+    b.buildings_served_this_year += served
+    b.buildings_served_this_month = 0
+}
+
+[es=(building_firehouse, update_year)]
+function building_firehouse_update_year(ev) {
+    var b = city.get_firehouse(ev.bid)
+    if (!b) {
+        return
+    }
+    b.buildings_served_this_year = 0
+}

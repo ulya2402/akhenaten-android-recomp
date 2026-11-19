@@ -1,0 +1,23 @@
+log_info("akhenaten: images started")
+
+kingdome_relation {
+	salary_ranks [0, 2, 5, 8, 12, 20, 30, 40, 60, 80, 100]
+	gift_relation_change_first [3, 5, 10]
+	gift_relation_change_second [1, 3, 5]
+	gift_relation_change_third [0, 1, 3]
+	gift_relation_change_last [0, 0, 1]
+	months_since_gift_locker : 12
+	tribute_not_paid_years_penalty [-3, -3, -5, -8, -8]
+	player_salary_above_king_penalty : 1
+	player_salary_less_king_promotion : 1
+	first_debt_penalty : -5
+	second_debt_penalty : -10
+	last_debt_rating_cap : 10
+	// OG update_kingdom_yearly: the yearly change from mission yearly_decay_from_mission on (and on custom
+	// maps), and the bonus after a year with the tribute paid and a profit; a Ra temple complex adds its
+	// bonus after the yearly ratings (temple_complex.c).
+	yearly_decay : -1
+	yearly_decay_from_mission : 2
+	yearly_profit_bonus : 1
+	ra_complex_yearly_bonus : 1
+}

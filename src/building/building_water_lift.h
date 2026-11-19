@@ -1,0 +1,40 @@
+#pragma once
+
+#include "building/building.h"
+
+class building_water_lift : public building_impl {
+public:
+    BUILDING_METAINFO(BUILDING_WATER_LIFT, building_water_lift, building_impl)
+
+    struct static_params : public building_static_params {
+        uint8_t irrigation_radius;
+        uint8_t base_irrigation_value;
+    } BUILDING_STATIC_DATA_T;
+
+    struct runtime_data_t {
+        int32_t input_tiles[2];
+        int32_t output_tiles[2];
+        int8_t tick;
+    } BUILDING_RUNTIME_DATA_T;
+
+    virtual building_water_lift* dcast_water_lift() override { return this; }
+    virtual void on_create(int orientation) override;
+    virtual void on_place_update_tiles(int orientation, int variant) override;
+    virtual void on_post_load() override;
+    virtual void update_day() override;
+    virtual void update_count() const override;
+    virtual int animation_speed(int speed) const override;
+    virtual e_overlay get_overlay() const override { return OVERLAY_WATER; }
+    virtual e_sound_channel_city sound_channel() const override { return SOUND_CHANNEL_CITY_POLICE; }
+    virtual void update_map_orientation(int orientation) override;
+    virtual void bind_dynamic(io_buffer *iob, size_t version) override;
+    virtual void update_graphic() override;
+    virtual water_access_tiles get_water_access_tiles() const override;
+    virtual water_access_tiles get_water_output_tiles() const override;
+    virtual void spawn_figure() override;
+
+    void update_inout_tiles();
+};
+
+ANK_CONFIG_PROPERTY(building_water_lift::runtime_data_t, tick)
+ANK_CONFIG_STRUCT(building_water_lift::static_params, irrigation_radius, base_irrigation_value)

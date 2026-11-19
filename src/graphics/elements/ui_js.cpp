@@ -1,0 +1,818 @@
+#include "js/js.h"
+
+#include "ui.h"
+#include "core/profiler.h"
+#include "js/js_game.h"
+#include "graphics/elements/ui_js.h"
+#include "mujs/jsi.h"
+#include "mujs/jsvalue.h"
+#include "input/input.h"
+#include "widget/widget_sidebar.h"
+#include "widget/sidebar/editor.h"
+#include "city/city.h"
+#include "overlays/city_overlay.h"
+#include "graphics/elements/generic_button.h"
+#include "graphics/window.h"
+#include "window/window_city.h"
+#include "window/editor/window_editor.h"
+#include "window/editor/empire.h"
+#include "window/message_dialog_new.h"
+#include "window/window_advisors.h"
+#include "window/autoconfig_window.h"
+#include "empire/trade_prices.h"
+#include "game/resource.h"
+#include "window/popup_dialog.h"
+#include "window/select_list.h"
+#include "city/city_message.h"
+#include "game/undo.h"
+#include "scenario/scenario.h"
+#include "widget/widget_minimap.h"
+#include "core/log.h"
+#include "core/flat_map.h"
+#include "game/game.h"
+#include "graphics/image.h"
+#include "graphics/painter.h"
+#include "graphics/elements/ui_scope_property.h"
+#include "graphics/elements/arrow_button.h"
+#include "input/mouse.h"
+#include "graphics/font.h"
+#include "graphics/elements/panel.h"
+#include "graphics/text.h"
+#include "graphics/elements/lang_text.h"
+
+#include <cstring>
+
+vec2i js_tovec2i(js_State *J, int idx) {
+    return J->to<vec2i>(idx);
+}
+
+xstring js_xref(js_State* J) {
+    js_StringNode new_ref = js_ref(J);
+    xstring new_ref_str;
+    new_ref_str._set(new_ref);
+    return new_ref_str;
+}
+
+void __ui_draw_image(int imgid, vec2i pos) {
+    ui::eimage(imgid, pos);
+}
+ANK_FUNCTION_2(__ui_draw_image);
+
+void __ui_draw_image_flags(int imgid, vec2i pos, int flags) {
+    ui::eimage(imgid, pos, (UiFlags)flags);
+}
+ANK_FUNCTION_3(__ui_draw_image_flags);
+
+void __ui_draw_image_scaled(int imgid, vec2i pos, float scale) {
+    const image_t* img = image_get(imgid);
+    if (!img) {
+        return;
+    }
+    painter ctx = game.painter();
+    sprite spr;
+    spr.img = img;
+    ctx.draw(spr, pos, COLOR_MASK_NONE, scale, scale);
+}
+ANK_FUNCTION_3(__ui_draw_image_scaled);
+
+void __ui_panel(vec2i pos, vec2i size, int flags) {
+    ui::panel(pos, size, (UiFlags)flags);
+}
+ANK_FUNCTION_3(__ui_panel);
+
+void __ui_popup_message(xstring message) {
+    messages::popup(message, 0, 0);
+}
+ANK_FUNCTION_1(__ui_popup_message)
+
+void __ui_begin_widget(vec2i pos) {
+    ui::begin_widget(pos);
+}
+ANK_FUNCTION_1(__ui_begin_widget);
+void __ui_end_widget() {
+    ui::end_widget();
+}
+ANK_FUNCTION(__ui_end_widget);
+void __ui_set_clip_rectangle(vec2i pos, vec2i size) {
+    const vec2i offset = ui::current_offset();
+    ui::push(ui::cmd_t::clip_set, ui::opt::Pos{offset + pos}, ui::opt::Size{size});
+}
+ANK_FUNCTION_2(__ui_set_clip_rectangle);
+void __ui_reset_clip_rectangle() {
+    ui::push(ui::cmd_t::clip_reset);
+}
+ANK_FUNCTION(__ui_reset_clip_rectangle);
+void __ui_fill_rect(vec2i pos, vec2i size, unsigned int c) {
+    ui::fill_rect(pos, size, (color)c);
+}
+ANK_FUNCTION_3(__ui_fill_rect);
+void __ui_border(vec2i pos, vec2i size, int type, unsigned int c, int flags) {
+    ui::border(pos, size, type, (color)c, (UiFlags)flags);
+}
+ANK_FUNCTION_5(__ui_border);
+void __ui_button_border(vec2i pos, vec2i size, bool focused) {
+    ui::button_border(pos, size, focused);
+}
+ANK_FUNCTION_3(__ui_button_border);
+void __ui_label_colored(pcstr text, vec2i pos, int font, unsigned int c) {
+    ui::label_colored(text, pos, (e_font)font, (color)c);
+}
+ANK_FUNCTION_4(__ui_label_colored);
+
+void __ui_set_tooltip(pcstr text) {
+    ui::set_tooltip(text ? text : "");
+}
+ANK_FUNCTION_1(__ui_set_tooltip);
+
+void __ui_window_city_draw_panels() {
+    window_city_draw_panels();
+}
+ANK_FUNCTION(__ui_window_city_draw_panels)
+
+void __ui_widget_sidebar_city_draw_foreground() {
+    widget_sidebar_city_draw_foreground();
+}
+ANK_FUNCTION(__ui_widget_sidebar_city_draw_foreground)
+
+bool __ui_widget_sidebar_city_handle_mouse_build_menu() {
+    return widget_sidebar_city_handle_mouse_build_menu(&mouse::ref());
+}
+ANK_FUNCTION(__ui_widget_sidebar_city_handle_mouse_build_menu)
+
+bool __ui_widget_sidebar_city_handle_mouse() {
+    return widget_sidebar_city_handle_mouse(&mouse::ref()) != 0;
+}
+ANK_FUNCTION(__ui_widget_sidebar_city_handle_mouse)
+
+bool __ui_widget_sidebar_editor_handle_mouse() {
+    return widget_sidebar_editor_handle_mouse(&mouse::ref()) != 0;
+}
+ANK_FUNCTION(__ui_widget_sidebar_editor_handle_mouse)
+
+void __ui_window_city_draw() {
+    window_city_draw();
+}
+ANK_FUNCTION(__ui_window_city_draw)
+
+int __ui_text_width(pcstr text, int font) {
+    if (!text) {
+        return 0;
+    }
+    return lang_text_get_width(text, (e_font)font);
+}
+ANK_FUNCTION_2(__ui_text_width)
+
+xstring __ui_text_ellipsize(pcstr text, int font, int max_width) {
+    if (!text) {
+        return "";
+    }
+    std::string buf = text;
+    buf.resize(buf.size() + 4); // room for trailing "..." that text_ellipsize writes in place
+    text_ellipsize((uint8_t*)buf.data(), (e_font)font, max_width);
+    buf.resize(strlen(buf.c_str()));
+    return xstring(buf.c_str());
+}
+ANK_FUNCTION_3(__ui_text_ellipsize)
+
+void __ui_unbordered_panel(int x, int y, int width_blocks, int height_blocks) {
+    unbordered_panel_draw(x, y, width_blocks, height_blocks);
+}
+ANK_FUNCTION_4(__ui_unbordered_panel)
+
+void __ui_text_abs(pcstr text, vec2i pos, int font) {
+    ui::text_abs(text, pos, (e_font)font, 0);
+}
+ANK_FUNCTION_3(__ui_text_abs)
+
+void __ui_text_abs_colored(pcstr text, vec2i pos, int font, unsigned int c) {
+    ui::text_abs(text, pos, (e_font)font, (color)c);
+}
+ANK_FUNCTION_4(__ui_text_abs_colored)
+
+int ANK_FUNCTION_UNIFIED(__ui_draw_button)(const bvariant_map &args) {
+    if (args.values.empty()) {
+        return 0;
+    }
+
+    const xstring text = args.s("text");
+    const vec2i pos = args.vec2i_or_def("pos", {0, 0});
+    const vec2i size = args.vec2i_or_def("size", {0, 0});
+    const e_font font = (e_font)args.i32("font", FONT_NORMAL_BLACK_ON_LIGHT);
+    const e_font fonthv = (e_font)args.i32("font_hover", FONT_INVALID);
+    const e_font fonth = (fonthv != FONT_INVALID ? fonthv : font);
+    const xstring tooltip = args.s("tooltip");
+
+    int flags = args.int32_or_def("flags", 0);
+    // Disable border/body only when explicitly false (bool or 0). Other types
+    // (e.g. body:"" or border:3) keep the default chrome.
+    const auto border = args["border"];
+    if ((border.is_bool() && !border.as_bool()) || (border.is_int32() && border.as_int32() == 0)) {
+        flags |= UiFlags_NoBorder;
+    }
+    const auto body = args["body"];
+    if ((body.is_bool() && !body.as_bool()) || (body.is_int32() && body.as_int32() == 0)) {
+        flags |= UiFlags_NoBody;
+    }
+
+    const bool is_underlying = g_window_manager.underlying_windows_redrawing > 0;
+    flags |= is_underlying ? UiFlags_Readonly : UiFlags_None;
+    auto& btn = ui::button(text.c_str(), pos, size, fonts_vec{font, fonth}, (UiFlags)flags);
+    if (!tooltip.empty()) {
+        btn.tooltip(tooltip);
+        if (btn.hovered) {
+            ui::set_tooltip(tooltip);
+        }
+    }
+
+    if (is_underlying) {
+        return 0;
+    }
+
+    int lmb_click = 0;
+    generic_buttons_handle_mouse(&mouse::ref(), vec2i{0, 0}, &btn, 1, nullptr, &lmb_click);
+    if (lmb_click) {
+        const xstring onclick_event = args.s("onclick_event");
+        if (!onclick_event.empty()) {
+            const int32_t p1 = args.i32("param1", 0);
+            const int32_t p2 = args.i32("param2", 0);
+            ui::dispatch_autoconfig_es_event(ui::get_current_widget(), onclick_event,
+                bvariant_map{{"param1", p1}, {"param2", p2}});
+        }
+        return 1;
+    }
+    return btn.hovered ? 2 : 0;
+}
+
+bool __ui_draw_arw_button(vec2i pos, bool down, bool tiny, bool allow_repeat) {
+    const bool is_underlying = g_window_manager.underlying_windows_redrawing > 0;
+    int flags = is_underlying ? UiFlags_Readonly : UiFlags_None;
+    flags |= allow_repeat ? UiFlags_AllowRepeat : UiFlags_None;
+    arrow_button& btn = ui::arw_button(pos, down, tiny, (UiFlags_)flags);
+    if (is_underlying) {
+        return false;
+    }
+    int focus = 0;
+    const int clicked = arrow_buttons_handle_mouse(&mouse::ref(), &btn, 1, &focus);
+    return clicked != 0;
+}
+ANK_FUNCTION_4(__ui_draw_arw_button);
+
+void __ui_dialog_show_yesno(pcstr text, js_helpers::js_function_ref cb_yes, js_helpers::js_function_ref cb_no) {
+    xstring yes_ref = cb_yes.ref;
+    xstring no_ref = cb_no.ref;
+    popup_dialog::show_yesno(text, [yes_ref, no_ref](bool accepted) {
+        if (accepted && !yes_ref.empty()) {
+            js_call_function_bool(yes_ref, true);
+        } else if (!accepted && !no_ref.empty()) {
+            js_call_function_bool(no_ref, false);
+        }
+    });
+}
+ANK_FUNCTION_3(__ui_dialog_show_yesno)
+
+void __ui_dialog_show_ok(pcstr text, pcstr title) {
+    if (!title || !*title || strcmp(title, "undefined") == 0) {
+        popup_dialog::show_ok(text, [] {});
+    } else {
+        popup_dialog::show_ok(title, text, [] {});
+    }
+}
+ANK_FUNCTION_2(__ui_dialog_show_ok)
+
+bool __ui_window_is(pcstr window_id) {
+    return g_window_manager.window_is(window_id);
+}
+ANK_FUNCTION_1(__ui_window_is)
+
+void __ui_draw_label(pcstr text, vec2i pos, int font) {
+    ui::label(text, pos, (e_font)font);
+}
+ANK_FUNCTION_3(__ui_draw_label);
+
+void __ui_draw_label_ex(pcstr text, vec2i pos, int font, int flags, int box_width) {
+    ui::label(text, pos, (e_font)font, (UiFlags)flags, box_width);
+}
+ANK_FUNCTION_5(__ui_draw_label_ex)
+
+void __ui_label_year(int year, vec2i pos, int font) {
+    ui::label_year(year, pos, (e_font)font);
+}
+ANK_FUNCTION_3(__ui_label_year)
+
+void __ui_draw_resource_icon(vec2i pos, int resource) {
+    ui::icon(pos, (e_resource)resource);
+}
+ANK_FUNCTION_2(__ui_draw_resource_icon)
+
+void __ui_draw_resource_icon_flags(vec2i pos, int resource, int flags) {
+    ui::icon(pos, (e_resource)resource, (UiFlags)flags);
+}
+ANK_FUNCTION_3(__ui_draw_resource_icon_flags)
+
+int __trade_price_buy(int resource) {
+    return trade_price_buy((e_resource)resource);
+}
+ANK_FUNCTION_1(__trade_price_buy)
+
+int __trade_price_sell(int resource) {
+    return trade_price_sell((e_resource)resource);
+}
+ANK_FUNCTION_1(__trade_price_sell)
+
+void __ui_draw_line(bool hline, vec2i pos, int size) {
+    ui::line(hline, pos, size, 0xff000000);
+}
+ANK_FUNCTION_3(__ui_draw_line);
+void __ui_window_city_show() {
+    window_city_show();
+}
+ANK_FUNCTION(__ui_window_city_show)
+void __ui_window_editor_map_show() {
+    window_editor_map_show();
+}
+ANK_FUNCTION(__ui_window_editor_map_show)
+
+void __ui_window_editor_map_draw_all() {
+    window_editor_map_draw_all();
+}
+ANK_FUNCTION(__ui_window_editor_map_draw_all)
+
+void __ui_window_editor_map_draw_panels() {
+    window_editor_map_draw_panels();
+}
+ANK_FUNCTION(__ui_window_editor_map_draw_panels)
+
+void __ui_window_editor_empire_show() {
+    window_editor_empire_show();
+}
+ANK_FUNCTION(__ui_window_editor_empire_show)
+
+void __ui_window_message_dialog_editor(pcstr template_name) {
+    window_message_dialog_show(template_name, -1, window_editor_map_draw_all);
+}
+ANK_FUNCTION_1(__ui_window_message_dialog_editor)
+
+static xstring g_select_list_js_callback;
+
+static void select_list_js_callback(int id) {
+    xstring cb = g_select_list_js_callback;
+    g_select_list_js_callback = xstring();
+    if (!cb.empty()) {
+        js_call_function(cb, id, 0);
+    }
+}
+
+void __ui_window_select_list_show(int x, int y, int group, int count, js_helpers::js_function_ref cb) {
+    g_select_list_js_callback = cb.ref;
+    window_select_list_show(x, y, group, count, select_list_js_callback);
+}
+ANK_FUNCTION_5(__ui_window_select_list_show)
+void __ui_draw_texture(vec2i pos, int img_id) {
+    ::painter ctx = game.painter();
+    ctx.img_generic(img_id, pos);
+}
+ANK_FUNCTION_2(__ui_draw_texture)
+
+void __ui_invalidate_minimap_preview() {
+    widget_minimap_invalidate_preview();
+}
+ANK_FUNCTION(__ui_invalidate_minimap_preview)
+
+void __ui_invalidate_minimap_preview_size(vec2i generate_size) {
+    widget_minimap_invalidate_preview(generate_size);
+}
+ANK_FUNCTION_1(__ui_invalidate_minimap_preview_size)
+
+void __ui_draw_minimap_preview(vec2i pos, vec2i size) {
+    widget_minimap_queue_preview(pos, size);
+}
+ANK_FUNCTION_2(__ui_draw_minimap_preview)
+
+void __ui_draw_minimap_preview_sized(vec2i pos, vec2i size, vec2i generate_size) {
+    widget_minimap_queue_preview(pos, size, generate_size);
+}
+ANK_FUNCTION_3(__ui_draw_minimap_preview_sized)
+
+void __ui_widget_sidebar_set_type(int id) {
+    widget_sidebar_set_type(id);
+}
+ANK_FUNCTION_1(__ui_widget_sidebar_set_type)
+int __ui_widget_sidebar_city_offset_x() {
+    return widget_sidebar_city_offset_x();
+}
+ANK_FUNCTION(__ui_widget_sidebar_city_offset_x)
+
+void __ui_game_undo_perform() {
+    game_undo_perform();
+}
+ANK_FUNCTION(__ui_game_undo_perform)
+
+void __ui_sidebar_expanded_collapse() {
+    widget_sidebar_expanded_collapse();
+}
+ANK_FUNCTION(__ui_sidebar_expanded_collapse)
+
+bool __ui_scenario_mission_briefing_button_enabled() {
+    const auto m = g_scenario.mode();
+    return m == e_scenario_normal || m == e_scenario_selected;
+}
+ANK_FUNCTION(__ui_scenario_mission_briefing_button_enabled)
+
+bool __ui_game_can_undo() {
+    return game_can_undo() != 0;
+}
+ANK_FUNCTION(__ui_game_can_undo)
+
+pcstr __ui_sidebar_overlay_link_text() {
+    static xstring storage;
+    if (const city_overlay *o = g_city.overlay()) {
+        storage = o->title();
+    } else {
+        storage = ui::str(6, 4);
+    }
+    return storage.c_str();
+}
+ANK_FUNCTION(__ui_sidebar_overlay_link_text)
+
+ui::element* __ui_get_element(xstring element_id) {
+    OZZY_PROFILER_SECTION(_, bstring128("ui:get_elem+", element_id.c_str()).c_str())
+    ui::widget* w = ui::get_current_widget();
+    return (w && !element_id.empty()) ? &(*w)[element_id] : nullptr;
+}
+
+// In MuJS: index 0 = this, index 1 = first argument.
+static js_StringNode property_id = js_intern("id");
+static js_StringNode property_undefined = js_intern("undefined");
+
+ui::element* ui::GET_ELEM(js_State* J) {
+    J->getproperty(0, property_id);
+    js_StringNode id = J->isstring(-1) ? js_tostring(J, -1) : nullptr;
+    js_pop(J, 1);
+    if (!id || id == property_undefined) {
+        logs::error("UI element proxy: id is undefined");
+        js_stacktrace(J);
+        return nullptr;
+    }
+
+    xstring id_str;
+    id_str._set(id);
+    return __ui_get_element(id_str);
+}
+
+void ui::proxy_get_text(js_State* J) {
+    auto elem = GET_ELEM(J);
+    J->pushstring(elem ? elem->text().c_str() : "");
+}
+void ui::proxy_set_text(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        elem->text(js_toxstring(J, 1).c_str());
+    }
+    J->pushundefined();
+}
+
+void ui::proxy_get_pos(js_State* J) {
+    auto elem = GET_ELEM(J);
+    const vec2i pos = elem ? elem->pos : vec2i{0, 0};
+    J->newvec2i(pos.x, pos.y);
+}
+
+void ui::proxy_get_screen_pos(js_State* J) {
+    auto elem = GET_ELEM(J);
+    const vec2i pos = elem ? elem->screen_pos() : vec2i{0, 0};
+    J->newvec2i(pos.x, pos.y);
+}
+
+void ui::proxy_set_pos(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        elem->pos = js_tovec2i(J, 1);
+    }
+    J->pushundefined();
+}
+
+void ui::proxy_get_size(js_State* J) {
+    auto elem = GET_ELEM(J);
+    const vec2i sz = elem ? elem->pxsize() : vec2i{0, 0};
+    J->newvec2i(sz.x, sz.y);
+}
+
+void ui::proxy_set_size(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        elem->size = js_tovec2i(J, 1);
+    }
+    J->pushundefined();
+}
+
+void ui::proxy_get_enabled(js_State* J) {
+    auto elem = GET_ELEM(J);
+    js_pushboolean(J, elem ? elem->enabled : false);
+}
+void ui::proxy_set_enabled(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        elem->set_enabled(js_toboolean(J, 1));
+    }
+    J->pushundefined();
+}
+void ui::proxy_get_readonly(js_State* J) {
+    auto elem = GET_ELEM(J);
+    js_pushboolean(J, elem ? elem->readonly : false);
+}
+void ui::proxy_set_readonly(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        elem->readonly = js_toboolean(J, 1);
+    }
+    J->pushundefined();
+}
+void ui::proxy_get_darkened(js_State* J) {
+    auto elem = GET_ELEM(J);
+    js_pushnumber(J, elem ? elem->darkened : 0);
+}
+void ui::proxy_set_darkened(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        if (J->isboolean(1)) {
+            elem->darkened = js_toboolean(J, 1) ? 1 : 0;
+        } else {
+            elem->darkened = (uint8_t)js_tointeger(J, 1);
+        }
+    }
+    J->pushundefined();
+}
+void ui::proxy_get_font(js_State* J) {
+    auto elem = GET_ELEM(J);
+    js_pushnumber(J, elem ? elem->font() : FONT_INVALID);
+}
+void ui::proxy_set_font(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        elem->font((int)js_tonumber(J, 1));
+    }
+    J->pushundefined();
+}
+
+void ui::proxy_get_text_color(js_State* J) {
+    auto elem = GET_ELEM(J);
+    js_pushnumber(J, elem ? elem->text_color() : COLOR_NULL);
+}
+void ui::proxy_set_text_color(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        elem->text_color((color)(unsigned int)js_tonumber(J, 1));
+    }
+    J->pushundefined();
+}
+
+void ui::proxy_set_image(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        elem->image((int)js_tonumber(J, 1));
+    }
+    J->pushundefined();
+}
+void ui::proxy_get_image_tid(js_State* J) {
+    auto elem = GET_ELEM(J);
+    js_pushnumber(J, elem ? elem->image().tid() : -1);
+}
+void ui::proxy_set_image_tid(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        const int id = (int)js_tonumber(J, 1);
+        const image_t *img = image_get(id);
+        if (img) {
+            elem->image(img->desc());
+        }
+    }
+    J->pushundefined();
+}
+
+void ui::proxy_get_texture_id(js_State* J) {
+    auto elem = GET_ELEM(J);
+    auto btn = elem ? elem->dcast_image_button() : nullptr;
+    js_pushnumber(J, btn ? btn->texture_id : -1);
+}
+
+void ui::proxy_set_texture_id(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (auto btn = elem ? elem->dcast_image_button() : nullptr) {
+        btn->texture_id = (int)js_tonumber(J, 1);
+    }
+    J->pushundefined();
+}
+
+void ui::proxy_get_selected(js_State* J) {
+    auto elem = GET_ELEM(J);
+    js_pushboolean(J, elem ? elem->selected() : false);
+}
+
+void ui::proxy_get_hovered(js_State* J) {
+    auto elem = GET_ELEM(J);
+    js_pushboolean(J, elem ? elem->hovered() : false);
+}
+
+void ui::proxy_set_selected(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        elem->select(js_toboolean(J, 1));
+    }
+    J->pushundefined();
+}
+
+void ui::proxy_set_tooltip(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        elem->tooltip(js_toxstring(J, 1));
+    }
+    J->pushundefined();
+}
+
+void ui::proxy_set_ondraw(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (!elem) {
+        J->pushundefined();
+        return;
+    }
+
+    if (J->isnull(1) || J->isundefined(1)) {
+        elem->set_ref(ui::element::ONDRAW, "");
+        elem->ondraw(nullptr);
+        J->pushundefined();
+        return;
+    }
+
+    if (!J->iscallable(1)) {
+        elem->set_ref(ui::element::ONDRAW, "");
+        elem->ondraw(nullptr);
+        J->pushundefined();
+        return;
+    }
+
+    J->copy(1);
+    elem->set_ref(ui::element::ONDRAW, js_xref(J));
+    elem->ondraw(nullptr);
+    J->pushundefined();
+}
+void ui::proxy_set_textfn(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (!elem) {
+        J->pushundefined();
+        return;
+    }
+
+    if (J->isnull(1) || J->isundefined(1)) {
+        elem->set_ref(ui::element::TEXTFN, "");
+        J->pushundefined();
+        return;
+    }
+
+    if (!J->iscallable(1)) {
+        elem->set_ref(ui::element::TEXTFN, "");
+        J->pushundefined();
+        return;
+    }
+
+    J->copy(1);
+    elem->set_ref(ui::element::TEXTFN, js_xref(J));
+    J->pushundefined();
+}
+
+void ui::proxy_get_value(js_State* J) {
+    auto elem = GET_ELEM(J);
+    J->pushstring(elem ? elem->get_value() : "");
+}
+
+void ui::proxy_set_value(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (elem) {
+        elem->set_value(js_toxstring(J, 1).c_str());
+    }
+    J->pushundefined();
+}
+
+void ui::proxy_noop(js_State* J) {
+    (void)J;
+    J->pushundefined();
+}
+
+void ui::proxy_set_checkedfn(js_State* J) {
+    auto elem = GET_ELEM(J);
+    if (!elem) {
+        J->pushundefined();
+        return;
+    }
+
+    if (J->isnull(1) || J->isundefined(1)) {
+        elem->set_ref(ui::element::CHECKEDFN, "");
+        J->pushundefined();
+        return;
+    }
+
+    if (!J->iscallable(1)) {
+        elem->set_ref(ui::element::CHECKEDFN, "");
+        J->pushundefined();
+        return;
+    }
+
+    J->copy(1);
+    elem->set_ref(ui::element::CHECKEDFN, js_xref(J));
+    J->pushundefined();
+}
+
+static flat_map<xstring, js_Object *, 32> g_ui_element_proto_by_kind;
+
+void js_ui_register_element_proto(const xstring &kind, js_Object *proto) {
+    verify_no_crash(proto);
+    if (!proto) {
+        return;
+    }
+
+    g_ui_element_proto_by_kind[kind] = proto;
+}
+
+js_Object *js_ui_element_proto_for_kind(const xstring &kind) {
+    auto it = g_ui_element_proto_by_kind.find(kind);
+    if (it != g_ui_element_proto_by_kind.end()) {
+        return it->second;
+    }
+
+    auto def = g_ui_element_proto_by_kind.find(ui::element::skind());
+    if (def != g_ui_element_proto_by_kind.end()) {
+        return def->second;
+    }
+
+    verify_no_crash(false && "UI element prototype not found");
+    return nullptr;
+}
+
+void __ui_window_message_dialog_show(pcstr template_name) {
+    window_message_dialog_show(template_name, -1, nullptr);
+}
+ANK_FUNCTION_1(__ui_window_message_dialog_show)
+
+void __ui_window_message_dialog(pcstr template_name) {
+    window_message_dialog_show(template_name, -1, window_city_draw_all);
+}
+ANK_FUNCTION_1(__ui_window_message_dialog)
+
+void __ui_window_message_dialog_show_city_message(xstring text_id, int message_id, int year, int month, int param1, int param2, int /*message_advisor*/) {
+    // Advisor comes from the message template (JS used to pass mm_text_id by mistake).
+    // use_popup=true so embedded SMK can play (live popups + archive, same as Julius).
+    const lang_message& msg = lang_get_message(text_id);
+    window_message_dialog_show_city_message(text_id, message_id, year, month, param1, param2, msg.advisor, true);
+}
+ANK_FUNCTION_7(__ui_window_message_dialog_show_city_message)
+
+void __ui_window_message_dialog_show_with_video(pcstr video_path, pcstr title) {
+    window_message_dialog_show_with_video(video_path, title ? title : "");
+}
+ANK_FUNCTION_2(__ui_window_message_dialog_show_with_video)
+
+int __image_id_resource_icon_int(int resource) {
+    return image_id_resource_icon((e_resource)resource);
+}
+ANK_FUNCTION_1(__image_id_resource_icon_int)
+
+void __ui_set_window_pos(pcstr window_id, vec2i pos) {
+    auto w = autoconfig_window::find(window_id);
+    if (w) {
+        w->pos = pos;
+    }
+}
+ANK_FUNCTION_2(__ui_set_window_pos)
+
+#define _R(name)            \
+    J->newnumber(name);  \
+    js_setglobal(J, #name);
+
+void js_register_ui_objects(js_State* J) {
+    g_ui_element_proto_by_kind.clear();
+
+    for (UiElementProtoRegIterator *s = UiElementProtoRegIterator::tail; s; s = s->next) {
+        s->func(J);
+    }
+
+    _R(UiFlags_None)
+    _R(UiFlags_Darkened)
+    _R(UiFlags_Grayscale)
+    _R(UiFlags_PanelInner)
+    _R(UiFlags_LabelMultiline)
+    _R(UiFlags_AlignYCentered)
+    _R(UiFlags_NoBody)
+    _R(UiFlags_Rich)
+    _R(UiFlags_Selected)
+    _R(UiFlags_AlignCentered)
+    _R(UiFlags_NoScroll)
+    _R(UiFlags_AlignLeft)
+    _R(UiFlags_AlignXCentered)
+    _R(UiFlags_Readonly)
+    _R(UiFlags_NoBorder)
+    _R(UiFlags_Outline)
+    _R(UiFlags_SplitText)
+    _R(UiFlags_PanelSmall)
+    _R(UiFlags_PanelOuter)
+    _R(UiFlags_ThinBorder)
+    _R(UiFlags_Mirrored)
+}

@@ -1,0 +1,87 @@
+#include "figure_physician.h"
+
+#include "core/profiler.h"
+#include "building/building_house.h"
+#include "figure/service.h"
+#include "game/game_config.h"
+#include "grid/building.h"
+#include "grid/grid.h"
+#include "js/js_register.h"
+
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_physician);
+
+void figure_physician::figure_action() {
+    OZZY_PROFILER_FUNCTION();
+    switch (action_state()) {
+    case ACTION_60_PHYSICIAN_CREATED:
+        advance_action(ACTION_10_PHYSICIAN_GOING);
+        break;
+
+    case ACTION_10_PHYSICIAN_GOING:
+        advance_action(ACTION_62_PHYSICIAN_ROAMING);
+        break;
+
+    case ACTION_61_PHYSICIAN_ENTERING_EXITING:
+    case 9:
+        do_enterbuilding(true, home());
+        break;
+
+    case ACTION_62_PHYSICIAN_ROAMING:
+        do_roam(TERRAIN_USAGE_ROADS, ACTION_63_PHYSICIAN_RETURNING);
+        break;
+
+    case ACTION_63_PHYSICIAN_RETURNING:
+        do_returnhome(TERRAIN_USAGE_ROADS, ACTION_61_PHYSICIAN_ENTERING_EXITING);
+        break;
+    }
+}
+
+void figure_physician::figure_before_action() {
+    building* b = home();
+    if (!b->is_valid() || !b->has_figure(0, id())) {
+        poof();
+    }
+}
+
+int figure_physician::provide_service() {
+    if (!game_features::gameplay_change_physician_service_cap.to_bool()) {
+        int houses = 0;
+        map_grid_area_foreach(map_grid_get_area(tile(), 1, 2), [&] (tile2i t) {
+            const int bid = map_building_at(t.grid_offset());
+            auto house = bid ? building_get(bid)->dcast_house() : nullptr;
+            if (house && house->house_population() > 0) {
+                house->runtime_data().physician = MAX_COVERAGE;
+                houses++;
+            }
+        });
+        return houses;
+    }
+
+    building *physician_building = home();
+    if (!physician_building) {
+        return 0;
+    }
+
+    const auto &params = physician_building->params();
+    if (physician_building->residents_served_this_month >= params.max_serve_clients) {
+        return 0;
+    }
+
+    int heal_amount = current_params().health_heal_amount;
+    int houses_serviced = figure_provide_service(tile(), &base, [&] (building *b, figure *f) {
+        auto house = b->dcast_house();
+        if (!house || house->house_population() <= 0) {
+            return;
+        }
+
+        auto &housed = house->runtime_data();
+        if (housed.physician < MAX_COVERAGE / 2) {
+            int house_population = house->house_population();
+            physician_building->residents_served_this_month += (uint16_t)house_population;
+            housed.physician = MAX_COVERAGE;
+        }
+
+        b->common_health = std::min(b->common_health + heal_amount, 100);
+    });
+    return houses_serviced;
+}

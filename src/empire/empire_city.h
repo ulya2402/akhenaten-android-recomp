@@ -1,0 +1,167 @@
+#pragma once
+
+#include "empire/empire_object.h"
+#include "empire/type.h"
+#include "game/resource.h"
+#include "empire/trade_route.h"
+#include "figure/figure_type.h"
+#include "core/tokenum.h"
+#include "core/archive.h"
+#include "core/svector.h"
+
+struct empire_city_options_t {
+    uint16_t text_group_old_names;
+    uint16_t text_group_new_names;
+};
+ANK_CONFIG_STRUCT(empire_city_options_t, text_group_old_names, text_group_new_names)
+
+// Empire-map city sprites by type (configured in empire.js — no Cleopatra absolute IDs).
+struct empire_city_images_t {
+    image_desc ours;
+    image_desc ours_expanded;
+    image_desc pharaoh_trading;
+    image_desc pharaoh;
+    image_desc egyptian_trading;
+    image_desc egyptian;
+    image_desc foreign_trading;
+    image_desc foreign;
+
+    image_desc for_type(e_empire_city type, bool expanded) const;
+    int image_id(e_empire_city type, bool expanded) const;
+};
+ANK_CONFIG_STRUCT(empire_city_images_t,
+    ours, ours_expanded, pharaoh_trading, pharaoh,
+    egyptian_trading, egyptian, foreign_trading, foreign)
+
+extern empire_city_images_t empire_city_images;
+
+struct empire_city_type_change {
+    e_empire_city from;
+    e_empire_city to;
+};
+ANK_CONFIG_STRUCT(empire_city_type_change, from, to)
+
+// OG city_status_new_type rows of one city-status subtype; a city whose type has no row is left alone.
+struct empire_city_type_changes_t {
+    svector<empire_city_type_change, 4> types;
+};
+ANK_CONFIG_STRUCT(empire_city_type_changes_t, types)
+
+extern empire_city_type_changes_t empire_city_conquest;
+extern empire_city_type_changes_t empire_city_fall_to_enemy;
+
+// What a foreign city sells as luxury goods. OG keeps the resource-name text id (group 23, 38 + 2 * kind).
+enum e_luxury_kind : uint8_t {
+    LUXURY_JEWELRY = 0,
+    LUXURY_WINE,
+    LUXURY_IVORY,
+    LUXURY_EBONY,
+    LUXURY_INCENSE,
+    LUXURY_OLIVE_OIL,
+    LUXURY_LEOPARD_SKINS,
+    LUXURY_PERFUME,
+    LUXURY_KIND_MAX
+};
+using e_luxury_kind_tokens_t = token_holder<e_luxury_kind, LUXURY_JEWELRY, LUXURY_KIND_MAX>;
+
+// OG empire_culture_table (luxury_kind only): one entry per city name id; configured in empire.js.
+struct empire_city_cultures_t {
+    svector<uint8_t, 66> luxury_kind;
+};
+ANK_CONFIG_STRUCT(empire_city_cultures_t, luxury_kind)
+
+extern empire_city_cultures_t empire_city_cultures;
+
+struct empire_city {
+    enum {
+        check_open_route = 1
+    };
+
+    uint8_t in_use; // this can be 2, so it's an int!
+    e_empire_city type;
+    uint8_t lookup_id;
+    uint8_t name_id;
+    bstring32 name_str;
+    int route_id;
+    bool is_open;
+    bool buys_resource[RESOURCES_MAX];
+    bool sells_resource[RESOURCES_MAX];
+    int16_t cost_to_open;
+    int ph_unk01;
+    int trader_blocked;
+    int trader_entry_delay;
+    int empire_object_id;
+    bool is_sea_trade;
+    int trader_figure_ids[3];
+    uint8_t months_under_siege;  // Track if city is under siege
+    // Per-city cadence overrides. 0 = use defaults (32-day sea / 4-day land entry,
+    // and the empire-wide ship_movement_delay range from empire.js).
+    uint8_t trader_entry_delay_override;
+    uint8_t ship_movement_delay_min;
+    uint8_t ship_movement_delay_max;
+
+    void remove_trader(int figure_id);
+    bool can_trade() const;
+    void set_trade_enabled(bool enabled);
+    bool change_type(const empire_city_type_changes_t& changes);
+    void clear_trade_resources();
+
+    bool shows_as_trade_city_on_map() const;
+    bool is_selectable_on_empire_map() const;
+    trade_route &get_route();
+    const trade_route &get_route() const;
+    const empire_object *get_empire_object() const;
+    const full_empire_object *get_full_empire_object() const;
+    int get_free_slot(int max_traders) const;
+    int get_free_slot() const;
+    int trader_size() const;
+    int free_trader_slot() const;
+
+    void archive_load(archive arch);
+
+    void set_vulnerable() {
+        type = EMPIRE_CITY_FOREIGN_TRADING;
+    }
+    void set_foreign() {
+        type = EMPIRE_CITY_EGYPTIAN;
+    }
+
+    void set_under_siege(uint8_t months) {
+        months_under_siege = months;
+        if (months_under_siege > 0) {
+            is_open = false;  // Close trade when under siege
+        }
+    }
+
+    static bstring32 get_display_name(int id);
+
+    bool is_sieged() const {
+        return months_under_siege > 0;
+    }
+};
+ANK_CONFIG_STRUCT(empire_city, is_sea_trade, trader_entry_delay_override, ship_movement_delay_min,
+  ship_movement_delay_max)
+
+struct empire_city_handle {
+    uint8_t handle = 0;
+
+    empire_city& operator*();
+    empire_city& ref();
+    const empire_city& ref() const;
+
+    const trade_route& get_route() const;
+    trade_route& get_route();
+    bool valid() const { return handle > 0; }
+    bool buys_resource(e_resource r) const;
+    bool sells_resource(e_resource r) const;
+
+    void remove_trader(figure_id fid);
+    void set_under_siege(uint8_t months);
+    xstring name() const;
+
+    [[nodiscard]]
+    bool operator!() const { return !valid(); }
+};
+
+using e_empire_city_tokens_t = token_holder<e_empire_city, EMPIRE_CITY_OURS, EMPIRE_CITY_COUNT>;
+extern const e_empire_city_tokens_t e_empire_city_tokens;

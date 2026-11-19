@@ -1,0 +1,44 @@
+#pragma once
+
+#include "graphics/color.h"
+#include "graphics/view/view.h"
+#include "grid/point.h"
+
+enum e_render_state {
+    RENDER_NONE = 0x0,
+    RENDER_TALL_TILE = 0x1,
+    RENDER_TALL_TILE_DRAWN = 0x2,
+    RENDER_RAISED_TILE = 0x4,
+};
+
+struct local_render_context_t {
+    uint32_t last_water_animation_time;
+    int advance_water_animation;
+
+    int image_id_water_first;
+    int image_id_water_last;
+
+    int image_id_deepwater_first;
+    int image_id_deepwater_last;
+
+    int image_id_cliff_raised_first = 0;
+    int image_id_cliff_raised_last = -1;
+
+    void init();
+    bool is_raised_cliff_ground(int image_id) const;
+};
+
+void map_render_clear();
+
+void map_render_set(tile2i tile, int flag);
+void map_render_set(int grid_offset, int flag);
+void map_render_add(int grid_offset, int flag);
+void map_render_sub(int grid_offset, int flag);
+bool map_render_is(int grid_offset, int render_mask);
+bool map_render_isu(int grid_offset, int render_mask);
+
+void draw_raised_cliff_ground(vec2i pixel, int image_id, color mask, painter& ctx);
+
+void draw_isometrics_overlay_flat(vec2i pixel, tile2i point, painter &ctx);
+void draw_isometrics_overlay_height(vec2i pixel, tile2i point, painter &ctx);
+void draw_ornaments_overlay(vec2i pixel, tile2i point, painter &ctx);

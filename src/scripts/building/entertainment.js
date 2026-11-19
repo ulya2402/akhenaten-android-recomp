@@ -1,0 +1,242 @@
+log_info("akhenaten: building entertainment started")
+
+// prototype for entertainment buildings
+function EntertainmentBuilding(building_id) {
+  this.id = building_id
+}
+
+EntertainmentBuilding.prototype = Object.create(Building.prototype)
+EntertainmentBuilding.prototype.constructor = EntertainmentBuilding
+
+EntertainmentBuilding.prototype.__property_getter = function(property) {
+  return __entertainment_building_get_property(this.id, property)
+}
+
+EntertainmentBuilding.property.num_shows = { }
+EntertainmentBuilding.property.juggler_visited = { }
+EntertainmentBuilding.property.musician_visited = { }
+EntertainmentBuilding.property.dancer_visited = { }
+EntertainmentBuilding.property.play_index = { }
+EntertainmentBuilding.property.spawned_entertainer_days = { }
+EntertainmentBuilding.property.booth_corner_grid_offset = { }
+EntertainmentBuilding.property.latched_venue_main_grid_offset = { }
+EntertainmentBuilding.property.latched_venue_add_grid_offset = { }
+EntertainmentBuilding.property.conservatory_help = { }
+EntertainmentBuilding.property.consume_material_id = { }
+
+// end prototype for entertainment buildings
+
+building_juggler_school {
+  animations {
+    _pack { pack: PACK_GENERAL }
+    preview { id:46 }
+    base { id:46 }
+    work { pos : [33, -38], id:46, offset:1, max_frames:14, duration:3 }
+  }
+
+  // OG delays_service {3,7,15,29,44} — spawn_entertainment_school
+  spawn_delay_100_percent : 3
+  spawn_delay_75_percent : 7
+  spawn_delay_50_percent : 15
+  spawn_delay_25_percent : 29
+  spawn_delay_default : 44
+  meta { text_id:77, help_link:"message_building_trading_centers" }
+  info_sound : "Wavs/juggler_school.wav"
+  overlay : OVERLAY_BOOTH
+  sound_channel : SOUND_CHANNEL_CITY_JUGGLER_SCHOOL
+
+  building_size : 2
+  min_houses_coverage : 50
+  cost [ 10, 20, 50, 100, 200 ]
+  desirability { value[-3], step[1], step_size[1], range[3] }
+  laborers[5]
+  fire_risk[4]
+  damage_risk[2]
+  flags {
+    is_entertainment: true
+    draw_normal_anim: true
+    work_anim: true
+  }
+}
+
+[es=(building_juggler_school, spawn_figure)]
+function building_juggler_school_spawn_figure(ev) {
+    var b = city.get_entertainment_building(ev.bid)
+    if (!b) {
+        return
+    }
+
+    b.check_labor_problem()
+    if (!b.has_road_access) {
+        return
+    }
+
+    b.common_spawn_labor_seeker(building_juggler_school.min_houses_coverage)
+
+    // Remake: at most one living juggler from this school. OG has no walker_alive check.
+    if (game_features.gameplay_juggler_school_one_walker
+        && b.get_figures_number(FIGURE_JUGGLER) > 0) {
+        return
+    }
+
+    var pct = b.worker_percentage
+    var delay
+    if (pct >= 100) {
+        delay = building_juggler_school.spawn_delay_100_percent
+    } else if (pct >= 75) {
+        delay = building_juggler_school.spawn_delay_75_percent
+    } else if (pct >= 50) {
+        delay = building_juggler_school.spawn_delay_50_percent
+    } else if (pct >= 25) {
+        delay = building_juggler_school.spawn_delay_25_percent
+    } else if (pct >= 1) {
+        delay = building_juggler_school.spawn_delay_default
+    } else {
+        return
+    }
+
+    b.figure_spawn_delay = b.figure_spawn_delay + 1
+    if (b.figure_spawn_delay <= delay) {
+        return
+    }
+    b.figure_spawn_delay = 0
+
+    var dest_id = __building_determine_venue_destination(b.id, FIGURE_JUGGLER, [BUILDING_PAVILLION, BUILDING_BANDSTAND, BUILDING_BOOTH])
+    if (dest_id > 0) {
+        b.create_figure_with_destination(FIGURE_JUGGLER, dest_id, ACTION_2_ENTERTAINER_GOING_TO_VENUE, BUILDING_SLOT_JUGGLER)
+    } else {
+        b.create_roaming_figure(FIGURE_JUGGLER, ACTION_0_ENTERTAINER_AT_SCHOOL_CREATED, BUILDING_SLOT_JUGGLER)
+    }
+}
+
+building_dancer_school {
+  animations {
+    _pack { pack: PACK_GENERAL }
+    preview { id:52 }
+    base { id:52 }
+    work { pos[104, 0], pack:PACK_SPR_AMBIENT, id:6, offset:0, max_frames:35, duration:2, internal_offset:true }
+  }
+
+  overlay : OVERLAY_ENTERTAINMENT
+  min_houses_coverage : 50
+  building_size : 4
+  meta { text_id:76, help_link:"message_building_trading_centers" }
+  info_sound : "Wavs/dance_school.wav"
+  cost [ 30, 50, 100, 150, 200 ]
+  desirability { value[-3], step[1], step_size[1], range[3] }
+  laborers[10]
+  fire_risk[4]
+  damage_risk[2]
+  flags {
+    is_entertainment: true
+    draw_normal_anim: true
+    work_anim: true
+  }
+}
+
+building_pavilion = {
+  animations : {
+    base : { pos:[0, 0], pack:PACK_GENERAL, id:48 },
+    square : { pos:[0, 0], pack:PACK_GENERAL, id:50 },
+    stand_sn_s : { pack:PACK_GENERAL, id:92, offset:0},
+    stand_sn_n : { pack:PACK_GENERAL, id:92, offset:1},
+    stand_sn_e : { pack:PACK_GENERAL, id:92, offset:2},
+    juggler : { pos : [35, 17], pack:PACK_SPR_AMBIENT, id:7, offset:-1 },
+    dancer : { pos : [65, 0], pack:PACK_SPR_AMBIENT, id:6, offset:0, max_frames:35 },
+    musician_sn : { pos : [50, 0], pack:PACK_SPR_AMBIENT, id:9, max_frames : 11 },
+    musician_we : { pos : [48, 4], pack:PACK_SPR_AMBIENT, id:10, max_frames : 11 },
+    booth : { pos:[0, 0], pack:PACK_GENERAL, id:114 },
+  },
+  preview_dir : [
+    { stand:[-30, 15], stand_b:[90, 45], stand_e:[60, 60], booth:[-60, 30] },
+    { stand:[30, 45], stand_b:[0, 0], stand_e:[-30, 15], booth:[30, 75] },
+    { stand:[0, 30], stand_b:[0, 90], stand_e:[-30, 75], booth:[90, 45], stand_b_img:2, stand_e_img:2 },
+    { stand:[-60, 60], stand_b:[90, 45], stand_e:[60, 30], booth:[0, 90], stand_b_img:2, stand_e_img:2 },
+    { stand:[0, 60], stand_b:[-60, 30], stand_e:[-90, 45], booth:[0, 90] },
+    { stand:[-60, 30], stand_b:[30, 75], stand_e:[0, 90], booth:[-90, 45] },
+    { stand:[-90, 45], stand_b:[30, 15], stand_e:[0, 0], booth:[-30, 75], stand_b_img : 2, stand_e_img : 2 },
+    { stand:[-30, 15], stand_b:[-60, 60], stand_e:[-90, 45], booth:[60, 30], stand_b_img : 2, stand_e_img : 2 }
+  ],
+
+  place_dir : [
+    { items: [
+      {type: BUILDING_GARDENS, offset:[1, 2]},
+      {type: BUILDING_GARDENS, offset:[3, 2]},
+      {type: BUILDING_PAVILLION, offset:[0, 0]},
+      {type: BUILDING_BANDSTAND, offset:[3, 0], main:true},
+      {type: BUILDING_BANDSTAND, offset:[3, 1], main:false},
+      {type: BUILDING_BOOTH, offset:[0, 2], main:false}
+    ]},
+    { items: [
+      {type: BUILDING_GARDENS, offset:[2, 2]},
+      {type: BUILDING_GARDENS, offset:[0, 2]},
+      {type: BUILDING_PAVILLION, offset:[2, 0]},
+      {type: BUILDING_BANDSTAND, offset:[0, 0], main:true},
+      {type: BUILDING_BANDSTAND, offset:[0, 1], main:false},
+      {type: BUILDING_BOOTH, offset:[3, 2], main:false}
+    ]},
+    { items: [
+      {type: BUILDING_GARDENS, offset:[3, 0]},
+      {type: BUILDING_GARDENS, offset:[3, 3]},
+      {type: BUILDING_PAVILLION, offset:[1, 0]},
+      {type: BUILDING_BANDSTAND, offset:[1, 3], main:true},
+      {type: BUILDING_BANDSTAND, offset:[2, 3], main:false},
+      {type: BUILDING_BOOTH, offset:[3, 1], main:false}
+    ]},
+    { items: [
+      {type: BUILDING_GARDENS, offset:[3, 3]},
+      {type: BUILDING_GARDENS, offset:[1, 0]},
+      {type: BUILDING_PAVILLION, offset:[1, 2]},
+      {type: BUILDING_BANDSTAND, offset:[2, 0], main:true},
+      {type: BUILDING_BANDSTAND, offset:[3, 0], main:false},
+      {type: BUILDING_BOOTH, offset:[3, 2], main:false}
+    ]},
+    { items: [
+      {type: BUILDING_GARDENS, offset:[3, 3]},
+      {type: BUILDING_GARDENS, offset:[0, 3]},
+      {type: BUILDING_PAVILLION, offset:[2, 1]},
+      {type: BUILDING_BANDSTAND, offset:[0, 1], main:true},
+      {type: BUILDING_BANDSTAND, offset:[0, 2], main:false},
+      {type: BUILDING_BOOTH, offset:[2, 3], main:false}
+    ]},
+    { items: [
+      {type: BUILDING_GARDENS, offset:[1, 3]},
+      {type: BUILDING_GARDENS, offset:[3, 3]},
+      {type: BUILDING_PAVILLION, offset:[0, 1]},
+      {type: BUILDING_BANDSTAND, offset:[3, 1], main:true},
+      {type: BUILDING_BANDSTAND, offset:[3, 2], main:false},
+      {type: BUILDING_BOOTH, offset:[0, 3], main:false}
+    ]},
+    { items: [
+      {type: BUILDING_GARDENS, offset:[2, 0]},
+      {type: BUILDING_GARDENS, offset:[2, 2]},
+      {type: BUILDING_PAVILLION, offset:[0, 2]},
+      {type: BUILDING_BANDSTAND, offset:[0, 0], main:false},
+      {type: BUILDING_BANDSTAND, offset:[1, 0], main:true},
+      {type: BUILDING_BOOTH, offset:[2, 3], main:false}
+    ]},
+    { items: [
+      {type: BUILDING_GARDENS, offset:[0, 3]},
+      {type: BUILDING_GARDENS, offset:[2, 1]},
+      {type: BUILDING_PAVILLION, offset:[0, 0]},
+      {type: BUILDING_BANDSTAND, offset:[1, 3], main:false},
+      {type: BUILDING_BANDSTAND, offset:[2, 3], main:true},
+      {type: BUILDING_BOOTH, offset:[2, 0], main:false}
+    ]}
+  ]
+
+  min_houses_coverage : 100
+  meta { text_id: 74, help_link:"message_building_pavilion" }
+  building_size : 4
+  cost [ 100, 200, 300, 500, 800 ]
+  desirability { value[6], step[1], step_size[-1], range[6] }
+  laborers [20]
+  fire_risk [4]
+  damage_risk [4]
+
+  flags {
+    no_map_edge_margin: true
+    is_entertainment: true
+  }
+}
+

@@ -1,0 +1,167 @@
+#pragma once
+
+#include "graphics/painter.h"
+#include "graphics/animation.h"
+#include "overlays/city_overlay_fwd.h"
+#include "core/xstring.h"
+#include "core/threading.h"
+#include "game/simulation.h"
+#include "game/game_events.h"
+#include "core/system_time.h"
+#include "core/xfunction.h"
+#include "core/hvector.h"
+
+enum e_difficulty {
+    DIFFICULTY_VERY_EASY = 0,
+    DIFFICULTY_EASY = 1,
+    DIFFICULTY_NORMAL = 2,
+    DIFFICULTY_HARD = 3,
+    DIFFICULTY_VERY_HARD = 4
+};
+
+enum game_option {
+    game_opt_none = 0 << 0,
+    game_opt_sound = 1 << 1,
+};
+
+using game_opts = uint32_t;
+
+bool game_init(game_opts opts);
+
+bool game_init_editor();
+
+void game_reload_language();
+
+void game_exit_editor();
+uint8_t game_difficulty();
+
+struct fps_data_t {
+    int frame_count;
+    int last_fps;
+    uint32_t last_update_time;
+};
+
+enum e_session_type {
+    e_session_none = -1,
+    e_session_mission = 0,
+    e_session_save = 1,
+    e_session_custom_map = 2
+};
+
+struct event_game_mission_pre_load {};
+struct event_game_scripts_was_reloaded {};
+struct event_game_exit_requested { int reserved = 0; };
+struct event_update_game_tick_timer { uint8_t reserved = 0; };
+struct event_debug_properties_draw_mission_info { uint8_t reserved = 0; };
+struct event_debug_hotkey { int key; };
+struct event_report_bug_result { int ok; xstring url; xstring error; };
+
+struct game_t {
+    using serial_event_t = xfunction<void()>;
+    using frame_phase_ms_handler_t = xfunction<void(double game_update_ms, double draw_ms)>;
+
+    enum {
+        MAX_ANIM_TIMERS = 51
+    };
+
+    bool paused = false;
+    bool pause_allow = false;
+    bool cli_fullscreen = false;
+    bool save_debug_texture = false;
+
+    bool is_fullscreen(bool check_cli = true) const;
+    void set_fullscreen(bool v);
+    void set_cli_fullscreen(bool v) { cli_fullscreen = v; }
+    bool animation = false;
+    // A second city draw in the same frame (figure snapshot) shows the scene but must not step
+    // animations or count sound views again.
+    bool redraw_read_only = false;
+    bool debug_console = false;
+    bool debug_properties = false;
+    bool debug_terrain_paint = false;
+    uint32_t frame = 0;
+    uint16_t last_frame_tick = 0;
+    bool system_language_changed = false;
+    uint8_t logo_show_patch_message = 0;
+    int mission_choice_open_scenario_id = 0;
+    int tick_timer_ms = 37;
+
+    struct {
+        xstring last_loaded_mission;
+        e_session_type last_loaded = e_session_none;
+        bool active = false;
+    } session;
+
+    fps_data_t fps = {0, 0, 0};
+    animation_timer animation_timers[MAX_ANIM_TIMERS];
+
+    struct difficulty_t {
+        void increase() { set((e_difficulty)(get() + 1)); }
+        void decrease() { set((e_difficulty)(get() - 1)); }
+
+        inline e_difficulty operator()() const { return (e_difficulty)get(); }
+        void set(e_difficulty v);
+        e_difficulty get() const;
+    } difficulty;
+
+    void animation_timers_init();
+    void animation_timers_update();
+    bool animation_should_advance(uint32_t speed);
+    void reload_objects();
+
+    void update();
+    void update_tick(int simtick);
+
+    void advance_day();
+    void advance_week();
+    void advance_month();
+    void advance_year();
+
+    void shutdown();
+    bool check_valid();
+
+    void exit();
+
+    void frame_begin();
+    void frame_end();
+
+    void init_state();
+
+    void city_sounds_frame_begin();
+    void before_start_simulation();
+    void handle_input_frame();
+
+    void reload_language();
+    void add_frame_end_event(serial_event_t ev);
+    void execute_frame_end_events();
+    void add_frame_pre_present_handler(serial_event_t handler);
+    void frame_pre_present();
+    void add_frame_serial_part_handler(serial_event_t handler);
+    void frame_serial_part();
+    void add_frame_phase_ms_handler(frame_phase_ms_handler_t handler);
+    void frame_phase_ms(double game_update_ms, double draw_ms);
+    void add_debug_ui_draw_handler(serial_event_t handler);
+    void debug_ui_draw();
+
+    threading::thread_pool mtrpc;
+    threading::thread_pool mt;
+
+    std::mutex frame_end_events_mutex;
+    hvector<serial_event_t, 16> frame_end_events;
+
+    std::mutex frame_pre_present_handlers_mutex;
+    hvector<serial_event_t, 8> frame_pre_present_handlers;
+
+    std::mutex frame_serial_part_handlers_mutex;
+    hvector<serial_event_t, 8> frame_serial_part_handlers;
+
+    std::mutex frame_phase_ms_handlers_mutex;
+    hvector<frame_phase_ms_handler_t, 8> frame_phase_ms_handlers;
+
+    std::mutex debug_ui_draw_handlers_mutex;
+    hvector<serial_event_t, 8> debug_ui_draw_handlers;
+
+    ::painter painter();
+};
+
+extern game_t game;

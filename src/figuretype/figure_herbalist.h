@@ -1,0 +1,32 @@
+#pragma once
+
+#include "figure/figure.h"
+
+enum e_herbalist_action {
+    ACTION_0_HERBALIST_NONE = 0,
+    ACTION_1_HERBALIST_GOING = 1,
+    ACTION_2_HERBALIST_CREATED = 2,
+    ACTION_3_HERBALIST_ENTERING_EXITING = 3,
+    ACTION_4_HERBALIST_ROAMING = 4,
+    ACTION_5_HERBALIST_RETURNING = 5,
+
+    ACTION_6_HERBALIST_MAX
+};
+using figure_herbalist_action_tokens_t = token_holder<e_herbalist_action, ACTION_0_HERBALIST_NONE, ACTION_6_HERBALIST_MAX>;
+extern const figure_herbalist_action_tokens_t figure_herbalist_action_tokens;
+
+class figure_herbalist : public figure_impl {
+public:
+    FIGURE_METAINFO(FIGURE_HERBALIST, figure_herbalist)
+    figure_herbalist(figure *f) : figure_impl(f) {}
+
+    struct runtime_data_t {
+        short see_low_health;
+    } FIGURE_RUNTIME_DATA_T;
+
+    virtual void on_create() override {}
+    virtual void figure_before_action() override;
+    virtual void figure_action() override;
+    virtual int provide_service() override;
+    virtual figure_sound_t get_sound_reaction(xstring key) const override;
+};

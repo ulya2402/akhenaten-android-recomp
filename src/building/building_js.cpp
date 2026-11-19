@@ -1,0 +1,843 @@
+#include "building/building.h"
+#include "building_static_params.h"
+#include "building_model.h"
+#include "building_planer_renderer.h"
+#include "building/building_industry.h"
+
+#include "building/building_bazaar.h"
+#include "building/building_dock.h"
+#include "building/building_entertainment.h"
+#include "building/building_farm.h"
+#include "building/building_granary.h"
+#include "building/building_roadblock.h"
+#include "building/building_brewery.h"
+#include "building/building_industry.h"
+#include "building/building_storage_yard.h"
+#include "building/building_temple_complex.h"
+#include "building_mansion.h"
+#include "city/city_buildings.h"
+#include "figuretype/figure_entertainer.h"
+#include "grid/building.h"
+#include "grid/road_access.h"
+#include "grid/routing/routing.h"
+#include "grid/water.h"
+#include "core/bstring.h"
+#include "core/log.h"
+#include "core/object_property.h"
+#include "core/profiler.h"
+#include "figure/figure.h"
+#include "figure/action.h"
+#include "core/direction.h"
+#include "js/js_game.h"
+#include "js/js.h"
+#include "mujs/mujs.h"
+#include "mujs/jsvalue.h"
+#include "mujs/jsbuiltin.h"
+
+#include <cstdio>
+#include <cstring>
+#include <memory>
+
+#include "core/hvector.h"
+#include "game/game_events.h"
+
+static int building_this_id(js_State* J) {
+    J->getproperty(J->toobject(0), js_intern("id"));
+    const int id = (int)js_tointeger(J, -1);
+    js_pop(J, 1);
+    return id;
+}
+
+bool __building_is_valid(int bid) {
+    building *b = building_get(bid);
+    return b && b->is_valid();
+}
+ANK_FUNCTION_1(__building_is_valid)
+
+void __building_create_roaming_figure(int bid, int type, int action, int slot) {
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        return;
+    }
+    b->dcast()->create_roaming_figure((e_figure_type)type, (e_figure_action)action, (e_building_slot)slot);
+}
+ANK_FUNCTION_4(__building_create_roaming_figure)
+
+bool __building_is_bazaar(int bid) {
+    building *b = building_get(bid);
+    return b && b->is_valid() && b->dcast_bazaar();
+}
+ANK_FUNCTION_1(__building_is_bazaar)
+
+bool __building_is_granary(int bid) {
+    building *b = building_get(bid);
+    return b && b->is_valid() && b->dcast_granary();
+}
+ANK_FUNCTION_1(__building_is_granary)
+
+bool __building_is_dock(int bid) {
+    building *b = building_get(bid);
+    return b && b->is_valid() && b->dcast_dock();
+}
+ANK_FUNCTION_1(__building_is_dock)
+
+bool __building_is_roadblock(int bid) {
+    building *b = building_get(bid);
+    return b && b->is_valid() && b->dcast_roadblock();
+}
+ANK_FUNCTION_1(__building_is_roadblock)
+
+bool __building_is_entertainment(int bid) {
+    building *b = building_get(bid);
+    return b && b->is_valid() && b->dcast_entertainment();
+}
+ANK_FUNCTION_1(__building_is_entertainment)
+
+bool __building_is_farm(int bid) {
+    building *b = building_get(bid);
+    return b && b->is_valid() && b->dcast_farm();
+}
+ANK_FUNCTION_1(__building_is_farm)
+
+bool __building_is_monument(int bid) {
+    building *b = building_get(bid);
+    return b && b->is_valid() && b->is_monument();
+}
+ANK_FUNCTION_1(__building_is_monument)
+
+bool __building_is_storage_yard(int bid) {
+    building *b = building_get(bid);
+    return b && b->is_valid() && storage_yard_cast(b);
+}
+ANK_FUNCTION_1(__building_is_storage_yard)
+
+bool __building_is_temple_complex(int bid) {
+    return !!building_get_ex<building_temple_complex>(bid);
+}
+ANK_FUNCTION_1(__building_is_temple_complex)
+
+bool __building_is_protected_by_police(int bid) {
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        return false;
+    }
+    return b->dcast()->is_protected_by_police();
+}
+ANK_FUNCTION_1(__building_is_protected_by_police)
+
+int __building_first_material_stored(int bid) {
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        return 0;
+    }
+    const e_resource resource = b->input.resource;
+    if (resource == RESOURCE_NONE) {
+        return 0;
+    }
+    return b->stored_amount(resource);
+}
+ANK_FUNCTION_1(__building_first_material_stored)
+
+int __building_des_influence_value(int bid) {
+    return (int)building_get(bid)->des_influence.value;
+}
+ANK_FUNCTION_1(__building_des_influence_value)
+
+void __building_des_influence_value_j(js_State* J) {
+    const int bid = building_this_id(J);
+    J->push((int)building_get(bid)->des_influence.value);
+}
+
+int __building_des_influence_step_size(int bid) {
+    return building_get(bid)->des_influence.step_size;
+}
+ANK_FUNCTION_1(__building_des_influence_step_size)
+
+void __building_des_influence_step_size_j(js_State* J) {
+    const int bid = building_this_id(J);
+    J->push(building_get(bid)->des_influence.step_size);
+}
+
+void __building_des_influence_range_j(js_State* J) {
+    const int bid = building_this_id(J);
+    J->push(building_get(bid)->des_influence.range);
+}
+
+void __building_crime_influence_value_j(js_State* J) {
+    const int bid = building_this_id(J);
+    building *b = building_get(bid);
+    J->push(b ? b->crime_influence.value : 0);
+}
+
+void __building_stored_resource(js_State* J) {
+    const int bid = building_this_id(J);
+    const int resource = J->to<int>(1);
+    J->push(building_get(bid)->stored_amount((e_resource)resource));
+}
+
+void __building_consume_resource(js_State* J) {
+    const int bid = building_this_id(J);
+    const int resource = J->to<int>(1);
+    const int amount = J->to<int>(2);
+    building *b = building_get(bid);
+    if (b && b->is_valid()) {
+        b->dcast()->consume_resource((e_resource)resource, (int16_t)amount);
+    }
+    js_helpers::js_push_void(J);
+}
+
+void __building_set_second_material(js_State* J) {
+    const int bid = building_this_id(J);
+    const int resource = J->to<int>(1);
+    building* b = building_get(bid);
+    if (b && b->is_valid()) {
+        b->input.resource_second = (e_resource)resource;
+    }
+    js_helpers::js_push_void(J);
+}
+
+void __building_store_resource(js_State* J) {
+    const int bid = building_this_id(J);
+    const int resource = J->to<int>(1);
+    const int amount = J->to<int>(2);
+    building *b = building_get(bid);
+    if (b && b->is_valid()) {
+        b->dcast()->store_resource((e_resource)resource, (int16_t)amount);
+    }
+    js_helpers::js_push_void(J);
+}
+
+void __building_get_overlay(js_State *J) {
+    const int bid = building_this_id(J);
+    J->push<int>(building_get(bid)->get_overlay());
+}
+
+void __building_get_worker_percentage(js_State *J) {
+    const int bid = building_this_id(J);
+    J->push(building_get(bid)->worker_percentage());
+}
+
+void __building_get_output_resource_id(js_State *J) {
+    const int bid = building_this_id(J);
+    J->push((int)building_get(bid)->output.resource);
+}
+
+void __building_has_figure(js_State *J) {
+    const int bid = building_this_id(J);
+    const int index = J->to<int>(1);
+    J->push(building_get(bid)->has_figure(index));
+}
+
+void __building_get_figures_number(js_State *J) {
+    const int bid = building_this_id(J);
+    const e_figure_type ftype = (e_figure_type)J->to<int>(1);
+    J->push(building_get(bid)->dcast()->get_figures_number(ftype));
+}
+
+int __building_get_figure_id(int bid, int index) {
+    return building_get(bid)->get_figure(index)->id;
+}
+ANK_FUNCTION_2(__building_get_figure_id)
+
+void __building_get_state(js_State *J) {
+    const int bid = building_this_id(J);
+    J->push((int)building_get(bid)->state);
+}
+
+void __building_get_valid(js_State *J) {
+    const int bid = building_this_id(J);
+    J->push(__building_is_valid(bid));
+}
+
+void __building_mothball_toggle(js_State *J) {
+    const int bid = building_this_id(J);
+    building* b = building_get(bid);
+    J->push(b->max_workers ? b->mothball_toggle() : 0);
+}
+
+void __building_set_animation(js_State *J) {
+    const int bid = building_this_id(J);
+    const char *animkey = J->to<const char *>(1);
+    building_get(bid)->dcast()->set_animation(xstring(animkey));
+    js_helpers::js_push_void(J);
+}
+
+void __building_set_slot_animation(js_State *J) {
+    const int bid = building_this_id(J);
+    const int slot = J->to<int>(1);
+    const xstring key = J->to<xstring>(2);
+    building_get(bid)->dcast()->set_slot_animation(slot, key);
+    js_helpers::js_push_void(J);
+}
+
+void __building_add_overlay(js_State *J) {
+    const int bid = building_this_id(J);
+    const xstring name = J->to<xstring>(1);
+    building *b = building_get(bid);
+    J->push(b && b->is_valid() ? b->dcast()->add_overlay(name) : false);
+}
+
+void __building_remove_overlay(js_State *J) {
+    const int bid = building_this_id(J);
+    const xstring name = J->to<xstring>(1);
+    building *b = building_get(bid);
+    if (b && b->is_valid()) {
+        b->dcast()->remove_overlay(name);
+    }
+    js_helpers::js_push_void(J);
+}
+
+void __building_has_overlay(js_State *J) {
+    const int bid = building_this_id(J);
+    const xstring name = J->to<xstring>(1);
+    building *b = building_get(bid);
+    J->push(b && b->is_valid() ? b->dcast()->has_overlay(name) : false);
+}
+
+void __building_set_fancy(js_State *J) {
+    const int bid = building_this_id(J);
+    const bool is_fancy = J->to<bool>(1);
+    building *b = building_get(bid);
+    if (b) {
+        b->set_flag(e_building_fancy, is_fancy);
+    }
+    js_helpers::js_push_void(J);
+}
+
+void __building_is_fancy(js_State *J) {
+    const int bid = building_this_id(J);
+    building *b = building_get(bid);
+    J->push(b ? b->get_flag(e_building_fancy) : false);
+}
+
+void __building_common_spawn_roamer(js_State *J) {
+    const int bid = building_this_id(J);
+    const int figure_type = J->to<int>(1);
+    const int min_houses_coverage = J->to<int>(2);
+    const int action = J->to<int>(3);
+    bool result = building_get(bid)->dcast()->common_spawn_roamer((e_figure_type)figure_type, min_houses_coverage, (e_figure_action)action);
+    J->push(result);
+}
+
+void __building_common_spawn_figure_trigger(js_State *J) {
+    const int bid = building_this_id(J);
+    const int min_houses = J->to<int>(1);
+    const int slot = J->to<int>(2);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        J->push(false);
+        return;
+    }
+
+    J->push(b->dcast()->common_spawn_figure_trigger(min_houses, (e_building_slot)slot));
+}
+
+void __building_check_labor_problem(js_State *J) {
+    const int bid = building_this_id(J);
+    building *b = building_get(bid);
+    if (b && b->is_valid()) {
+        b->dcast()->check_labor_problem();
+    }
+    js_helpers::js_push_void(J);
+}
+
+void __building_figure_spawn_timer(js_State *J) {
+    const int bid = building_this_id(J);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        J->push(-1);
+        return;
+    }
+    J->push(b->dcast()->figure_spawn_timer());
+}
+
+void __building_is_enemies_nearby(js_State *J) {
+    const int bid = building_this_id(J);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        J->push(false);
+        return;
+    }
+    J->push(b->dcast()->is_enemies_nearby());
+}
+
+void __building_citizen_found_terrain(js_State *J) {
+    const int bid = building_this_id(J);
+    const int terrain = J->to<int>(1);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid() || !b->road_access.valid()) {
+        J->push(false);
+        return;
+    }
+    J->push(map_routing_citizen_found_terrain(b->road_access, nullptr, terrain));
+}
+
+// OG vegetation_wood_cutter_reach: reachable fully grown tree (growth==255), not mere TERRAIN_TREE.
+void __building_citizen_found_timber(js_State *J) {
+    const int bid = building_this_id(J);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid() || !b->road_access.valid()) {
+        J->push(false);
+        return;
+    }
+    const resource_tile tile = map_routing_citizen_found_timber(b->road_access);
+    J->push(tile.res == RESOURCE_TIMBER);
+}
+
+void __building_common_spawn_labor_seeker(js_State *J) {
+    const int bid = building_this_id(J);
+    const int min_houses = J->to<int>(1);
+    building *b = building_get(bid);
+    if (b && b->is_valid()) {
+        b->dcast()->common_spawn_labor_seeker(min_houses);
+    }
+    js_helpers::js_push_void(J);
+}
+
+void __building_create_figure_generic(js_State *J) {
+    const int bid = building_this_id(J);
+    const int figure_type = J->to<int>(1);
+    const int action = J->to<int>(2);
+    const int slot = J->to<int>(3);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        J->push(0);
+        return;
+    }
+
+    figure *f = b->dcast()->create_figure_generic((e_figure_type)figure_type, (e_figure_action)action, (e_building_slot)slot, DIR_4_BOTTOM_LEFT);
+    J->push(f ? f->id : 0);
+}
+
+void __building_common_spawn_goods_output_cartpusher(js_State *J) {
+    const int bid = building_this_id(J);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        J->push(0);
+        return;
+    }
+
+    figure *f = b->dcast()->common_spawn_goods_output_cartpusher();
+    J->push(f ? f->id : 0);
+}
+
+void __building_create_cartpusher(js_State *J) {
+    const int bid = building_this_id(J);
+    const int resource = J->to<int>(1);
+    const int quantity = J->to<int>(2);
+    const int action = J->to<int>(3);
+    const int slot = J->to<int>(4);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        J->push(0);
+        return;
+    }
+
+    figure *f = b->dcast()->create_cartpusher((e_resource)resource, quantity, (e_figure_action)action, (e_building_slot)slot);
+    J->push(f ? f->id : 0);
+}
+
+void __building_produced_resources(js_State *J) {
+    const int bid = building_this_id(J);
+    const int resource = J->to<int>(1);
+    const int amount = J->to<int>(2);
+    building *b = building_get(bid);
+    if (b && b->is_valid()) {
+        b->dcast()->produced_resources((e_resource)resource, amount);
+    }
+    js_helpers::js_push_void(J);
+}
+
+void __building_create_figure_with_destination(js_State *J) {
+    const int bid = building_this_id(J);
+    const int figure_type = J->to<int>(1);
+    const int dest_bid = J->to<int>(2);
+    const int action = J->to<int>(3);
+    const int slot = J->to<int>(4);
+    building *b = building_get(bid);
+    building *dest = building_get(dest_bid);
+    if (!b || !b->is_valid() || !dest || !dest->is_valid()) {
+        J->push(0);
+        return;
+    }
+
+    figure *f = b->dcast()->create_figure_with_destination((e_figure_type)figure_type, dest, (e_figure_action)action, (e_building_slot)slot);
+    J->push(f ? f->id : 0);
+}
+
+void __building_create_roaming_figure_proto(js_State *J) {
+    const int bid = building_this_id(J);
+    auto [figure_type, action, slot] = J->to<int, int, int>(1);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        js_helpers::js_push_void(J);
+        return;
+    }
+
+    b->dcast()->create_roaming_figure((e_figure_type)figure_type, (e_figure_action)action, (e_building_slot)slot);
+    js_helpers::js_push_void(J);
+}
+
+int __building_determine_venue_destination(js_State *J) {
+    const int bid = J->to<int>(1);
+    const int figure_type = J->to<int>(2);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        return 0;
+    }
+
+    svector<e_building_type, 4> btypes;
+    if (!J->fill_array(3, btypes)) {
+        return 0;
+    }
+
+    return figure_entertainer::determine_venue_destination(b->road_access, (e_figure_type)figure_type, btypes);
+}
+ANK_FUNCTION_RAW(__building_determine_venue_destination)
+
+void __building_add_workers(js_State *J) {
+    const int bid = building_this_id(J);
+    const int worker_figure_id = J->to<int>(1);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        js_helpers::js_push_void(J);
+        return;
+    }
+
+    b->dcast()->add_workers((figure_id)worker_figure_id);
+    js_helpers::js_push_void(J);
+}
+
+static void building_proto___property_setter(js_State *J) {
+    const int bid = building_this_id(J);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        return;
+    }
+
+    xstring prop = js_toxstring(J, 1);
+    const bool ok = b->dcast()->set_property(tags().building, prop, js_helpers::js_bvariant_from_js_value(J, 2));
+    if (!ok) {
+        logs::error("building: JS write to unregistered property '%s' on building type %d "
+                    "(add the field to ANK_CONFIG_PROPERTY(building, ...) or provide a get/set binding)",
+          prop.c_str(), (int)b->type);
+    }
+}
+
+void __building_meta_text_id(js_State *J) {
+    const int bid = building_this_id(J);
+    J->push<int>(building_get(bid)->params().meta.text_id);
+}
+
+void __building_add_fire_damage(js_State *J) {
+    const int bid = building_this_id(J);
+    const int damage = J->to<int>(1);
+    building *b = building_get(bid);
+    if (b->is_valid()) {
+        b->force_damage(e_damage_fire, damage);
+    }
+    js_helpers::js_push_void(J);
+}
+
+void __building_add_collapse_damage(js_State *J) {
+    const int bid = building_this_id(J);
+    const int damage = J->to<int>(1);
+    building *b = building_get(bid);
+    if (b->is_valid()) {
+        b->force_damage(e_damage_collapse, damage);
+    }
+    js_helpers::js_push_void(J);
+}
+
+void __building_add_structure_damage(js_State* J) {
+    const int bid = building_this_id(J);
+    building *b = building_get(bid);
+    const int damage = J->to<int>(1);
+    b->force_damage(e_damage_enemy, damage);
+    js_helpers::js_push_void(J);
+}
+
+void __building_destroy_by_fire(js_State *J) {
+    const int bid = building_this_id(J);
+    building *b = building_get(bid);
+    if (b->is_valid()) {
+        b->main()->destroy_by_fire();
+    }
+    js_helpers::js_push_void(J);
+}
+
+tile2i __building_tile(int bid) {
+    building* b = building_get(bid);
+    return b->tile;
+}
+ANK_FUNCTION_1(__building_tile)
+
+tile2i __building_water_access_tile(int bid, int index) {
+    building *b = building_get(bid);
+    if (!b || !b->is_valid() || index < 0 || index > 1) {
+        return tile2i::invalid;
+    }
+    const water_access_tiles tiles = b->dcast()->get_water_access_tiles();
+    return index == 0 ? tiles.point_a : tiles.point_b;
+}
+ANK_FUNCTION_2(__building_water_access_tile)
+
+tile2i __building_water_output_tile(int bid, int index) {
+    building *b = building_get(bid);
+    if (!b || !b->is_valid() || index < 0 || index > 1) {
+        return tile2i::invalid;
+    }
+    const water_access_tiles tiles = b->dcast()->get_water_output_tiles();
+    return index == 0 ? tiles.point_a : tiles.point_b;
+}
+ANK_FUNCTION_2(__building_water_output_tile)
+
+void __building_highlight_waypoints(int bid) {
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        return;
+    }
+    b->dcast()->highlight_waypoints();
+}
+ANK_FUNCTION_1(__building_highlight_waypoints)
+
+xstring __building_display_name(int bid) {
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        return {};
+    }
+    return b->cls_name();
+}
+ANK_FUNCTION_1(__building_display_name)
+
+pcstr __building_static_text(int type, pcstr field) {
+    const auto &params = building_static_params::get((e_building_type)type);
+    if (!strcmp(field, "build_menu_text")) {
+        return params.build_menu_text.c_str();
+    }
+    if (!strcmp(field, "info_title_id")) {
+        return params.info_title_id.c_str();
+    }
+    return "";
+}
+ANK_FUNCTION_2(__building_static_text)
+
+void __building_tile_j(js_State *J) {
+    const int bid = building_this_id(J);
+    building* b = building_get(bid);
+    J->push(b->tile);
+}
+
+pcstr __building_static_config_name(int type) {
+    return building_static_params::get((e_building_type)type).name;
+}
+ANK_FUNCTION_1(__building_static_config_name)
+
+bool __map_road_within_radius(tile2i tile, int size, int radius) {
+    return map_closest_road_within_radius(tile, size, radius).valid();
+}
+ANK_FUNCTION_3(__map_road_within_radius)
+
+static js_Object *g_building_proto = nullptr;
+
+static void building_proto___property_getter(js_State *J) {
+    const int bid = building_this_id(J);
+    xstring prop = js_toxstring(J, 1);
+    building *b = building_get(bid);
+    if (!b || !b->is_valid()) {
+        J->pushundefined();
+        return;
+    }
+
+    const bvariant value = b->dcast()->get_property(tags().building, prop);
+    if (value.value_type() == bvariant::etype_none) {
+        logs::error("building: JS read of unregistered property '%s' on building type %d "
+                    "(add the field to ANK_CONFIG_PROPERTY(building, ...) or provide a get binding)",
+                    prop.c_str(), (int)b->type);
+        J->pushundefined();
+    } else {
+        js_helpers::js_push_bvariant(J, value);
+    }
+}
+
+static void building_proto_toString(js_State *J) {
+    char buf[64];
+    snprintf(buf, sizeof buf, "Building(%d)", building_this_id(J));
+    J->pushstring(buf);
+}
+
+int building_static_first_img_for_type(int type, xstring anim_key);
+static void building_proto_first_img(js_State *J) {
+    const int bid = building_this_id(J);
+    building *b = building_get(bid);
+    const xstring anim_key = J->to<xstring>(1);
+    J->push(b ? building_static_first_img_for_type(b->type, anim_key) : 0);
+}
+
+static void jsB_new_Building(js_State *J) {
+    const int id = J->gettop() > 1 ? (int)js_tointeger(J, 1) : 0;
+    js_pushobject(J, jsV_newobject(J, JS_COBJECT, g_building_proto));
+    js_pushnumber(J, (double)id);
+    js_setproperty(J, -2, js_intern("id"));
+}
+
+void js_register_building(js_State *J) {
+    g_building_proto = jsV_newobject(J, JS_COBJECT, J->Object_prototype);
+    js_pushobject(J, g_building_proto);
+
+    jsB_propf(J, js_intern("Building.prototype.__tile"), __building_tile_j, 0);
+    jsB_propf(J, js_intern("Building.prototype.__meta_text_id"), __building_meta_text_id, 0);
+    jsB_propf(J, js_intern("Building.prototype.__state"), __building_get_state, 0);
+    jsB_propf(J, js_intern("Building.prototype.__valid"), __building_get_valid, 0);
+    jsB_propf(J, js_intern("Building.prototype.__worker_percentage"), __building_get_worker_percentage, 0);
+    jsB_propf(J, js_intern("Building.prototype.__output_resource_id"), __building_get_output_resource_id, 0);
+    jsB_propf(J, js_intern("Building.prototype.__overlay"), __building_get_overlay, 0);
+    jsB_propf(J, js_intern("Building.prototype.__des_influence_value"), __building_des_influence_value_j, 0);
+    jsB_propf(J, js_intern("Building.prototype.__des_influence_step_size"), __building_des_influence_step_size_j, 0);
+    jsB_propf(J, js_intern("Building.prototype.__des_influence_range"), __building_des_influence_range_j, 0);
+    jsB_propf(J, js_intern("Building.prototype.__crime_influence_value"), __building_crime_influence_value_j, 0);
+    jsB_propf(J, js_intern("Building.prototype.__property_getter"), building_proto___property_getter, 1);
+    jsB_propf(J, js_intern("Building.prototype.__property_setter"), building_proto___property_setter, 2);
+    jsB_propf(J, js_intern("Building.prototype.has_figure"), __building_has_figure, 1);
+    jsB_propf(J, js_intern("Building.prototype.get_figures_number"), __building_get_figures_number, 1);
+    jsB_propf(J, js_intern("Building.prototype.mothball_toggle"), __building_mothball_toggle, 0);
+    jsB_propf(J, js_intern("Building.prototype.add_structure_damage"), __building_add_structure_damage, 1);
+    jsB_propf(J, js_intern("Building.prototype.add_fire_damage"), __building_add_fire_damage, 1);
+    jsB_propf(J, js_intern("Building.prototype.add_collapse_damage"), __building_add_collapse_damage, 1);
+    jsB_propf(J, js_intern("Building.prototype.destroy_by_fire"), __building_destroy_by_fire, 0);
+    jsB_propf(J, js_intern("Building.prototype.stored_resource"), __building_stored_resource, 1);
+    jsB_propf(J, js_intern("Building.prototype.consume_resource"), __building_consume_resource, 2);
+    jsB_propf(J, js_intern("Building.prototype.store_resource"), __building_store_resource, 2);
+    jsB_propf(J, js_intern("Building.prototype.set_second_material"), __building_set_second_material, 1);
+    jsB_propf(J, js_intern("Building.prototype.set_animation"), __building_set_animation, 1);
+    jsB_propf(J, js_intern("Building.prototype.set_slot_animation"), __building_set_slot_animation, 2);
+    jsB_propf(J, js_intern("Building.prototype.add_overlay"), __building_add_overlay, 1);
+    jsB_propf(J, js_intern("Building.prototype.remove_overlay"), __building_remove_overlay, 1);
+    jsB_propf(J, js_intern("Building.prototype.has_overlay"), __building_has_overlay, 1);
+    jsB_propf(J, js_intern("Building.prototype.set_fancy"), __building_set_fancy, 1);
+    jsB_propf(J, js_intern("Building.prototype.__is_fancy"), __building_is_fancy, 0);
+    jsB_propf(J, js_intern("Building.prototype.common_spawn_roamer"), __building_common_spawn_roamer, 3);
+    jsB_propf(J, js_intern("Building.prototype.common_spawn_figure_trigger"), __building_common_spawn_figure_trigger, 2);
+    jsB_propf(J, js_intern("Building.prototype.check_labor_problem"), __building_check_labor_problem, 0);
+    jsB_propf(J, js_intern("Building.prototype.figure_spawn_timer"), __building_figure_spawn_timer, 0);
+    jsB_propf(J, js_intern("Building.prototype.is_enemies_nearby"), __building_is_enemies_nearby, 0);
+    jsB_propf(J, js_intern("Building.prototype.citizen_found_terrain"), __building_citizen_found_terrain, 1);
+    jsB_propf(J, js_intern("Building.prototype.citizen_found_timber"), __building_citizen_found_timber, 0);
+    jsB_propf(J, js_intern("Building.prototype.common_spawn_labor_seeker"), __building_common_spawn_labor_seeker, 1);
+    jsB_propf(J, js_intern("Building.prototype.create_figure_generic"), __building_create_figure_generic, 3);
+    jsB_propf(J, js_intern("Building.prototype.common_spawn_goods_output_cartpusher"), __building_common_spawn_goods_output_cartpusher, 0);
+    jsB_propf(J, js_intern("Building.prototype.create_cartpusher"), __building_create_cartpusher, 4);
+    jsB_propf(J, js_intern("Building.prototype.produced_resources"), __building_produced_resources, 2);
+    jsB_propf(J, js_intern("Building.prototype.create_figure_with_destination"), __building_create_figure_with_destination, 4);
+    jsB_propf(J, js_intern("Building.prototype.create_roaming_figure"), __building_create_roaming_figure_proto, 3);
+    jsB_propf(J, js_intern("Building.prototype.add_workers"), __building_add_workers, 1);
+    jsB_propf(J, js_intern("Building.prototype.first_img"), building_proto_first_img, 1);
+
+    jsB_propf(J, js_intern("Building.prototype.toString"), building_proto_toString, 0);
+
+    J->newcconstructor(jsB_new_Building, jsB_new_Building, js_intern("Building"), 1);
+    js_defglobal(J, js_intern("Building"), JS_DONTENUM);
+}
+
+js_Object *js_get_building_prototype(void) {
+    return g_building_proto;
+}
+
+namespace {
+
+struct js_building_model {
+    e_building_type type = BUILDING_NONE;
+    xstring section;
+    building_static_params params;
+};
+
+hvector<std::unique_ptr<js_building_model>, 64> js_buildings;
+building_planer_renderer js_building_planer;
+
+building_impl *create_js_building(e_building_type, building &b) {
+    return b.acquire_impl<building_impl>();
+}
+
+building_impl *create_js_building_industry(e_building_type, building &b) {
+    static_assert(sizeof(building_industry) <= sizeof(building::ptr_buffer_t),
+                  "building_industry does not fit the inline buffer");
+    return b.acquire_impl<building_industry>();
+}
+
+building_impl *create_js_building_entertainment(e_building_type, building &b) {
+    static_assert(sizeof(building_entertainment) <= sizeof(building::ptr_buffer_t),
+                  "building_entertainment does not fit the inline buffer");
+    return b.acquire_impl<building_entertainment>();
+}
+
+void clear_es_building() {
+    logs::info("JS Building Registry: Clearing %d registered buildings", (int)js_buildings.size());
+    for (auto &m : js_buildings) {
+        if (!m || m->type <= BUILDING_NONE || m->type >= BUILDING_MAX) {
+            continue;
+        }
+        buildings::unregister_ctor(m->type);
+        building_static_params::unregister_model(m->type);
+        building_planer_renderer::unregister_model(m->type);
+    }
+    js_buildings.clear();
+}
+
+void register_es_building_model(pcstr name, buildings::create_building_function_cb *create) {
+    e_building_type type = BUILDING_NONE;
+    g_config_arch.r_section(name, [&] (archive arch) {
+        type = arch.r_type<e_building_type>("type");
+    });
+
+    if (type <= BUILDING_NONE || type >= BUILDING_MAX) {
+        logs::info("JS Building Registry: Unknown type in '%s', skipping", name);
+        return;
+    }
+
+    if (buildings::has_ctor(type)) {
+        logs::info("JS Building Registry: Type %d already has a C++ model, skipping '%s'", (int)type, name);
+        return;
+    }
+
+    logs::info("JS Building Registry: Registering '%s' (type=%d)", name, (int)type);
+
+    auto model = std::make_unique<js_building_model>();
+    model->type = type;
+    model->section = name;
+    model->params.type = type;
+    model->params.name = model->section.c_str();
+
+    building_static_params::register_model(type, model->params);
+    building_planer_renderer::register_model(type, js_building_planer);
+    buildings::register_ctor(type, create);
+
+    const bool loaded = g_config_arch.r(name, model->params);
+    verify_no_crash(loaded);
+    if (!loaded) {
+        logs::error("Failed to load building static params for '%s'", name);
+    }
+
+    model->params.type = type;
+    model->params.name = model->section.c_str();
+    model->params.initialize();
+
+    js_buildings.push_back(std::move(model));
+}
+
+void register_es_building(pcstr name) {
+    register_es_building_model(name, &create_js_building);
+}
+
+void register_es_building_industry(pcstr name) {
+    register_es_building_model(name, &create_js_building_industry);
+}
+
+void register_es_building_entertainment(pcstr name) {
+    register_es_building_model(name, &create_js_building_entertainment);
+}
+
+} // namespace
+
+ANK_REGISTER_ES_ITERATOR(building, register_es_building, clear_es_building);
+ANK_REGISTER_ES_ITERATOR(building_industry, register_es_building_industry, clear_es_building);
+ANK_REGISTER_ES_ITERATOR(building_entertainment, register_es_building_entertainment, clear_es_building);

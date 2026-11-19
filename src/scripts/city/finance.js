@@ -1,0 +1,79 @@
+log_info("akhenaten: city finance started")
+
+palace_treasury_shares {
+  tax_collector_weight : 2
+  courthouse_weight : 3
+  palace_weight : 50
+}
+
+// tax_percentage: percent of the taxed amount the city keeps, per difficulty (OG 50 on all; a mission
+// may override it). house_tax_income_unit: house tax income is kept in 1/unit deben (OG 10000).
+finance_tax_rules {
+  tax_percentage [50, 50, 50, 50, 50]
+  house_tax_income_unit : 10000
+}
+
+function city_finance_clamp_tax_percentage(v) {
+    if (v < 0) return 0
+    if (v > 25) return 25
+    return v | 0
+}
+
+function city_finance_apply_tax_percentage(value) {
+    __city_finance.tax_percentage = city_finance_clamp_tax_percentage(value)
+    __city_finance_update_estimate_taxes()
+    __city_finance_calculate_totals()
+}
+
+[es=event_finance_change_tax]
+function city_finance_on_change_tax(ev) {
+    city_finance_apply_tax_percentage(__city_finance.tax_percentage + ev.value)
+}
+
+function make_finance_year(current) {
+    return {
+        __property_getter: function(property) { return __city_finance_overview(property, current) }
+        income: make_finance_income(current)
+        expenses: make_finance_expenses(current)
+        @net_in_out { }
+        @balance { }
+    }
+}
+
+function make_finance_income(current) {
+    return {
+        __property_getter: function(property) { return __city_finance_income(property, current) }
+        @taxes { }
+        @exports { }
+        @donated { }
+        @gold_delivered { }
+        @total { }
+    }
+}
+
+function make_finance_expenses(current) {
+    return {
+        __property_getter: function(property) { return __city_finance_expenses(property, current) }
+        @imports { }
+        @wages { }
+        @construction { }
+        @interest { }
+        @mayour_salary { }
+        @stolen { }
+        @tribute { }
+        @festivals { }
+        @kingdome { }
+        @disasters { }
+        @total { }
+    }
+}
+
+city.finance = extend(__city_finance, {
+    @is_out_of_money { get: __city_finance_is_out_of_money }
+
+    this_year : make_finance_year(true)
+    last_year : make_finance_year(false)
+})
+
+
+

@@ -1,0 +1,144 @@
+#include "city_fishing_points.h"
+
+#include "scenario/scenario.h"
+#include "scenario/map.h"
+#include "figuretype/figure_fishing_point.h"
+#include "figuretype/figure_seagulls.h"
+#include "city/city_figures.h"
+#include "grid/water.h"
+#include "grid/figure.h"
+#include "grid/terrain.h"
+
+#include <algorithm>
+#include <random>
+#include "core/calc.h"
+#include "core/random.h"
+
+void city_fishing_points_t::create() {
+    scenario_map_foreach_fishing_point([] (tile2i tile) {
+        // OG: create_flotsam spawns FIGURE_SEAGULLS; create_fishing_points spawns JUMPING_FISH.
+        figure_seagulls::create(tile);
+        figure_fishing_point::create(tile);
+    });
+}
+
+tile2i city_fishing_points_t::random_fishing_point(tile2i pos, bool free_only) {
+    const auto &fpoints = g_scenario.fishing_points;
+
+    svector<tile2i, MAX_FISH_POINTS> apoints;
+    std::copy_if(std::begin(fpoints), std::end(fpoints), std::back_inserter(apoints), [] (auto p) { return p.x() > 0; });
+
+    if (apoints.empty()) {
+        return tile2i::invalid;
+    }
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+
+    std::shuffle(std::begin(apoints), std::end(apoints), g);
+    for (auto p: apoints) {
+        if (free_only) {
+            grid_area area = map_grid_get_area(p, 1, 1);
+            tile2i result = area.find_if([] (const tile2i &tt) {
+                return map_has_figure_types_at(tt, make_array(FIGURE_FISHING_BOAT));
+            });
+
+            if (result.valid()) {
+                continue;
+            }
+        }
+
+        return p;
+    }
+
+    return tile2i::invalid;
+}
+
+tile2i city_fishing_points_t::closest_fishing_point(tile2i pos, bool free_only, tile2i exclude_tile) {
+    const auto &fpoints = g_scenario.fishing_points;
+    
+    svector<tile2i, MAX_FISH_POINTS> apoints;
+    std::copy_if(std::begin(fpoints), std::end(fpoints), std::back_inserter(apoints), [exclude_tile] (auto p) {
+        return p.x() > 0 && p != exclude_tile;
+    });
+
+    if (apoints.empty()) {
+        return tile2i::invalid;
+    }
+
+    int min_dist = 10000;
+    tile2i result;
+    for (auto p: apoints) {
+        int dist = calc_maximum_distance(pos, p);
+
+        if (free_only) {
+            grid_area area = map_grid_get_area(pos, 1, 1);
+            tile2i result = area.find_if([] (const tile2i &tt) {
+                return map_has_figure_types_at(tt, make_array(FIGURE_FISHING_BOAT));
+            });
+
+            dist += result.valid() ? 100 : 0;
+        }
+
+        if (dist < min_dist) {
+            min_dist = dist;
+            result = p;
+        }
+    }
+
+    return (min_dist < 10000) ? result : tile2i::invalid;
+}
+
+void city_fishing_points_t::reset() {
+    tile_cache &river = river_tiles();
+    int num_points = std::max<int>(1, (int)river.size() / 500);
+    update_month(num_points);
+}
+
+void city_fishing_points_t::clear() {
+    for (int i = 1; i < MAX_FIGURES; i++) {
+        figure *f = figure_get(i);
+        if (f->type == FIGURE_FISHING_POINT || f->type == FIGURE_SEAGULLS) {
+            f->poof();
+        }
+    }
+}
+
+void city_fishing_points_t::update_month(int points_num) {
+    clear();
+
+    // Periodic monthly call (default arg) — keep existing positions and just
+    // re-spawn the figure entities. Re-rolling teleported spots and broke trips.
+    if (points_num < 0) {
+        create();
+        return;
+    }
+
+    int num_fishing_spots = 0;
+    g_scenario.fishing_points.assign(MAX_FISH_POINTS, tile2i::invalid);
+
+    if (points_num >= 0) {
+        num_fishing_spots = std::min<uint8_t>(MAX_FISH_POINTS, points_num);
+    }
+
+    tile_cache &river = river_tiles();
+    std::vector<int> deep_water;
+    for (const auto &tile : river) {
+        if (map_terrain_is(tile, TERRAIN_DEEPWATER) && !map_terrain_is(tile, TERRAIN_FLOODPLAIN)) {
+            deep_water.push_back(tile);
+        }
+    }
+
+    // OG takes the spots from the map and draws nothing here; a local engine seeded from the (unadvanced) LFSR
+    // keeps this repeatable without touching the LFSR or crt streams.
+    std::minstd_rand engine(random_data_struct()->iv1);
+
+    if (!deep_water.empty()) {
+        for (int i = 0; i < num_fishing_spots; i++) {
+            const int index = (int)(engine() % deep_water.size());
+            g_scenario.fishing_points[i] = tile2i(deep_water[index]);
+        }
+    }
+
+    create();
+}

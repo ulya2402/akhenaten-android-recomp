@@ -1,0 +1,137 @@
+log_info("akhenaten: ui advisor labor started")
+
+[es=advisor_window]
+advisor_labors_window {
+    advisor: ADVISOR_LABOR
+    allow_rmb_goback : true
+    help_id: "message_overseer_workers"
+    ui : baseui(advisor_window_base, {
+        advisor_area            : dummy({ pos [(sw(0) - px(40)) / 2, (sh(0) - px(30)) / 2], size:[px(40), px(27)]
+            ui : {
+                background      : outer_panel({size[40, 27]})
+
+                title           : text({pos[60, 12], text{group:50, id:0}, font : FONT_LARGE_BLACK_ON_LIGHT })
+                advisor_icon    : image({pack:PACK_GENERAL, id:128, offset:0, pos:[10, 10] })
+
+                // table headers
+                h1              : text({pos[60, 46], text{group:50, id:21}, font : FONT_SMALL_PLAIN })
+                h2              : text({pos[170, 46], text{group:50, id:22}, font : FONT_SMALL_PLAIN })
+                h3              : text({pos[400, 46], text{group:50, id:23}, font : FONT_SMALL_PLAIN })
+                h4              : text({pos[500, 46], text{group:50, id:24}, font : FONT_SMALL_PLAIN })
+
+                // employed
+                main_panel      : inner_panel({pos[32, 65], size[36, 16]})
+                item            : dummy({pos[40, 25], size:[px(35), 22], })
+                item_image      : image({pack:PACK_GENERAL, id:94, pos:[40, 4], enabled:false})
+                item_priority   : dummy({pos[55, 5], font: FONT_NORMAL_WHITE_ON_DARK})
+                item_category   : dummy({pos[100, 5], font: FONT_NORMAL_WHITE_ON_DARK})
+                item_needed     : dummy({pos[370, 5], font: FONT_NORMAL_WHITE_ON_DARK})
+                item_allocated  : dummy({pos[470, 5], font: FONT_NORMAL_WHITE_ON_DARK, font_hover:FONT_NORMAL_YELLOW})
+                items_area      : dummy({pos[0, 67]})
+
+                employed        : text({pos[32, 325],font : FONT_NORMAL_BLACK_ON_LIGHT })
+                // wages panel
+                wages_panel     : inner_panel({pos[64, 350], size[32, 2]})
+                dec_wages       : arrowdown({pos[158, 354], tiny:false })
+                inc_wages       : arrowup({pos[182, 354], tiny:false })
+                wages_title     : text({text{group:50, id:14}, pos[70, 359], font:FONT_NORMAL_WHITE_ON_DARK})
+                wages_value     : text({
+                                          pos[230, 359]
+                                          font:FONT_NORMAL_WHITE_ON_DARK
+                                          textfn:function() { return _eformat( "${finance.wages}  ${50.15}  ${50.18} ${finance.wages_kingdome}", { finance : city.finance }) }
+                                       })
+
+                button_help    : help_button({})
+            }
+        })
+    })
+}
+
+[es=(advisor_labors_window, dec_wages)]
+function advisor_labors_window_on_dec_wages(window) {
+    emit event_finance_change_wages{ value:-1 }
+}
+
+[es=(advisor_labors_window, inc_wages)]
+function advisor_labors_window_on_inc_wages(window) {
+    emit event_finance_change_wages{ value:1 }
+}
+
+function labor_advisor_category_list() {
+    // Food..Military. Insert Storage after Industry when split ON.
+    // Culture/House unused by buildings — omit from advisor (no priority pool).
+    var list = [
+        LABOR_CATEGORY_FOOD_PRODUCTION,
+        LABOR_CATEGORY_INDUSTRY_COMMERCE
+    ]
+    if (city.labor.category_split_enabled()) {
+        list.push(LABOR_CATEGORY_STORAGE)
+    }
+    list.push(LABOR_CATEGORY_ENTERTAINMENT)
+    list.push(LABOR_CATEGORY_RELIGION)
+    list.push(LABOR_CATEGORY_EDUCATION)
+    list.push(LABOR_CATEGORY_WATER_HEALTH)
+    list.push(LABOR_CATEGORY_INFRASTRUCTURE)
+    list.push(LABOR_CATEGORY_GOVERNMENT)
+    list.push(LABOR_CATEGORY_MILITARY)
+    return list
+}
+
+function labor_category_name(cat) {
+    if (cat === LABOR_CATEGORY_STORAGE) {
+        return __loc("#labor_category_storage")
+    }
+    if (cat === LABOR_CATEGORY_INDUSTRY_COMMERCE) {
+        if (city.labor.category_split_enabled()) {
+            return __loc("#labor_category_industry")
+        }
+        return __loc(50, 2)
+    }
+    // group 50 ids 1..9 = Food..Military (cat 0..8)
+    return __loc(50, cat + 1)
+}
+
+[es=(advisor_labors_window, init)]
+function advisor_labors_window_init(window) {
+    advisors_toolbar_refresh(window, ADVISOR_LABOR)
+
+    window.employed.text = _eformat( "${l.workers_employed} ${50.12} ${l.workers_unemployed} ${50.13} ${l.unemployment_percentage} %)", { l : city.labor })
+}
+
+[es=(advisor_labors_window, ui_draw_foreground)]
+function advisor_labors_window_draw(window) {
+    var categories = labor_advisor_category_list()
+    var row_h = (categories.length > 10) ? 22 : 25
+    var item_pos = {x:40, y:row_h}
+    var items_area = window.items_area.screen_pos
+    var item_image = {x:40, y:4}
+    var item_priority = {x:55, y:5}
+    var item_category = {x:100, y:5}
+    var item_needed = {x:370, y:5}
+    var item_allocated = {x:470, y:5}
+    var item_size = {x:px(35), y:row_h}
+
+    var priority_icon = get_image({ pack: PACK_GENERAL, id: 94 })
+
+    for (var i = 0; i < categories.length; i++) {
+        var cat_id = categories[i]
+        var pos = {x: item_pos.x + items_area.x, y: item_pos.y * i + items_area.y}
+
+        var clicked = ui.button({ text: "", pos: pos, size: item_size, border: true, body: false })
+        if (clicked == ui.button_clicked) {
+            show_labor_priority_window(cat_id)
+        }
+
+        var cat = city.labor.get_category(cat_id)
+        if (cat.priority) {
+            ui.image(priority_icon, [pos.x + item_image.x, pos.y + item_image.y])
+            ui.label(String(cat.priority), [pos.x + item_priority.x, pos.y + item_priority.y], FONT_NORMAL_WHITE_ON_DARK)
+        }
+
+        ui.label(labor_category_name(cat_id), [pos.x + item_category.x, pos.y + item_category.y], FONT_NORMAL_WHITE_ON_DARK)
+        ui.label(String(cat.workers_needed), [pos.x + item_needed.x, pos.y + item_needed.y], FONT_NORMAL_WHITE_ON_DARK)
+
+        var allocated_font = (cat.workers_needed !== cat.workers_allocated) ? FONT_NORMAL_WHITE_ON_DARK : FONT_NORMAL_YELLOW
+        ui.label(String(cat.workers_allocated), [pos.x + item_allocated.x, pos.y + item_allocated.y], allocated_font)
+    }
+}

@@ -1,0 +1,32 @@
+#pragma once
+
+#include "figure/figure.h"
+#include "building/building.h"
+#include "grid/building.h"
+
+constexpr uint8_t MAX_COVERAGE = 96;
+
+template<typename T>
+inline int figure_provide_service(tile2i tile, figure* f, T callback) {
+    int serviced = 0;
+    grid_area area = map_grid_get_area(tile, 1, 2);
+
+    map_grid_area_foreach(area, [&] (tile2i tile) {
+        int grid_offset = tile.grid_offset();
+        int building_id = map_building_at(grid_offset);
+        if (building_id) {
+            building *b = building_get(building_id);
+            callback(b, f);
+            serviced++;
+        }
+    });
+    return serviced;
+}
+
+// OG service.c service_provide_crime_coverage: lowers the crime around the tile, returns the highest crime seen.
+int figure_provide_crime_coverage(tile2i tile, int reduction);
+
+template<typename T>
+static int figure_provide_culture(tile2i tile, figure* f, T callback) {
+    return figure_provide_service(tile, f, callback);
+}

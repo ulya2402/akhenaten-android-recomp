@@ -1,0 +1,622 @@
+#include "arguments.h"
+
+#include "platform/platform.h"
+#include "platform/innoextract_util.h"
+#include "core/app.h"
+#include "core/bstring.h"
+#include "core/log.h"
+#include "content/vfs.h"
+#include "game/game.h"
+
+#include <cstring>
+#include <filesystem>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <fstream>
+#include <iostream>
+#include <algorithm>
+#include <SDL.h>
+#include <SDL_system.h>
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <ShlObj.h>
+#else
+#include <unistd.h>
+#include <pwd.h>
+#endif
+
+#define CURSOR_SCALE_ERROR_MESSAGE "Option --cursor-scale must be followed by a scale value of 1, 1.5 or 2"
+#define DISPLAY_SCALE_ERROR_MESSAGE "Option --display-scale must be followed by a scale value between 0.5 and 5"
+#define MIXED_MODE_ERROR_MESSAGE "Option --mixed should have path to script folder"
+#define UNKNOWN_OPTION_ERROR_MESSAGE "Option %s not recognized"
+
+Arguments g_args;
+
+namespace {
+
+auto const CFG_FILE_NAME = "akhenaten.cfg";
+auto const CFG_FILE_DIR = "akhenaten";
+
+/// Create formatted string
+/// NOTE: (use C++20 as soon as it will be available to get rid of this)
+template <typename... Args>
+auto string_format(char const* format, Args... args) {
+    const int string_size = std::snprintf(nullptr, 0, format, args...) + 1; // With space for '\0'
+
+    if (string_size <= 0) {
+        return std::string("");
+    }
+
+    std::unique_ptr<char[]> buf(new char[string_size]);
+    std::snprintf(buf.get(), string_size, format, args...);
+    return std::string(buf.get(), buf.get() + string_size - 1); // Without '\0'
+}
+
+std::string get_configuration_path() {
+    std::string result;
+#if defined(_WIN32) || defined(_WIN64)
+    TCHAR app_data_path[MAX_PATH];
+
+    if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, app_data_path))) {
+        result = std::string(app_data_path) + '/' + CFG_FILE_NAME;
+    } else {
+        logs::error("Failed to retrieve AppData path.");
+        result = CFG_FILE_NAME;
+    }
+#elif defined(GAME_PLATFORM_MACOSX) || defined(GAME_PLATFORM_ANDROID)
+    // SDL_GetPrefPath already creates the directory and ends with a separator.
+    char* tmp_path = SDL_GetPrefPath("", "Akhenaten");
+    if (tmp_path) {
+        result = std::string(tmp_path) + CFG_FILE_NAME;
+        SDL_free(tmp_path);
+    } else {
+        logs::error("Failed to retrieve SDL pref path.");
+        result = CFG_FILE_NAME;
+    }
+#else // Unix (Linux, etc.)
+    std::string cfg_dir_path;
+    if (const char* xdg_cfg_dir_path = std::getenv("XDG_CONFIG_HOME")) {
+        cfg_dir_path = std::string(xdg_cfg_dir_path) + '/' + CFG_FILE_DIR;
+    } else {
+        const passwd* pw = getpwuid(getuid());
+        if (!pw || !pw->pw_dir) {
+            logs::warn("Home folder to keep configuration file was not found");
+            return CFG_FILE_NAME;
+        }
+        cfg_dir_path = std::string(pw->pw_dir) + "/.config/" + CFG_FILE_DIR;
+    }
+
+    // Try to create the directory, but continue even if it fails (directory might already exist)
+    std::error_code ec;
+    if (std::filesystem::create_directories(cfg_dir_path, ec)) {
+        logs::info(("Created configuration directory " + cfg_dir_path).c_str());
+    } else if (ec.value() != 0) {
+        constexpr int buffer_size = 1000;
+        auto const format = "Failed to create configuration directory %s; Error code: %i; Error message: %s";
+        char err_msg[buffer_size];
+
+        snprintf(err_msg, buffer_size, format, cfg_dir_path.c_str(), ec.value(), ec.message().c_str());
+        logs::warn(err_msg);
+        // Continue anyway - the directory might already exist and be readable
+    }
+
+    // Always return the full path, even if directory creation failed
+    // The file might still be readable if it was manually created
+    result = cfg_dir_path + '/' + CFG_FILE_NAME;
+#endif
+
+    logs::info("get_configuration_path: returning %s", result.c_str());
+    return result;
+}
+
+static int parse_decimal_as_percentage(const char *str) {
+    const char *start = str;
+    char *end;
+    long whole = SDL_strtol(start, &end, 10);
+    int percentage = 100 * (int)whole;
+    if (*end == ',' || *end == '.') {
+        end++;
+        start = end;
+        long fraction = SDL_strtol(start, &end, 10);
+        switch (end - start) {
+        case 0:
+            break;
+        case 1:
+            percentage += fraction * 10;
+            break;
+        case 2:
+            percentage += fraction;
+            break;
+        default:
+        {
+            int fraction_digits = (int)(end - start);
+            while (fraction_digits > 2) {
+                fraction = fraction / 10;
+                fraction_digits--;
+            }
+            percentage += fraction;
+            break;
+        }
+        }
+    }
+
+    if (*end) {
+        // still some characters left, print out warning
+        logs::warn("Invalid decimal: %s", str);
+        return -1;
+    }
+    return percentage;
+}
+
+} // namespace
+
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--window", "window", true, "enable window mode");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--nosound", "sound", false, "disable audio: skip sound manager init and audio file probing at startup");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--no-logo", "no_logo", true, "skip logo screen; go straight to main menu");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--nointro", "nointro", true, "skip the intro video on startup");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--no-update", "no_update", true,
+  "do not check for or download a newer build (CI builds only)");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--nomouse", "nomouse", true, "disable mouse-driven input (e.g. edge/drag camera scrolling); useful for tests/screenshots");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--logjsfiles", "logjsfiles", true, "print logs which files open with js");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--log-js-handlers", "log_js_handlers", true, "print logs when JavaScript event handlers are registered");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--nocrashdlg", "crashdlg", false, "do not show crash dialog");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--fulldmp", "fulldmp", true, "create full dump on crash");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--config", "config", true, "always show configuration window on startup");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--noconfig-window", "noconfig_window", true, "skip configuration window on startup (even if akhenaten.cfg is missing)");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--og", "features_og", true, "force original Pharaoh behavior: disable all Enhanced / gameplay-change features");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--enhanced", "features_enhanced", true, "enable all Enhanced / gameplay-change features (overrides --og if both are set)");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--save_debug_texture", "save_debug_texture", true, "save debug textures to DEV_TESTING/tex/");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--unpack_scripts", "unpack_scripts", true, "unpack embedded scripts to user directory");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--log-resources", "log_resources", true, "log resource loading (textures, image packs, etc.)");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--log-sound", "log_sound", true, "log sound file loading (city sounds, speech, music, effects)");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--log-sound-events", "log_sound_events", true,
+  "log each sound effect / music event: where it is sent and when the sound manager plays it");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--log-config-keys", "log_config_keys", true,
+  "warn about config keys nothing reads and non-zero C++ defaults that a missing key resets to 0");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--config-keys-update", "config_keys_update", true,
+  "with --config-keys-baseline, rewrite the baseline from this run instead of checking it");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--config-keys-baseline", "config_keys_baseline",
+  "Option --config-keys-baseline must be followed by a file path", "--config-keys-baseline PATH",
+  "with --integraltests, fail on config key issues not listed in PATH (implies --log-config-keys)");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--user-dir", "user_dir", "Option --user-dir must be followed by a directory path",
+  "--user-dir PATH",
+  "use PATH instead of the per-user app folder (test log, options); lets several runs go in parallel");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--discord-log", "discord_log", true, "enable Discord RPC verbose logging");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--no-resource", "no_resource", true, "run without Pharaoh data files (skips campaign.txt; DATA_DIR is optional VFS base path)");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--nodatacheck", "no_data_check", true, "skip Pharaoh/Cleopatra install validation at startup (allow any data_directory)");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--integraltests", "integral_tests", true, "run built-in tests without game data and exit");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--integraltest-keep", "integraltest_keep", true, "with --integraltests, keep the game window open after the suite (inspect final city state; exit code still from tests)");
+ANK_REGISTER_BOOL_ARGUMENT_HANDLER("--editor", "editor", true, "start in scenario editor (dev-only; blank map, bypasses main menu)");
+
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--render", "renderer",
+  "Option --render must be a renderer name (direct3d11, opengl, direct3d, software)", "--render RENDERER",
+  "use specific renderer");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--mods", "mods_directory", "Option --mods must be followed by a folder path",
+  "--mods PATH", "mods folder instead of <data>/mods");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--mixed", "scripts_directory", MIXED_MODE_ERROR_MESSAGE, "--mixed PATH", "hot reload scripts from disk");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--language", "language", "Option --language must be followed by a language code (e.g., ru, en, fr)", "--language CODE", "set game language (e.g., ru, en, fr, de, it, sp, po, pr, sw, tc, sc, kr)");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--font", "custom_font", "Option --font must be followed by a font file path", "--font PATH", "use custom TTF font file (overrides font from localization.js)");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--load-map", "load_map", "Option --load-map must be followed by a map file path", "--load-map PATH", "load arbitrary .map file straight into the city, bypassing the main menu (path may be absolute, relative to PWD/data dir, or a name inside Maps/)");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--integraltest-only", "integraltest_only",
+  "Option --integraltest-only must be followed by a test name (e.g. 06 or 06_stonemason_guild_info_window)",
+  "--integraltest-only NAME",
+  "with --integraltests, run only the tests whose filename (stem) starts with NAME, or, if none does, every test whose "
+  "stem contains NAME (case-insensitive)");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--integraltest-shard", "integraltest_shard",
+  "Option --integraltest-shard must be followed by I/N (e.g. 0/4)", "--integraltest-shard I/N",
+  "with --integraltests, run only every N-th selected test starting at index I (0-based), for parallel runs");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--integraltest-jobs", "integraltest_jobs",
+  "Option --integraltest-jobs must be followed by a number of processes", "--integraltest-jobs N",
+  "with --integraltests, run the suite in N child processes (shards with their own user dirs under --user-dir) and "
+  "print the combined result");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--extract-installer", "extract_installer", "Option --extract-installer must be followed by a path to a Pharaoh installer (.exe)", "--extract-installer PATH", "extract Pharaoh data from Inno/GOG (innoextract) or InstallShield (7z+unshield) installer");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--extract-dir", "extract_dir", "Option --extract-dir must be followed by an output directory path", "--extract-dir PATH", "output directory for --extract-installer (default: user config …/pharaoh-data)");
+ANK_REGISTER_STRING_ARGUMENT_HANDLER("--screenshot-dir", "screenshot_dir", "Option --screenshot-dir must be followed by a directory path", "--screenshot-dir PATH", "directory to save screenshots into (created if missing; default: working dir)");
+
+// Register argument handler for --display-scale
+std::optional<arguments::argument_result> handle_display_scale(int argc, char **argv, int current_index) {
+    if (SDL_strcmp(argv[current_index], "--display-scale") == 0) {
+        if (current_index + 1 < argc) {
+            int percentage = parse_decimal_as_percentage(argv[current_index + 1]);
+            if (percentage < 50 || percentage > 500) {
+                app_terminate(DISPLAY_SCALE_ERROR_MESSAGE);
+            }
+            return arguments::argument_result("display_scale_percentage", bvariant(percentage), 2);
+        } else {
+            app_terminate(DISPLAY_SCALE_ERROR_MESSAGE);
+        }
+    }
+    return std::nullopt;
+}
+ANK_REGISTER_ARGUMENT_HANDLER_WITH_DESC(handle_display_scale, "--display-scale NUMBER", "Scales the display by a factor of NUMBER. Number can be between 0.5 and 5");
+
+// Register argument handler for --cursor-scale
+std::optional<arguments::argument_result> handle_cursor_scale(int argc, char **argv, int current_index) {
+    if (SDL_strcmp(argv[current_index], "--cursor-scale") == 0) {
+        if (current_index + 1 < argc) {
+            int percentage = parse_decimal_as_percentage(argv[current_index + 1]);
+            if (percentage != 100 && percentage != 150 && percentage != 200) {
+                app_terminate(CURSOR_SCALE_ERROR_MESSAGE);
+            }
+            return arguments::argument_result("cursor_scale_percentage", bvariant(percentage), 2);
+        } else {
+            app_terminate("Option --cursor-scale must be followed by a scale value between 0.5 and 5");
+        }
+    }
+    return std::nullopt;
+}
+ANK_REGISTER_ARGUMENT_HANDLER_WITH_DESC(handle_cursor_scale, "--cursor-scale NUMBER", "Scales the mouse cursor by a factor of NUMBER. Number can be 1, 1.5 or 2");
+
+// Register argument handler for --size
+std::optional<arguments::argument_result> handle_size(int argc, char **argv, int current_index) {
+    if (SDL_strcmp(argv[current_index], "--size") == 0) {
+        if (current_index + 1 < argc) {
+            vec2i size{800, 600};
+            if (SDL_sscanf(argv[current_index + 1], "%dx%d", &size.x, &size.y) == 2) {
+                return arguments::argument_result("window_size", bvariant(size), 2);
+            } else {
+                app_terminate("Option --size must should has fixed WxH format");
+            }
+        } else {
+            app_terminate("Option --size must should has fixed WxH format");
+        }
+    }
+    return std::nullopt;
+}
+ANK_REGISTER_ARGUMENT_HANDLER_WITH_DESC(handle_size, "--size WxH", "window size. Example: 800x600");
+
+std::optional<arguments::argument_result> handle_pos(int argc, char **argv, int current_index) {
+    if (SDL_strcmp(argv[current_index], "--pos") == 0) {
+        if (current_index + 1 < argc) {
+            vec2i pos{ 10, 10 };
+            if (SDL_sscanf(argv[current_index + 1], "%d,%d", &pos.x, &pos.y) == 2) {
+                return arguments::argument_result("window_pos", bvariant(pos), 2);
+            } else {
+                app_terminate("Option --pos must should has fixed x, y format");
+            }
+        } else {
+            app_terminate("Option --pos must should has fixed x,y format");
+        }
+    }
+    return std::nullopt;
+}
+ANK_REGISTER_ARGUMENT_HANDLER_WITH_DESC(handle_pos, "--pos x,y", "window pos. Example: 10,10");
+
+std::optional<arguments::argument_result> handle_game_config_override(int argc, char** argv, int current_index) {
+    const char* arg = argv[current_index];
+    const char* prefix = "--config:";
+    const size_t prefix_len = SDL_strlen(prefix);
+    if (SDL_strncmp(arg, prefix, prefix_len) != 0) {
+        return std::nullopt;
+    }
+
+    const char* rest = arg + prefix_len;
+    const char* eq = SDL_strchr(rest, '=');
+    if (!eq || eq == rest) {
+        app_terminate("Option --config:NAME=VALUE must have format --config:option_name=value");
+    }
+
+    const std::string name(rest, eq - rest);
+    xstring value(eq + 1);
+    if (value.empty()) {
+        app_terminate("Option --config:NAME=VALUE requires a value");
+    }
+
+    g_args.add_game_config_cli_override(xstring(name.c_str()), value);
+    return arguments::argument_result("_config_cli", bvariant(true), 1);
+}
+ANK_REGISTER_ARGUMENT_HANDLER_WITH_DESC(handle_game_config_override, "--config:NAME=VALUE", "override a game feature from akhenaten.conf (e.g. --config:gameui_draw_fps=1)");
+
+std::optional<arguments::argument_result> handle_threads(int argc, char** argv, int current_index) {
+    const char* arg = argv[current_index];
+    const char* prefix_long = "--threads=";
+    if (SDL_strncmp(arg, prefix_long, SDL_strlen(prefix_long)) == 0) {
+        arg += SDL_strlen(prefix_long);
+    } else {
+        return std::nullopt;
+    }
+    char* end = nullptr;
+    long n = SDL_strtol(arg, &end, 10);
+    if (end == arg || *end != '\0' || n < 0 || n > 1024) {
+        app_terminate("Option --threads=N must have a number N in range 0..1024 (0 = auto)");
+    }
+    return arguments::argument_result("threads", bvariant(static_cast<int32_t>(n)), 1);
+}
+ANK_REGISTER_ARGUMENT_HANDLER_WITH_DESC(handle_threads, "-threads=N", "number of worker threads (0 = auto by CPU cores)");
+
+void Arguments::parse(int argc, char** argv) {
+    xstring data_dir = std::filesystem::current_path().string().c_str();
+
+    const bool integraltests_mode = std::any_of(argv + 1, argv + argc, [](pcstr a) {
+        return a && std::strcmp(a, "--integraltests") == 0;
+    });
+
+    if (!integraltests_mode) {
+        const xstring steam_dir = innoextract::find_steam_pharaoh_dir();
+        if (!steam_dir.empty()) {
+            logs::info("Steam pharaoh path: %s", steam_dir.c_str());
+            data_dir = steam_dir;
+        }
+    }
+
+    args_["data_directory"] = bvariant(data_dir);
+    // akhenaten.cfg usually holds the developer's Steam data dir; tests take theirs only from the command line.
+    const bool file_exists = integraltests_mode ? false : arguments::load(*this);
+    args_["config_file_exists"] = bvariant(file_exists);
+
+    if (platform.is_emscripten()) {
+        args_["log_resources"] = bvariant(true);
+    }
+
+    parse_cli_(argc, argv);
+
+    // Apply save_debug_texture from args to game
+    if (is("save_debug_texture", false)) {
+        game.save_debug_texture = true;
+    }
+}
+
+char const* Arguments::usage() {
+    static std::string usage_text;
+    if (usage_text.empty()) {
+        usage_text = "Usage: akhenaten [ARGS] [DATA_DIR]\n"
+                     "\n"
+                     "ARGS may be:\n";
+
+        auto descriptions = arguments::get_argument_descriptions();
+        // Sort by argument name for consistent output
+        std::sort(descriptions.begin(), descriptions.end(),
+                  [](const auto& a, const auto& b) { return a.first < b.first; });
+
+        for (const auto& desc : descriptions) {
+            bstring1024 help;
+            help.append_fmt("  %s\n", desc.first.c_str());
+            help.append_fmt("          %s\n", desc.second.c_str());
+            usage_text.append(help.c_str());
+        }
+
+        usage_text += "\n"
+                      "The last argument, if present, is interpreted as data directory of the Pharaoh installation";
+    }
+    return usage_text.c_str();
+}
+
+bool Arguments::is(const xstring & name, bool def) const {
+    const auto& fullscreen = get_arg(name);
+    if (fullscreen.is_bool()) {
+        return fullscreen.as_bool();
+    }
+
+    return def;
+}
+
+bool Arguments::should_show_startup_config_window() const {
+    if (should_show_config_window()) {
+        return true;
+    }
+    if (should_skip_config_window()) {
+        return false;
+    }
+    return !config_file_exists();
+}
+
+int Arguments::get_display_scale_percentage() const {
+    const auto& scale = get_arg("display_scale_percentage");
+    if (scale.is_int32()) {
+        return scale.as_int32();
+    }
+    return 100; // default value
+}
+
+void Arguments::set_display_scale_percentage(int value) {
+    args_["display_scale_percentage"] = bvariant(std::clamp(value, 50, 500));
+}
+
+int Arguments::get_cursor_scale_percentage() const {
+    const auto& scale = get_arg("cursor_scale_percentage");
+    if (scale.is_int32()) {
+        return scale.as_int32();
+    }
+    return 100; // default value
+}
+
+void Arguments::set_cursor_scale_percentage(int value) {
+    args_["cursor_scale_percentage"] = bvariant(std::clamp(value, 100, 200));
+}
+
+unsigned int Arguments::get_thread_count() const {
+    if (!has_arg("threads")) {
+        return 0; // 0 = auto (hardware_concurrency)
+    }
+    const auto& v = get_arg("threads");
+    if (!v.is_int32()) {
+        return 0;
+    }
+    int n = v.as_int32();
+    return n <= 0 ? 0 : static_cast<unsigned int>(n);
+}
+
+void Arguments::set_renderer(pcstr value) {
+    args_["renderer"] = xstring(value);
+}
+
+void Arguments::set_data_directory(pcstr value) {
+    args_["data_directory"] = bvariant(xstring(value));
+}
+
+void Arguments::set_integraltest_only(pcstr value) {
+    args_["integraltest_only"] = bvariant(xstring(value ? value : ""));
+}
+
+const xstring& Arguments::get_str(const xstring& name) const {
+    const bvariant& font = get_arg(name);
+    if (font.is_str() && !font.as_str().empty()) {
+        return font.as_str();
+    }
+
+    static const xstring dummy;
+    return dummy;
+}
+
+void Arguments::set_custom_font(pcstr value) {
+    args_["custom_font"] = bvariant(xstring(value));
+}
+
+vec2i Arguments::get_window_size() const {
+    const bvariant& size = get_arg("window_size");
+    if (size.is_vec2i()) {
+        return size.as_vec2i();
+    }
+    return vec2i{800, 600}; // default value
+}
+
+void Arguments::set_window_size(vec2i value) {
+    args_["window_size"] = bvariant(value);
+}
+
+void Arguments::parse_cli_(int argc, char** argv) {
+    for (int i = 1; i < argc; i++) {
+        // ignore "-psn" arguments, this is needed to launch the app
+        // from the Finder on macOS.
+        // https://hg.libsdl.org/SDL/file/c005c49beaa9/test/testdropfile.c#l47
+        if (SDL_strcmp(argv[i], "-psn") == 0) {
+            continue;
+        }
+
+        // Try registered argument handlers first
+        bool handled = false;
+        for (arguments::ArgumentHandler *s = arguments::ArgumentHandler::tail; s; s = s->next) {
+            auto result = s->func(argc, argv, i);
+            if (result.has_value()) {
+                args_[result->name] = result->value;
+                i += result->consumed_args - 1; // -1 because the loop will increment i
+                handled = true;
+                break;
+            }
+        }
+        if (handled) {
+            continue;
+        }
+
+        if (SDL_strcmp(argv[i], "--help") == 0) {
+            app_terminate(usage());
+
+        } else if (SDL_strncmp(argv[i], "--", 2) == 0) {
+            logs::info(UNKNOWN_OPTION_ERROR_MESSAGE, argv[i]);
+
+        } else {
+            // TODO: ???? check that there are no other arguments after
+            args_["data_directory"] = bvariant(xstring(argv[i]));
+            args_["data_directory_cli"] = bvariant(true);
+        }
+    }
+}
+
+const bvariant& Arguments::get_arg(const xstring& name) const {
+    auto it = args_.find(name);
+    if (it != args_.end()) {
+        return it->second;
+    }
+
+    static bvariant dummy;
+    return dummy;
+}
+
+bool Arguments::has_arg(const xstring& name) const {
+    return args_.find(name) != args_.end();
+}
+
+void Arguments::add_game_config_cli_override(xstring name, xstring value) {
+    game_config_cli_overrides_.push_back({name, value});
+}
+
+e_features_profile Arguments::features_profile() const {
+    if (features_enhanced()) {
+        return features_profile_enhanced;
+    }
+    if (features_og()) {
+        return features_profile_og;
+    }
+    return features_profile_default;
+}
+
+namespace arguments {
+
+bool load(Arguments& arguments) {
+    std::ifstream input(get_configuration_path(), std::ios::in);
+
+    if (!input.is_open()) {
+        logs::info("Configuration file was not found.");
+        return false;
+    }
+
+    std::string line;
+    while (std::getline(input, line)) {
+        auto pos = line.find('=');
+        if (pos == std::string::npos)
+            continue;
+
+        auto const key = line.substr(0, pos);
+        auto const value = line.substr(pos + 1);
+
+        if (key == "data_directory") {
+            arguments.set_data_directory(value.c_str());
+        } else if (key == "window_mode") {
+            if (value == "1")
+                arguments.set_window_mode();
+            else
+                arguments.set_fullscreen();
+        } else if (key == "renderer") {
+            arguments.set_renderer(value.c_str());
+        } else if (key == "display_scale_percentage") {
+            arguments.set_display_scale_percentage(std::stoi(value));
+        } else if (key == "cursor_scale_percentage") {
+            arguments.set_cursor_scale_percentage(std::stoi(value));
+        } else if (key == "window_width") {
+            auto v = arguments.get_window_size();
+            v.x = std::stoi(value);
+            arguments.set_window_size(v);
+        } else if (key == "window_height") {
+            auto v = arguments.get_window_size();
+            v.y = std::stoi(value);
+            arguments.set_window_size(v);
+        } else if (key == "custom_font") {
+            arguments.set_custom_font(value.c_str());
+        } else {
+            logs::warn("Unknown argument key: %s", key.c_str());
+        }
+    }
+    return true;
+}
+
+void store(Arguments const& arguments) {
+    std::ofstream output(get_configuration_path().c_str(), std::ios::trunc | std::ios::out);
+
+    output << "data_directory" << '=' << arguments.get_data_directory().c_str() << '\n';
+    output << "window_mode" << '=' << arguments.is_window_mode() << '\n';
+    const xstring& renderer = arguments.get_renderer();
+    if (!renderer.empty()) {
+        output << "renderer" << '=' << renderer.c_str() << '\n';
+    }
+    output << "display_scale_percentage" << '=' << arguments.get_display_scale_percentage() << '\n';
+    output << "cursor_scale_percentage" << '=' << arguments.get_cursor_scale_percentage() << '\n';
+    output << "window_width" << '=' << arguments.get_window_size().x << '\n';
+    output << "window_height" << '=' << arguments.get_window_size().y << '\n';
+    if (!arguments.get_custom_font().empty()) {
+        output << "custom_font" << '=' << arguments.get_custom_font().c_str() << '\n';
+    }
+}
+
+std::vector<std::pair<xstring, xstring>> get_argument_descriptions() {
+    std::vector<std::pair<xstring, xstring>> descriptions;
+    for (ArgumentInfo *s = ArgumentInfo::tail; s; s = s->next) {
+        if (s->func) {
+            argument_info* info = s->func;
+            descriptions.emplace_back(info->arg_name, info->description);
+        }
+    }
+    return descriptions;
+}
+
+} // namespace arguments

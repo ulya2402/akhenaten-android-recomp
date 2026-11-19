@@ -1,0 +1,108 @@
+log_info("akhenaten: ui set salary window started")
+
+function salary_rank_text(rank, _) {
+    return city.rank_title(rank) + ": " + city.rank_salary(rank) + " " + __loc("#top_menu_funds")
+}
+
+[es=(set_salary_window, click_item), es=(set_salary_window_mansion, click_item)]
+function set_salary_window_list_on_click_item(p) {
+    city.apply_salary_rank(p.user_data)
+    window_go_back()
+}
+
+function set_salary_window_list_on_render_item(p) {
+    var rank = p.user_data
+    var line = salary_rank_text(rank, 0)
+    ui.label_ex(line, [p.x + 32, p.y], FONT_NORMAL_WHITE_ON_DARK, UiFlags_AlignYCentered, p.sizex - 40)
+    if (p.hover) {
+        ui.border({x: p.x + 4, y: p.y - 2}, {x: p.sizex - 8, y: p.sizey + 2}, 0, COLOR_TOOLTIP_BORDER, UiFlags_None)
+    }
+}
+
+[es=modal_window]
+set_salary_window {
+    pos [(sw(0) - px(24))/2, (sh(0) - px(25))/2]
+    allow_rmb_goback: true
+    draw_underlying: true
+
+    ui {
+        background_image : background({pack:PACK_UNLOADED, id:11})
+        background       : outer_panel({size[24, 25]})
+        resource_icon    : resource_icon({pos[16, 16], resource:RESOURCE_DEBEN})
+        title            : text_center({pos[48, 16], size[px(24) - 64, 20], text[52, 15], font: FONT_LARGE_BLACK_ON_LIGHT})
+        salary_ranks     : scrollable_list({
+                                pos[16, 48]
+                                size[22, 15]
+                                view_items: 11
+                                buttons_size_y: 20
+                                buttons_margin_x: 4
+                                buttons_margin_y: 12
+                                text_padding_x: 0
+                                text_padding_y: 0
+                                draw_scrollbar_always: false
+                                draw_paneling: true
+                                onrender_item: set_salary_window_list_on_render_item
+                                onclick_event: "click_item"
+                            })
+        explanation_text : text({pos[16, 304], size[px(22), -1], wrap:px(22), font: FONT_NORMAL_BLACK_ON_LIGHT, multiline:true})
+        btn_cancel       : button({margin{centerx: -80, bottom: -40}, size[160, 20], text[13, 4], font: FONT_NORMAL_BLACK_ON_LIGHT })
+    }
+}
+
+[es=(set_salary_window, btn_cancel)]
+function set_salary_window_btn_cancel(window) {
+    window_go_back()
+}
+
+[es=(set_salary_window_mansion, btn_cancel)]
+function set_salary_window_mansion_btn_cancel(window) {
+    window_go_back()
+}
+
+[es=modal_window]
+set_salary_window_mansion {
+    pos [(sw(0) - px(24))/2, (sh(0) - px(25))/2]
+    allow_rmb_goback: true
+    draw_underlying: true
+
+    ui : baseui(set_salary_window, {
+        background_image : dummy({})
+    })
+}
+
+function set_salary_window_fill_lists_and_text(window) {
+    window.salary_ranks.clear()
+    window.salary_ranks.readonly = scenario.has_won
+    var rank
+    for (rank = 0; rank < 11; rank++) {
+        window.salary_ranks.add_item("", rank)
+    }
+
+    if (!scenario.has_won) {
+        if (player.salary_rank <= city.player_rank) {
+            window.explanation_text.text = __loc(52, 76)
+        } else {
+            window.explanation_text.text = __loc(52, 71)
+        }
+    } else {
+        window.explanation_text.text = __loc(52, 77)
+    }
+}
+
+[es=(set_salary_window, init)]
+function set_salary_window_init(window) {
+    set_salary_window_fill_lists_and_text(window)
+}
+
+[es=(set_salary_window_mansion, init)]
+function set_salary_window_mansion_init(window) {
+    var mansion_bg_w = px(29)
+    var ox = city.object_info.offset.x + mansion_bg_w / 2 - 200
+    var oy = city.object_info.offset.y
+    var ww = px(24)
+    var wh = px(25)
+    ox = Math.max(0, Math.min(ox, screen.width - ww))
+    oy = Math.max(0, Math.min(oy, screen.height - wh))
+    ui.set_window_pos("set_salary_window_mansion", {x: ox, y: oy})
+    set_salary_window_fill_lists_and_text(window)
+}

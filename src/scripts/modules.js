@@ -1,0 +1,61 @@
+__log_info_native("akhenaten: load modules started")
+
+include(":akhenaten.conf")
+include(":hotkeys.conf")
+
+import common
+import camera
+import game
+import game_speed
+import scroll
+import hotkey_actions
+import scenario
+import discord_presence
+import math
+import animal_herds
+import gods
+import city
+import city_modules
+import terrain
+import image_context
+import routed_building
+import images
+import game_messages_en
+import localization_base_en
+import localization_en
+import eventmsg_en
+import buildings
+import overlays
+import images
+import population
+import health
+import imagepaks
+import missions
+import figures
+import localization
+import building_menu
+import desirability
+import kingdome_relation
+import floodplain
+import clouds
+import ui
+import debug
+import houses
+import routing
+import economic
+import migration
+import eventmsg_phrase_auto
+import figure_names_en
+import music
+import speech
+import invasions
+import enemies
+import sentiment
+import empire
+import empire_city_prototype
+import console_commands
+import malaria_risk
+import player
+import mods
+import empire_map
+import building_menu_ctrl

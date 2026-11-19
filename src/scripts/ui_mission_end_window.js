@@ -1,0 +1,345 @@
+log_info("akhenaten: ui mission end window started")
+
+var MISSION_END_STATE_WON = 0
+var MISSION_END_STATE_LOST = 1
+
+var MISSION_WON_DIFFICULTY_KEYS = [
+    "#difficulty_very_easy",
+    "#difficulty_easy",
+    "#difficulty_normal",
+    "#difficulty_hard",
+    "#difficulty_very_hard"
+]
+
+function mission_end_splash_tid(offset) {
+    var gi = get_image({pack: PACK_UNLOADED, id: 18, offset: offset})
+    return (gi && gi.tid !== undefined) ? gi.tid : 0
+}
+
+[es=window]
+window_mission_won {
+    pos: [(sw(0) - px(38))/2, (sh(0) - px(28))/2]
+    ui {
+        splash              : background({ pack:PACK_UNLOADED, id:18, offset:0 })
+        background          : outer_panel({size:[38, 28]})
+        title               : text({pos:[0, 16], size:[px(38), 20], text:{group:62, id:0}, align:"center", font: FONT_LARGE_BLACK_ON_LIGHT })
+        description_panel   : inner_panel({pos:{x:32, y:48}, size:{w:34, h:7}})
+        victory_text        : text({pos:[48, 56], size:[px(32), px(6)], multiline:true, wrap:px(32), font: FONT_NORMAL_WHITE_ON_DARK })
+
+        culture_line        : text({pos:[48, 180], text:"", font: FONT_NORMAL_BLACK_ON_LIGHT })
+        prosperity_line     : text({pos:[48, 200], text:"", font: FONT_NORMAL_BLACK_ON_LIGHT })
+        kingdom_line        : text({pos:[48, 220], text:"", font: FONT_NORMAL_BLACK_ON_LIGHT })
+        funds_line          : text({pos:[48, 240], text:"", font: FONT_NORMAL_BLACK_ON_LIGHT })
+        population_line     : text({pos:[48, 260], text:"", font: FONT_NORMAL_BLACK_ON_LIGHT })
+
+        monuments_header    : text({pos:[320, 180], text:{group:148, id:6}, font: FONT_NORMAL_BLACK_ON_LIGHT })
+        monuments_list      : text({pos:[320, 200], size:[px(16), -1], multiline:true, wrap:px(16), text:"", font: FONT_NORMAL_BLACK_ON_LIGHT })
+
+        months_line         : text({pos:[0, 320], size:[px(38), 20], align:"center", text:"", font: FONT_NORMAL_BLACK_ON_LIGHT })
+        difficulty_line     : text({pos:[0, 340], size:[px(38), 20], align:"center", text:"", font: FONT_NORMAL_BLACK_ON_LIGHT })
+        score_line          : text({pos:[0, 360], size:[px(38), 20], align:"center", text:"", font: FONT_NORMAL_BLACK_ON_LIGHT })
+        compare_line        : text({pos:[32, 388], size:[px(34), -1], multiline:true, wrap:px(34), align:"center", text:"", font: FONT_NORMAL_BLACK_ON_LIGHT })
+        continue_hint       : text({margin:{left:0, bottom:-40}, size:[px(38), 20], align:"center", text:{group:13, id:1}, font: FONT_NORMAL_BLACK_ON_LIGHT })
+    }
+}
+
+[es=window]
+window_mission_lost {
+    pos: [(sw(0) - px(34))/2, (sh(0) - px(16))/2]
+    ui {
+        splash              : image({pos[(px(34) - 1024)/2, (px(16) - 768)/2], pack:PACK_UNLOADED, id:18, offset:0 })
+        background          : outer_panel({size:[34, 16]})
+        title               : text({pos:[0, 32], text:{group:62, id:1}, font: FONT_LARGE_BLACK_ON_LIGHT, align:"center", size:[px(32), 20] })
+        warning_text        : text({pos:[32, 72], text:{group:62, id:16}, wrap:px(32), font: FONT_NORMAL_BLACK_ON_LIGHT, multiline:true })
+
+        lower_difficulty    : button({pos:[32, 215], size:[px(9), 20], text:{group:62, id:40}, onclick_event: "lower_difficulty" })
+        new_game            : button({pos:[64, 215], size:[px(26), 20], text:{group:62, id:6}, onclick_event: "new_game" })
+        replay_mission      : button({pos:[352, 215], size:[px(9), 20], text:{group:62, id:37}, onclick_event: "replay_mission" })
+    }
+}
+
+var DEFEAT_OPTIONS_NEW_GAME = 1
+var DEFEAT_OPTIONS_REPLAY = 2
+var DEFEAT_OPTIONS_LOWER_DIFFICULTY = 3
+
+// OG high score results (window/high_scores.c) and their texts in group 148.
+var HIGH_SCORE_RESULT_TEXTS = [0, 10, 11, 12, 13, 14, 16]
+var HIGH_SCORE_RESULT_OTHER_KEPT = 4
+var HIGH_SCORE_RESULT_OTHER_BEATEN = 5
+
+var mission_end_highscore = { result: 0, previous_name: "" }
+
+// OG: the months since the start year plus the month of the year.
+function mission_won_completion_months() {
+    var years = game.simtime.year - scenario.start_year
+    if (years < 0) {
+        years = -years
+    }
+    return years * 12 + game.simtime.month
+}
+
+function mission_won_summary() {
+    var months = mission_won_completion_months()
+    var monuments = city_finished_slot_monuments()
+    return {
+        months: months,
+        monuments: monuments.count,
+        score: __city_victory_score(months, monuments.weight)
+    }
+}
+
+// OG highscore_record_mission: a campaign victory is written to highscore.jas when new or beaten.
+function mission_end_record_highscore() {
+    mission_end_highscore = { result: 0, previous_name: "" }
+    if (scenario.scmode != e_scenario_normal) {
+        return
+    }
+    var summary = mission_won_summary()
+    mission_end_highscore.result = __highscores_record_mission(scenario.campaign_scenario_id, summary.months,
+        summary.score, summary.monuments)
+    mission_end_highscore.previous_name = __highscores_previous_name()
+}
+
+function mission_won_highscore_text() {
+    var result = mission_end_highscore.result
+    if (result <= 0 || result >= HIGH_SCORE_RESULT_TEXTS.length) {
+        return ""
+    }
+    var text = __loc(148, HIGH_SCORE_RESULT_TEXTS[result])
+    if (result == HIGH_SCORE_RESULT_OTHER_KEPT || result == HIGH_SCORE_RESULT_OTHER_BEATEN) {
+        text = text.replace("[player_name]", mission_end_highscore.previous_name)
+    }
+    return text
+}
+
+function mission_won_difficulty_label(diff) {
+    if (diff < 0 || diff >= MISSION_WON_DIFFICULTY_KEYS.length) {
+        diff = 2
+    }
+    return __loc(MISSION_WON_DIFFICULTY_KEYS[diff])
+}
+
+function mission_won_erected_monuments_text() {
+    var n = __city_monuments_list_refresh()
+    var names = []
+    for (var i = 0; i < n; i++) {
+        var bid = __city_monuments_list_id_at(i)
+        if (!bid) {
+            continue
+        }
+        var monument = city.get_monument(bid)
+        if (!monument || monument.phase() != -1) {
+            continue
+        }
+        var name = __building_static_text(monument_weight_btype(bid), "build_menu_text")
+        if (!name || name.length == 0) {
+            name = __building_display_name(bid)
+        }
+        if (name && name.length > 0) {
+            names.push(name)
+        }
+    }
+    return names.join("\n")
+}
+
+[es=(window_mission_won, init)]
+function window_mission_won_on_init(window) {
+    __log_marker("window_show:window_mission_won")
+    var is_custom = scenario.scmode != e_scenario_normal
+
+    window.splash.image = mission_end_splash_tid(is_custom ? 2 : 0)
+
+    __game_sound.music_stop()
+    __game_sound.speech_stop()
+    if (!is_custom) {
+        var cfg = get_mission_config(scenario.campaign_scenario_id)
+        var victory = cfg && cfg.sounds && cfg.sounds.victory
+        if (victory) {
+            __game_sound.speech_play(victory)
+        }
+    }
+
+    var subtitle_id = is_custom ? 53 : scenario.campaign_scenario_id
+    window.victory_text.text = __loc(147, subtitle_id)
+
+    var culture = city.rating.culture
+    var prosperity = city.rating.prosperity
+    var kingdom = city.rating.kingdom
+    var funds = city.finance.treasury
+    var population = city.population
+    var summary = mission_won_summary()
+    var months = summary.months
+    var difficulty = game.difficulty
+    var score = summary.score
+
+    // Win-screen labels match the original dialog (no "was"); group 298 is for score panels.
+    window.culture_line.text = __loc("#mission_won_culture_rating") + " " + String(culture)
+    window.prosperity_line.text = __loc("#mission_won_prosperity_rating") + " " + String(prosperity)
+    window.kingdom_line.text = __loc("#mission_won_kingdom_rating") + " " + String(kingdom)
+    window.funds_line.text = __loc(148, 5) + " " + String(funds)
+    window.population_line.text = __loc("#mission_won_population") + " " + String(population)
+
+    window.monuments_list.text = mission_won_erected_monuments_text()
+
+    window.months_line.text = __loc(148, 7) + " " + String(months) + " " + __loc(148, 15)
+    window.difficulty_line.text = __loc(148, 8) + " " + mission_won_difficulty_label(difficulty)
+    window.score_line.text = __loc(148, 9) + " " + String(score)
+    window.compare_line.text = mission_won_highscore_text()
+}
+
+[es=(window_mission_won, go_back)]
+function window_mission_won_on_go_back(window) {
+    __game_sound.music_stop()
+    __game_sound.speech_stop()
+    mission_end_advance_to_next_mission()
+}
+
+[es=(window_mission_lost, init)]
+function window_mission_lost_on_init(window) {
+    window.splash.image = mission_end_splash_tid(0)
+
+    __game_sound.music_stop()
+    __game_sound.speech_stop()
+    __game_sound.speech_play("Wavs/FANFARE2.WAV")
+
+    var options = city.victory.defeat_options()
+    var lower = options == DEFEAT_OPTIONS_LOWER_DIFFICULTY
+    window.title.text = __loc(62, lower ? 38 : 1)
+    window.warning_text.text = __loc(62, lower ? 39 : 16)
+
+    window.lower_difficulty.enabled = lower
+    window.replay_mission.enabled = options != DEFEAT_OPTIONS_NEW_GAME
+    if (options == DEFEAT_OPTIONS_NEW_GAME) {
+        window.new_game.pos = { x: 64, y: 215 }
+        window.new_game.size = [px(26), 20]
+    } else {
+        window.new_game.pos = { x: lower ? 208 : 64, y: 215 }
+        window.new_game.size = [px(9), 20]
+        window.replay_mission.pos = { x: lower ? 384 : 352, y: 215 }
+    }
+    __log_marker("mission_lost_options:" + options)
+}
+
+// OG defeat_button_easier: one difficulty lower, at most Easy, and the city goes on.
+[es=(window_mission_lost, lower_difficulty)]
+function window_mission_lost_on_lower_difficulty(window) {
+    city.victory.lower_difficulty()
+    __log_marker("mission_lost_lower_difficulty:" + game.difficulty)
+    ui.window_city_show()
+}
+
+// OG defeat_button_menu: back to the main menu.
+[es=(window_mission_lost, new_game)]
+function window_mission_lost_on_new_game(window) {
+    scenario.has_won = 0
+    scenario.continue_months_left = 0
+    scenario.continue_months_chosen = 0
+    __game_undo_disable()
+    widget_top_menu_clear_state()
+    emit event_show_main_menu{ play_intro: true }
+}
+
+[es=(window_mission_lost, replay_mission)]
+function window_mission_lost_on_replay_mission(window) {
+    mission_end_replay_mission()
+}
+
+function mission_end_replay_mission() {
+    __ui_city_planner_reset()
+    var is_custom = scenario.scmode != e_scenario_normal
+    if (is_custom) {
+        __game_load_savegame("autosave_replay.svx")
+        ui.window_city_show()
+    } else {
+        widget_top_menu_clear_state()
+        __game_load_mission(scenario.campaign_scenario_id, 1)
+    }
+}
+
+function mission_end_advance_to_next_mission() {
+    var rank = scenario.campaign_mission_rank
+    var next_rank = rank + 1
+    var completed_id = scenario.campaign_scenario_id
+    var savings = city.kingdome.personal_savings
+
+    var next_scenario_id = -1
+    if (mission_has_post_victory_choice(completed_id)) {
+        next_scenario_id = completed_id
+    } else {
+        next_scenario_id = mission_end_compute_next_scenario_id(completed_id)
+    }
+
+    var is_campaign = scenario.scmode == e_scenario_normal
+    if (is_campaign) {
+        // Terminus: drop carry so the next campaign from the menu starts clean.
+        city.kingdome.campaign_carry_personal_savings = (next_scenario_id == -1) ? 0 : savings
+    }
+
+    // Snapshot troops while the won city still exists; terminus clears inside the handler.
+    emit event_mission_won { scenario_id: completed_id, next_scenario_id: next_scenario_id }
+
+    if (is_campaign) {
+        __game_player_record_mission_win(completed_id)
+    }
+
+    scenario.campaign_mission_rank = next_rank
+    city.kingdome.player_name = city.kingdome.campaign_player_name
+    scenario.has_won = 0
+    scenario.continue_months_left = 0
+    scenario.continue_months_chosen = 0
+
+    __game_undo_disable()
+    city.current_overlay = OVERLAY_NONE
+    city.previous_overlay = OVERLAY_NONE
+
+    if (next_scenario_id == -1) {
+        emit event_show_main_menu{ play_intro: true }
+        if (is_campaign) {
+            __scenario_init()
+            scenario.campaign_mission_rank = 2
+        }
+    } else if (mission_has_post_victory_choice(completed_id)) {
+        game_show_mission_choice(completed_id, completed_id)
+    } else {
+        game_show_mission_choice(next_scenario_id, completed_id)
+    }
+}
+
+function mission_end_show(state) {
+    __mouse_reset_up_state()
+
+    if (state == MISSION_END_STATE_LOST) {
+        mission_end_open_lost_dialog()
+        return
+    }
+
+    if (scenario.hide_won_screen) {
+        mission_end_open_won_dialog()
+        return
+    }
+
+    var completed_for_video = scenario.campaign_scenario_id
+    if (!mission_has_post_victory_choice(completed_for_video)
+        && mission_end_compute_next_scenario_id(completed_for_video) == -1
+        && scenario.scmode == e_scenario_normal) {
+        __game_victory_video_show("smk/win_game.smk", 400, 292, "mission_end_after_video")
+        return
+    }
+
+    game_features.gameopt_victory_video = !game_features.gameopt_victory_video
+    var file = game_features.gameopt_victory_video ? "smk/victory_balcony.smk" : "smk/victory_senate.smk"
+    __game_victory_video_show(file, 400, 292, "mission_end_after_video")
+}
+
+function mission_end_after_video() {
+    mission_end_open_won_dialog()
+}
+
+function mission_end_open_won_dialog() {
+    mission_end_record_highscore()
+    emit event_show_window { id: "window_mission_won" }
+}
+
+function mission_end_open_lost_dialog() {
+    emit event_show_window { id: "window_mission_lost" }
+}

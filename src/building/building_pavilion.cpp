@@ -1,0 +1,219 @@
+﻿#include "building/building_pavilion.h"
+
+#include "graphics/image.h"
+#include "widget/city/ornaments.h"
+#include "widget/city/building_ghost.h"
+#include "window/building/common.h"
+#include "window/building/figures.h"
+#include "sound/sound_building.h"
+#include "graphics/elements/ui.h"
+#include "graphics/graphics.h"
+#include "city/city.h"
+#include "core/random.h"
+#include "game/simulation.h"
+#include "city/city_warnings.h"
+#include "construction/build_planner.h"
+#include "figuretype/figure_entertainer.h"
+#include "grid/image.h"
+#include "grid/building.h"
+#include "grid/orientation.h"
+#include "grid/building_tiles.h"
+#include "figure/figure.h"
+#include "grid/routing/routing_grids.h"
+
+#include "js/js_register.h"
+
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(building_pavilion);
+
+void building_pavilion::static_params::archive_load(archive arch) {
+    dancer_tile = base_img();
+    booth_tile = first_img(animkeys().booth);
+    musician_tile_s = first_img(animkeys().stand_sn_s);
+    musician_tile_e = first_img(animkeys().stand_sn_e);
+}
+
+void building_pavilion::preview::setup_preview_graphics(build_planner &planer) const {
+    const int s = building_static_params::get(planer.build_type).building_size;
+    planer.init_tiles(s, s);
+}
+
+bool building_pavilion::get_route_citizen_land_type(int grid_offset, int &land_result) const {
+    if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+        land_result = CITIZEN_0_ROAD;
+        return true;
+    }
+
+    land_result = CITIZEN_N1_BLOCKED;
+    return true;
+}
+
+bool building_pavilion::target_route_tile_blocked(int grid_offset) const {
+    return false;
+}
+
+void building_pavilion::preview::ghost_preview(build_planner &planer, painter &ctx, tile2i start, tile2i end, vec2i pixel) const {
+    const auto &params = building_static_params::get(planer.build_type);
+    int orientation = 0;
+    const bool can_build = map_venue_ghost_orientation(end, e_venue_mode_pavilion, &orientation);
+
+    if (!can_build) {
+        for (int i = 0; i < params.building_size * params.building_size; i++) {
+            planer.draw_flat_tile(ctx, pixel + VIEW_OFFSETS[i], COLOR_MASK_RED);
+        }
+    } else {
+        int square_id = params.first_img(animkeys().square);
+        for (int i = 0; i < params.building_size * params.building_size; i++) {
+            const int x = ((i % params.building_size) - (i / params.building_size)) * 30;
+            const int y = ((i % params.building_size) + (i / params.building_size)) * 15;
+            ctx.img_isometric(square_id + i, pixel + vec2i{ x, y }, COLOR_MASK_GREEN, 1.f, ImgFlag_None);
+        }
+        int stand_sn_n = params.first_img(animkeys().stand_sn_n);
+        int stand_sn_s = params.first_img(animkeys().stand_sn_s);
+        int booth = params.first_img(animkeys().booth);
+        int stand = params.base_img();
+        const auto &preview_conf = current_params().preview_dir[orientation];
+
+        build_planner::draw_building_ghost(ctx, stand, pixel + preview_conf.stand, COLOR_MASK_GREEN);
+        build_planner::draw_building_ghost(ctx, stand_sn_n + preview_conf.stand_b_img, pixel + preview_conf.stand_b, COLOR_MASK_GREEN);
+        build_planner::draw_building_ghost(ctx, stand_sn_s + preview_conf.stand_e_img, pixel + preview_conf.stand_e, COLOR_MASK_GREEN);
+        build_planner::draw_building_ghost(ctx, booth, pixel + preview_conf.booth, COLOR_MASK_GREEN);
+    }
+}
+
+void building_pavilion::on_create(int orientation) {
+
+}
+
+void building_pavilion::update_month() {
+    runtime_data().play_index
+      = random_hash(g_simulation.simtime.absolute_day(true), id(), RANDOM_SALT_PAVILION_PLAY) % 10;
+}
+
+void building_pavilion::update_day() {
+    building_impl::update_day();
+
+    auto &d = runtime_data();
+
+    int shows = 0;
+    auto update_shows = [&] (auto &days) { if (days > 0) { --days; ++shows; } };
+    update_shows(d.juggler_visited);
+    update_shows(d.musician_visited);
+    update_shows(d.dancer_visited);
+
+    d.num_shows = shows;
+}
+
+void building_pavilion::on_post_load() {
+    auto& d = runtime_data();
+    if (!d.latched_venue_main_grid_offset || !d.latched_venue_add_grid_offset) {
+        latch_stand_offsets(current_params().place_dir[base.orientation % 8]);
+    }
+
+    building_entertainment::on_post_load();
+}
+
+void building_pavilion::on_place_update_tiles(int /*orientation*/, int /*variant*/) {
+    runtime_data().booth_corner_grid_offset = tile().grid_offset();
+
+    int size = current_params().building_size;
+    int image_id = anim(animkeys().square).first_img();
+
+    int map_orientation = 0;
+    map_orientation_for_venue(tile().x(), tile().y(), e_venue_mode_pavilion, &map_orientation);
+    base.orientation = map_orientation;
+
+    map_add_venue_plaza_tiles(id(), size, tile(), image_id, false);
+    place_venue_items(current_params().place_dir[map_orientation], map_orientation / 2);
+}
+
+void building_pavilion::update_sprite_anims() {
+    register_sprite_anim(anim(animkeys().dancer));
+    register_sprite_anim(anim(animkeys().musician_sn));
+    register_sprite_anim(anim(animkeys().musician_we));
+    register_sprite_anim(anim(animkeys().juggler));
+}
+
+bool building_pavilion::draw_ornaments_and_animations_height(painter &ctx, vec2i point, tile2i tile, color color_mask) {
+    auto &d = runtime_data();
+    if (d.dancer_visited && map_image_at(tile) == current_params().dancer_tile) {
+        const animation_t &ranim = anim(animkeys().dancer);
+        building_draw_normal_anim(ctx, point, &base, tile, ranim, color_mask);
+    }
+
+    if (d.musician_visited) {
+        if (map_image_at(tile) == current_params().musician_tile_s) {
+            const animation_t &ranim = anim(animkeys().musician_sn);
+            building_draw_normal_anim(ctx, point, &base, tile, ranim, color_mask);
+        } else if (map_image_at(tile) == current_params().musician_tile_e) {
+            const animation_t &ranim = anim(animkeys().musician_we);
+            building_draw_normal_anim(ctx, point, &base, tile, ranim, color_mask);
+        }
+    }
+
+    if (d.juggler_visited && map_image_at(tile) == current_params().booth_tile) {
+        const animation_t &ranim = anim(animkeys().juggler);
+        building_draw_normal_anim(ctx, point, &base, tile, ranim, color_mask);
+    }
+
+    return true;
+}
+
+// OG building_count_update: a working pavilion is also an active booth and bandstand.
+void building_pavilion::update_count() const {
+    building_entertainment::update_count();
+    if (base.num_workers > 0) {
+        g_city.buildings.increase_active(BUILDING_BOOTH);
+        g_city.buildings.increase_active(BUILDING_BANDSTAND);
+    }
+}
+
+void building_pavilion::spawn_figure() {
+    if (!is_main()) {
+        return;
+    }
+
+    auto &d = runtime_data();
+    if (common_spawn_figure_trigger(current_params().min_houses_coverage, BUILDING_SLOT_JUGGLER)) {
+        if (d.juggler_visited > 0) {
+            create_roaming_figure(FIGURE_JUGGLER, (e_figure_action)ACTION_4_ENTERTAINER_ROAMING, BUILDING_SLOT_JUGGLER);
+            return;
+        }
+    }
+
+    if (common_spawn_figure_trigger(current_params().min_houses_coverage, BUILDING_SLOT_MUSICIAN)) {
+        if (d.musician_visited > 0) {
+            create_roaming_figure(FIGURE_MUSICIAN, (e_figure_action)ACTION_4_ENTERTAINER_ROAMING, BUILDING_SLOT_MUSICIAN);
+            return;
+        }
+    }
+
+    if (common_spawn_figure_trigger(current_params().min_houses_coverage, BUILDING_SLOT_DANCER)) {
+        if (d.dancer_visited > 0) {
+            create_roaming_figure(FIGURE_DANCER, (e_figure_action)ACTION_4_ENTERTAINER_ROAMING, BUILDING_SLOT_DANCER);
+            return;
+        }
+    }
+}
+
+void building_pavilion::on_undo() {
+    auto &d = runtime_data();
+    const int s = size();
+    for (int dy = 0; dy < s; dy++) {
+        for (int dx = 0; dx < s; dx++) {
+            const uint32_t offset = d.booth_corner_grid_offset + GRID_OFFSET(dx, dy);
+            if (map_building_at(offset) == 0)
+                map_building_set(offset, id());
+        }
+    }
+}
+
+void building_pavilion::update_map_orientation(int map_orientation) {
+    if (!is_main()) {
+        return;
+    }
+
+    int plaza_image_id = anim("square").first_img();
+    tile2i btile(runtime_data().booth_corner_grid_offset);
+    map_add_venue_plaza_tiles(id(), size(), btile, plaza_image_id, true);
+    map_add_bandstand_tiles(base.orientation / 2);
+}

@@ -1,0 +1,715 @@
+#include "message_dialog_new.h"
+#include "message_dialog_disaster.h"
+#include "message_dialog_imperial.h"
+#include "message_dialog_emigration.h"
+#include "message_dialog_tutorial.h"
+#include "message_dialog_trade_change.h"
+#include "message_dialog_price_change.h"
+#include "message_dialog_invasion.h"
+#include "message_dialog_god.h"
+#include "message_dialog_image.h"
+#include "message_dialog_troop_request.h"
+
+#include "city/city_message.h"
+#include "city/city.h"
+#include "city/city_resource_handle.h"
+#include "city/constants.h"
+#include "empire/empire.h"
+#include "figure/formation.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/elements/image_button.h"
+#include "graphics/elements/lang_text.h"
+#include "graphics/elements/panel.h"
+#include "graphics/elements/rich_text.h"
+#include "graphics/image_groups.h"
+#include "graphics/text.h"
+#include "graphics/video.h"
+#include "graphics/view/view.h"
+#include "graphics/window.h"
+#include "graphics/screen.h"
+#include "content/vfs.h"
+#include "input/input.h"
+#include "input/mouse.h"
+#include "input/scroll.h"
+#include "graphics/elements/ui.h"
+#include "graphics/elements/ui_js.h"
+#include "io/gamefiles/lang.h"
+#include "scenario/scenario.h"
+#include "scenario/scenario_event_manager.h"
+#include "scenario/request.h"
+#include "window/window_advisors.h"
+#include "window/window_city.h"
+#include "scenario/scenario_invasion.h"
+#include "js/js_register.h"
+#include "game/game.h"
+#include "message_dialog.h"
+#include "core/log.h"
+#include "core/string.h"
+#include "city/military.h"
+
+static ui::message_dialog_base* g_message_dialog_instance = nullptr;
+
+static constexpr pcstr MESSAGE_HELP_FALLBACK = "message_table_of_contents";
+
+void ANK_REGISTER_CONFIG_ITERATOR(config_load_message_dialog) {
+    if (g_message_dialog_instance) {
+        g_message_dialog_instance->init_data(
+            g_message_dialog_instance->debug_text_id,
+            g_message_dialog_instance->message_id,
+            g_message_dialog_instance->background_callback);
+    }
+}
+
+ui::message_dialog_base::message_dialog_base(pcstr config_name) : autoconfig_window(config_name), config_name(config_name) {
+    text_id = 0;
+    message_id = -1;
+    is_eventmsg = false;
+    title_text = nullptr;
+    body_template = nullptr;
+    phrase_template = nullptr;
+    background_callback = nullptr;
+    show_video = false;
+    text_height_blocks = 0;
+    text_width_blocks = 0;
+    player_msg.year = 0;
+    player_msg.month = 0;
+    player_msg.param1 = 0;
+    player_msg.param2 = 0;
+    player_msg.message_advisor = 0;
+    player_msg.use_popup = false;
+    subtitle_text = "";
+}
+
+xstring ui::message_dialog_base::section() const {
+    return config_name;
+}
+
+void ui::message_dialog_base::init() {
+    ui.begin_widget(pos);
+    ui.event(window_info{pos}, get_section(), __func__);
+    if (!autoconfig_window::help_id.empty()) {
+        window_message_setup_help_id(autoconfig_window::help_id);
+    }
+    _is_inited = true;
+    ui.end_widget();
+}
+
+void ui::message_dialog_base::init_data(xstring text_id, int message_id, void (*background_callback)(void)) {
+    this->debug_text_id = text_id;
+
+    const lang_message &msg = lang_get_message(text_id);
+
+    ui["button_close"].onclick([this] { button_close(); });
+    //ui["button_back"].onclick([this] { button_back(); });
+    ui["button_help"].onclick([this] { button_help(); });
+
+    ui["button_advisor"].enabled = (player_msg.message_advisor != ADVISOR_NONE);
+    ui["button_advisor"].onclick([this] {
+        int advisor = player_msg.message_advisor;
+        button_advisor(advisor);
+    });
+
+    this->message_id = message_id;
+
+    if (message_id != -1) {
+        const city_message& city_msg = city_message_get(this->message_id);
+        if (city_msg.eventmsg_body_id > 0) {
+            is_eventmsg = true;
+            title_text = g_scenario.events.msg_text(city_msg.eventmsg_title_id, 0);
+            body_template = g_scenario.events.msg_text(city_msg.eventmsg_body_id, 0);
+            phrase_template = g_scenario.events.msg_text(city_msg.eventmsg_phrase_id, 0);
+            eventmsg_template_combine(phrase_template.c_str(), phrase_text, true);
+            eventmsg_template_combine(body_template.c_str(), body_text, false);
+        } else {
+            is_eventmsg = false;
+        }
+    } else {
+        is_eventmsg = false;
+    }
+
+    this->text_id = msg.id;
+    this->background_callback = background_callback;
+    show_video = false;
+
+    // Setup subtitle from message
+    subtitle_text = msg.subtitle.text;
+    ui["subtitle"].enabled = !subtitle_text.empty();
+    ui["subtitle"] = subtitle_text;
+
+    if (msg.size.x > 0) {
+        ui["background"].size = msg.size;
+        ui["content_panel"].size = { msg.size.x - 4, msg.size.y - 6 };
+        ui["content_text"].size = { (msg.size.x - 3) * 16, (msg.size.y - 6) * 16 };
+        ui["title"].size.x = msg.size.x * 16;
+        pos = {
+            (screen_width() - msg.size.x * 16) / 2,
+            (screen_height() - msg.size.y * 16) / 2
+        };
+    }
+
+    if (is_eventmsg && !title_text.empty()) {
+        ui["title"] = title_text;
+    } else {
+        ui["title"] = msg.title.text;
+    }
+    ui["title"].enabled = true;
+
+    ui["button_close"].enabled = true;
+
+    xstring help_target;
+    if (message_id != -1) {
+        const city_message& city_msg = city_message_get(message_id);
+        if (city_msg.help_text_id > 0) {
+            help_target = lang_get_message_id(city_msg.help_text_id);
+        }
+    }
+    if (help_target.empty() && !msg.help_link.empty()) {
+        help_target = msg.help_link;
+    }
+    if (!help_target.empty()) {
+        setup_help_id(help_target);
+    }
+
+    // Reset scroll position for content_text when opening a new dialog
+    auto* content_text_element = ui["content_text"].dcast_etext();
+    if (content_text_element) {
+        content_text_element->reset_scroll();
+    }
+
+    // Config is already loaded by the derived class constructor
+    _is_inited = false;
+
+    apply_video_ui(false);
+
+    const bool allow_video = player_msg.use_popup || !video_override.empty();
+    if (!allow_video) {
+        return;
+    }
+
+    bstring256 video_path = !video_override.empty() ? video_override : resolve_message_video_path(msg);
+    if (video_path.empty()) {
+        return;
+    }
+
+    // Steam uses BINKS/High; some installs use BINKS/high or Video/High.
+    bstring256 candidates[4];
+    int n_candidates = 0;
+    candidates[n_candidates++] = video_path;
+    if (strncmp(video_path.c_str(), "BINKS/High/", 11) == 0) {
+        candidates[n_candidates].printf("BINKS/high/%s", video_path.c_str() + 11);
+        n_candidates++;
+        candidates[n_candidates].printf("Video/High/%s", video_path.c_str() + 11);
+        n_candidates++;
+    } else if (strncmp(video_path.c_str(), "BINKS/high/", 11) == 0) {
+        candidates[n_candidates].printf("BINKS/High/%s", video_path.c_str() + 11);
+        n_candidates++;
+    }
+
+    pcstr opened = nullptr;
+    for (int i = 0; i < n_candidates; ++i) {
+        if (!vfs::file_exists(candidates[i].c_str())) {
+            continue;
+        }
+        if (video_start(candidates[i].c_str())) {
+            opened = candidates[i].c_str();
+            break;
+        }
+        logs::info("Message video: failed to open '%s'", candidates[i].c_str());
+    }
+
+    if (!opened) {
+        logs::info("Message video: missing '%s' for '%s'", video_path.c_str(), text_id.c_str());
+        return;
+    }
+
+    show_video = true;
+    video_init();
+    apply_video_ui(true);
+    if (!video_override.empty()) {
+        ui["bottom_title"] = video_override_title.empty() ? "Video" : video_override_title.c_str();
+        ui["bottom_text"] = opened;
+    }
+    logs::info("Message video: playing '%s' for '%s'", opened, text_id.c_str());
+}
+
+bstring256 ui::message_dialog_base::normalize_video_path(pcstr raw) {
+    if (!raw || !*raw || raw[0] == '@') {
+        return {};
+    }
+
+    bstring256 path = raw;
+    char* p = path.data();
+    for (char* s = p; *s; ++s) {
+        if (*s == '\\') {
+            *s = '/';
+        }
+    }
+
+    char* write = p;
+    for (char* read = p; *read; ++read) {
+        if (read[0] == '/' && read[1] == '/') {
+            continue;
+        }
+        *write++ = *read;
+    }
+    *write = 0;
+    return path;
+}
+
+bstring256 ui::message_dialog_base::resolve_message_video_path(const lang_message& msg) {
+    return normalize_video_path(msg.video.text.c_str());
+}
+
+void ui::message_dialog_base::apply_video_ui(bool enabled) {
+    const vec2i video_dialog_blocks{26, 28};
+
+    ui["video_area"].enabled = enabled;
+    ui["bottom_title"].enabled = enabled;
+    ui["bottom_content"].enabled = enabled;
+    ui["bottom_text"].enabled = enabled;
+
+    ui["content_panel"].enabled = !enabled;
+    ui["content_text"].enabled = !enabled;
+    ui["title"].enabled = !enabled;
+    ui["subtitle"].enabled = !enabled && !subtitle_text.empty();
+
+    if (!enabled) {
+        return;
+    }
+
+    ui["background"].size = video_dialog_blocks;
+    pos = {
+        (screen_width() - video_dialog_blocks.x * 16) / 2,
+        (screen_height() - video_dialog_blocks.y * 16) / 2
+    };
+
+    const lang_message& msg = lang_get_message(text_id);
+    ui["bottom_title"] = (is_eventmsg && !title_text.empty()) ? title_text : msg.title.text;
+
+    // Compose caption via the normal content path (type-specific overrides included).
+    draw_content(msg);
+    ui["bottom_text"] = ui["content_text"].text().c_str();
+}
+
+void ui::message_dialog_base::set_city_message(int year, int month, int param1, int param2, int message_advisor, bool use_popup) {
+    player_msg.year = year;
+    player_msg.month = month;
+    player_msg.param1 = param1;
+    player_msg.param2 = param2;
+    player_msg.message_advisor = message_advisor;
+    player_msg.use_popup = use_popup;
+}
+
+template<typename T>
+void ui::message_dialog_base::eventmsg_template_combine(pcstr template_ptr, T& buffer, bool phrase_modifier) {
+    const auto& msg = city_message_get(message_id);
+
+    bstring32 amount;
+    bstring32 time; time.printf("%d", msg.req_months_left);
+    int city_name_id = 0;
+
+    if (phrase_modifier) {
+        empire_city* city = g_empire.city(msg.req_city_past);
+        if (city != nullptr) {
+            city_name_id = city->name_id;
+        }
+        city_resource_handle hresource{ (e_resource)msg.req_resource_past };
+        int value = hresource.stack_proper_quantity(msg.req_amount_past);
+        amount.printf("%d", value);
+    } else {
+        empire_city *city = g_empire.city(msg.req_city);
+        if (city != nullptr) {
+            city_name_id = city->name_id;
+        }
+        city_resource_handle hresource{ (e_resource)msg.req_resource };
+        int value = hresource.stack_proper_quantity(msg.req_amount);
+        amount.printf("%d", value);
+    }
+
+    text_tag_substitution tags[] = {
+      {"[greeting]", (pcstr)lang_get_string(32, 11 + g_scenario.campaign_scenario_id)},
+      {"[player_name]", city_player_name()},
+      {"[reason_phrase]", phrase_text.c_str()},
+      {"[city_name]", (pcstr)lang_get_string(195, city_name_id)},
+      {"[a_foreign_army]", g_invasions.get_prop((e_enemy_type)msg.sender_faction).army_title},
+      {"[amount]", amount.c_str()},
+      {"[amount_granted]", ""}, // TODO
+      {"[item]", (pcstr)lang_get_string(23, 54 + (phrase_modifier ? msg.req_resource_past : msg.req_resource))},
+      {"[time_allotted]", time.c_str()},
+      {"[time_until_attack]", time.c_str()},
+      {"[travel_time]", ""},       // TODO
+      {"[god]", ""},               // TODO
+    };
+
+    text_fill_in_tags(template_ptr, buffer, tags);
+}
+
+int ui::message_dialog_base::resource_image(int resource) {
+    int image_id = image_id_resource_icon(resource);
+    image_id += resource_image_offset(resource, RESOURCE_IMAGE_ICON);
+    return image_id;
+}
+
+
+int ui::message_dialog_base::get_message_image_id(const lang_message& msg) {
+    if (!msg.image.id) {
+        return 0;
+    } else if (text_id == 0) {
+        // message id = 0 ==> "about": fixed image position
+        return image_id_from_group(PACK_UNLOADED, 25);
+    } else {
+        const int base = image_id_from_group(GROUP_MESSAGE_IMAGES);
+        return base < 0 ? 0 : (base + msg.image.id - 1);
+    }
+}
+
+void ui::message_dialog_base::draw_image(const lang_message& msg) {
+    const city_message& city_msg = city_message_get(message_id);
+
+    int image_id = get_message_image_id(msg);
+    const image_t* img = image_id ? image_get(image_id) : 0;
+
+    // picture
+    if (img && !city_msg.hide_img) {
+        int image_x = msg.image.pos.x;
+        int image_y = msg.image.pos.y;
+        ui::eimage(image_id, vec2i{pos.x + image_x, pos.y + image_y});
+    }
+}
+
+xstring ui::message_dialog_base::resolve_message_body(const lang_message& msg) const {
+    if (is_eventmsg) {
+        return xstring(body_text.c_str());
+    }
+    return msg.content.text;
+}
+
+void ui::message_dialog_base::format_city_message_header(bstring1024& out) const {
+    out.printf("%s %d %s %s", lang_text_month(player_msg.month), player_msg.year, ui::str(63, 5), city_player_name());
+}
+
+void ui::message_dialog_base::draw_city_message_text(const lang_message& msg) {
+    xstring text = resolve_message_body(msg);
+    if (!text) {
+        return;
+    }
+
+    bstring1024 header;
+    format_city_message_header(header);
+
+    bstring1024 full_text;
+    full_text.printf("%s\n %s", header.c_str(), text.c_str());
+
+    ui["content_text"] = full_text;
+}
+
+void ui::message_dialog_base::draw_content(const lang_message& msg) {
+    xstring text = resolve_message_body(msg);
+    if (!text) {
+        return;
+    }
+
+    if (msg.type == MESSAGE_ARCH_MESSAGE) {
+        draw_city_message_text(msg);
+    } else {
+        ui["content_text"] = text;
+    }
+
+    graphics_reset_clip_rectangle();
+}
+
+void ui::message_dialog_base::draw_background_content() {
+    const lang_message& msg = lang_get_message(text_id);
+
+    draw_image(msg);
+    draw_content(msg);
+}
+
+void ui::message_dialog_base::draw_background_video() {
+    const vec2i video_pos = pos + ui["video_area"].pos;
+    const vec2i video_size = ui["video_area"].pxsize();
+    graphics_draw_rect(video_pos + vec2i{-1, -1}, video_size + vec2i{2, 2}, COLOR_BLACK);
+}
+
+int ui::message_dialog_base::draw_background(UiFlags flags) {
+    autoconfig_window::draw_background(flags);
+
+    if (background_callback) {
+        background_callback();
+        // City/sidebar draw registers HUD buttons; drop them so only the dialog is interactive.
+        ui::clear_active_elements();
+    } else {
+        window_draw_underlying_window(0);
+    }
+
+    if (show_video) {
+        draw_background_video();
+    } else {
+        draw_background_content();
+    }
+
+    return 0;
+}
+
+void ui::message_dialog_base::draw_foreground_content() {
+}
+
+void ui::message_dialog_base::draw_foreground_video() {
+    const vec2i video_pos = pos + ui["video_area"].pos;
+    const vec2i video_size = ui["video_area"].pxsize();
+    video_draw_in_rect(video_pos.x, video_pos.y, video_size.x, video_size.y);
+}
+
+bool ui::message_dialog_base::handle_input_normal(const mouse* m_dialog, const lang_message& msg) {
+    return false;
+}
+
+bool ui::message_dialog_base::handle_input_video(const mouse* m_dialog, const lang_message& msg) {
+    return false;
+}
+
+int ui::message_dialog_base::ui_handle_mouse(const mouse *m) {
+    const hotkeys* h = &g_hotkeys;
+    const mouse* m_dialog = m->in_dialog();
+    const lang_message& msg = lang_get_message(text_id);
+
+    bool handled = false;
+    if (show_video) {
+        handled = handle_input_video(m_dialog, msg);
+    } else {
+        handled = handle_input_normal(m_dialog, msg);
+    }
+
+    if (!handled) {
+        ui.begin_widget(pos);
+        handled = ui::handle_mouse(m) != 0;
+        ui.end_widget();
+    }
+
+    if (!handled && input_go_back_requested(m, h)) {
+        button_close();
+        return 1;
+    }
+
+    mouse::ref().reset_up_state();
+    mouse::ref().reset_scroll();
+    return 1;
+}
+
+int ui::message_dialog_base::handle_mouse(const mouse *m) {
+    return ui_handle_mouse(m);
+}
+
+void ui::message_dialog_base::draw_foreground(UiFlags flags) {
+    if (show_video) {
+        draw_foreground_video();
+    } else {
+        draw_foreground_content();
+    }
+    ui.begin_widget(pos);
+    ui.draw(flags);
+    ui.end_widget();
+}
+
+void ui::message_dialog_base::cleanup() {
+    if (show_video) {
+        video_stop();
+        show_video = false;
+        apply_video_ui(false);
+    }
+    video_override.clear();
+    video_override_title.clear();
+    player_msg.message_advisor = 0;
+    player_msg.use_popup = false;
+}
+
+void ui::message_dialog_base::button_close() {
+    cleanup();
+    window_go_back();
+}
+
+void ui::message_dialog_base::button_help() {
+    button_close();
+    if (!help_id.empty()) {
+        g_message_dialog_instance->show(help_id, -1, background_callback);
+    } else {
+        g_message_dialog_instance->show(MESSAGE_HELP_FALLBACK, -1, background_callback);
+    }
+}
+
+void ui::message_dialog_base::button_advisor(int advisor) {
+    cleanup();
+    events::emit(event_show_advisor{ (e_advisor)advisor });
+}
+
+void ui::message_dialog_base::show(xstring text_id, int message_id, void (*background_callback)(void)) {
+    init_data(text_id, message_id, background_callback);
+
+    static window_type instance = {
+        "window_message_dialog",
+        [] (int flags) { g_message_dialog_instance->draw_background(flags); },
+        [] (int flags) { g_message_dialog_instance->draw_foreground(flags); },
+        [] (const mouse *m, const hotkeys *h) { g_message_dialog_instance->ui_handle_mouse(m); }
+    };
+
+    window_show(&instance);
+}
+
+void ui::message_dialog_base::show_city_message(xstring text_id, int message_id, int year, int month, int param1, int param2, int message_advisor, bool use_popup) {
+    set_city_message(year, month, param1, param2, message_advisor, use_popup);
+    show(text_id, message_id, window_city_draw_all);
+}
+
+void ui::message_dialog_base::show_with_video(pcstr video_path, pcstr title) {
+    video_override = normalize_video_path(video_path);
+    video_override_title = title ? title : "";
+    show_city_message("message_illness_video", -1, 1250, 0, 0, 0, 0, true);
+}
+
+void ui::message_dialog_base::setup_help_id(xstring helpid) {
+    help_id = helpid;
+}
+
+namespace ui {
+    // OG window_data.c gift buttons: refuse / later / accept, each only when the gift message offers it.
+    struct message_dialog_gift : public message_dialog_base {
+        message_dialog_gift() : message_dialog_base("message_dialog_window_gift") {}
+
+        virtual void init_data(xstring text_id, int message_id, void (*background_callback)(void)) override {
+            message_dialog_base::init_data(text_id, message_id, background_callback);
+            const uint8_t buttons = message_id >= 0 ? city_message_get(message_id).gift_buttons : 0;
+            setup_button("button_refuse", buttons, GIFT_BUTTON_REFUSE);
+            setup_button("button_later", buttons, GIFT_BUTTON_LATER);
+            setup_button("button_accept", buttons, GIFT_BUTTON_ACCEPT);
+        }
+
+        void setup_button(pcstr name, uint8_t buttons, e_gift_button button) {
+            ui[name].enabled = (buttons & button) != 0;
+            ui[name].onclick([this, button] { reply(button); });
+        }
+
+        void reply(e_gift_button button) {
+            if (message_id < 0) {
+                return;
+            }
+            city_message& msg = g_message_manager.messages[message_id];
+
+            const int event_id = msg.param1;
+            msg.gift_buttons = 0;
+            g_scenario.events.gift_reply(event_id, button);
+            button_close();
+        }
+    };
+} // namespace ui
+
+ui::message_dialog_gift message_dialog_gift_window;
+ui::message_dialog_general message_dialog_general_window;
+ui::message_dialog_disaster message_dialog_disaster_window;
+ui::message_dialog_imperial message_dialog_imperial_window;
+ui::message_dialog_emigration message_dialog_emigration_window;
+ui::message_dialog_tutorial message_dialog_tutorial_window;
+ui::message_dialog_trade_change message_dialog_trade_change_window;
+ui::message_dialog_price_change message_dialog_price_change_window;
+ui::message_dialog_invasion message_dialog_invasion_window;
+ui::message_dialog_god message_dialog_god_window;
+ui::message_dialog_image message_dialog_image_window;
+ui::message_dialog_troop_request message_dialog_troop_request_window;
+
+static ui::message_dialog_base* create_message_dialog(xstring text_id, int message_id = -1) {
+    const lang_message& msg = lang_get_message(text_id);
+    
+    if (message_id != -1) {
+        const city_message& city_msg = city_message_get(message_id);
+        if (city_msg.god != GOD_UNKNOWN) {
+            return &message_dialog_god_window;
+        }
+    }
+
+    if (text_id == "message_template_gift") {
+        return &message_dialog_gift_window;
+    }
+
+    ui::message_dialog_base *window;
+    switch (msg.message_type) {
+        case MESSAGE_TYPE_GENERAL:
+            window = &message_dialog_general_window;
+            break;
+        case MESSAGE_TYPE_DISTANT_BATTLE:
+            window = &message_dialog_troop_request_window;
+            break;
+        case MESSAGE_TYPE_DISASTER:
+            window = &message_dialog_disaster_window;
+            break;
+        case MESSAGE_TYPE_IMPERIAL:
+            window = &message_dialog_imperial_window;
+            break;
+        case MESSAGE_TYPE_EMIGRATION:
+            window = &message_dialog_emigration_window;
+            break;
+        case MESSAGE_TYPE_TUTORIAL:
+            window = &message_dialog_tutorial_window;
+            break;
+        case MESSAGE_TYPE_TRADE_CHANGE:
+            window = &message_dialog_trade_change_window;
+            break;
+        case MESSAGE_TYPE_PRICE_CHANGE:
+            window = &message_dialog_price_change_window;
+            break;
+        case MESSAGE_TYPE_INVASION:
+            window = &message_dialog_invasion_window;
+            break;
+        case MESSAGE_TYPE_IMAGE:
+            window = &message_dialog_image_window;
+            break;
+        default:
+            window = &message_dialog_general_window;
+            break;
+    }
+
+    return window;
+}
+
+void window_message_dialog_show(xstring text_id, int message_id, void (*background_callback)(void)) {
+    g_message_dialog_instance = create_message_dialog(text_id, message_id);
+    g_message_dialog_instance->video_override.clear();
+    g_message_dialog_instance->video_override_title.clear();
+    g_message_dialog_instance->show(text_id, message_id, background_callback);
+}
+
+void window_message_dialog_show_city_message(xstring text_id, int message_id, int year, int month, int param1, int param2, int message_advisor, bool use_popup) {
+    g_message_dialog_instance = create_message_dialog(text_id, message_id);
+    g_message_dialog_instance->video_override.clear();
+    g_message_dialog_instance->video_override_title.clear();
+    g_message_dialog_instance->show_city_message(text_id, message_id, year, month, param1, param2, message_advisor, use_popup);
+}
+
+void window_message_dialog_show_with_video(pcstr video_path, pcstr title) {
+    g_message_dialog_instance = &message_dialog_general_window;
+    message_dialog_general_window.show_with_video(video_path, title);
+}
+
+void window_message_setup_help_id(xstring helpid) {
+    if (!g_message_dialog_instance) {
+        g_message_dialog_instance = &message_dialog_general_window;
+    }
+    g_message_dialog_instance->setup_help_id(helpid);
+}
+
+void window_show_help() {
+    if (!g_message_dialog_instance) {
+        return;
+    }
+
+    const xstring help_target = !g_message_dialog_instance->help_id.empty()
+        ? g_message_dialog_instance->help_id
+        : MESSAGE_HELP_FALLBACK;
+    window_message_dialog_show(help_target, -1, nullptr);
+}
+
+void window_message_dialog_help() {
+    if (g_message_dialog_instance) {
+        g_message_dialog_instance->button_help();
+    }
+}
+

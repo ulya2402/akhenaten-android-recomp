@@ -1,0 +1,541 @@
+#include "graphics/painter.h"
+
+#include "game/game.h"
+#include "core/profiler.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/render_stats.h"
+#include "graphics/residency_atlas.h"
+#include "graphics/texture_alpha.h"
+#include "platform/renderer.h"
+
+#include <cmath>
+#include <string>
+#include <unordered_map>
+
+#include <SDL.h>
+
+std::unordered_map<uint64_t, SDL_Texture *> grayscaled_txs;
+
+void painter::draw(SDL_Texture *texture, vec2i pos, vec2i offset, vec2i size, color color, float scale_x, float scale_y,
+                   double angle, ImgFlags flags, const bool force_linear) {
+    OZZY_PROFILER_FUNCTION();
+    const bool use_grayscale = !!(flags & ImgFlag_Grayscale);
+    if (!use_grayscale) {
+        draw_impl(texture, pos, offset, size, color, scale_x, scale_y, angle, flags, force_linear);
+    } else {
+        draw_grayscale(texture, pos, offset, size, scale_x, scale_y, angle, flags & ~ImgFlag_Grayscale, force_linear);
+    }
+
+    const bool debug = !!(flags & ImgFlag_Debug);
+    if (debug) {
+        ImageDraw::push_d(render_command_t::ert_draw_rect, render_cmd::Pixel{pos * global_render_scale}, render_cmd::Size{size * global_render_scale}, render_cmd::Location{SOURCE_LOCATION});
+    }
+}
+
+void painter::draw_image_part(const image_t *img, int offset, vec2i pos, color color, float scale, ImgFlags flags) {
+    if (img == nullptr) {
+        return;
+    }
+
+    vec2i atlas_offset = img->atlas.offset;
+    vec2i size = { img->width, (img->height - offset) / 2 + offset };
+    draw(img->atlas.p_atlas->texture, pos, atlas_offset, size, color, scale, scale, 0, flags);
+}
+
+void painter::draw_image(const image_t *img, vec2i pos, color color, float scale, ImgFlags flags) {
+    OZZY_PROFILER_FUNCTION();
+
+    if (!img) {
+        return;
+    }
+
+    if (!img->atlas.p_atlas) {
+        return;
+    }
+
+    vec2i offset = img->atlas.offset;
+    vec2i size = { img->width, img->height };
+    if (offset.x >= 0 && offset.y >= 0) {
+        draw(img->atlas.p_atlas->texture, pos, offset, size, color, scale, scale, 0, flags);
+    }
+}
+
+void painter::draw_image_grayscale(const image_t *img, vec2i pos, float scale, ImgFlags flags) {
+    if (!img) {
+        return;
+    }
+
+    if (!img->atlas.p_atlas) {
+        return;
+    }
+
+    vec2i offset = img->atlas.offset;
+    vec2i size = { img->width, img->height };
+    if (offset.x >= 0 && offset.y >= 0) {
+        draw(img->atlas.p_atlas->texture, pos, offset, size, scale, scale, 0, flags);
+    }
+}
+
+const image_t *painter::img_generic(int image_id, vec2i pos, color color_mask, float scale) {
+    const image_t *img = image_get(image_id);
+    draw_image(img, pos, color_mask, scale);
+    return img;
+}
+
+const image_t *painter::img_generic(int pak, int image_id, vec2i p, color color_mask, float scale) {
+    const image_t *img = image_get(pak, image_id);
+    draw_image(img, p, color_mask, scale);
+    return img;
+}
+
+const image_t *painter::img_generic(const image_desc &imgd, vec2i p, color color_mask, float scale) {
+    const image_t *img = image_get(imgd);
+    draw_image(img, p, color_mask, scale);
+    return img;
+}
+
+const image_t *painter::img_generic(int image_id, vec2i p, color color_mask, float scale, ImgFlags flags) {
+    OZZY_PROFILER_FUNCTION();
+
+    const image_t *img = image_get(image_id);
+    if (!img) {
+        return nullptr;
+    }
+    vec2i offset{ 0, 0 };
+    if (!!(flags & ImgFlag_InternalOffset)) {
+        offset = img->animation.sprite_offset;
+    }
+
+    draw_image(img, p - offset, color_mask, scale, flags);
+    return img;
+}
+
+const image_t *painter::img_sprite(int image_id, vec2i p, color color_mask, float scale, ImgFlags flags) {
+    OZZY_PROFILER_FUNCTION();
+
+    const image_t *img = image_get(image_id);
+    if (!img) {
+        return nullptr;
+    }
+
+    bool mirrored = (img->offset_mirror != 0);
+
+    if (mirrored) {
+        img = img->mirrored_img;
+        p.x -= (img->width - img->animation.sprite_offset.x);
+    } else {
+        p.x -= img->animation.sprite_offset.x;
+    }
+
+    flags |= (mirrored ? ImgFlag_Mirrored : ImgFlag_None);
+
+    p.y -= img->animation.sprite_offset.y;
+    draw_image(img, p, color_mask, scale, flags);
+
+    return img;
+}
+
+const image_t *painter::img_ornament(int image_id, int base_id, int x, int y, color color_mask, float scale) {
+    OZZY_PROFILER_FUNCTION();
+
+    const image_t *img = image_get(image_id);
+    const image_t *base = image_get(base_id);
+    if (!img || !base) {
+        return nullptr;
+    }
+    int ydiff = HALF_TILE_HEIGHT_PIXELS * (base->isometric_size() + 1);
+    x += base->animation.sprite_offset.x;
+    y += base->animation.sprite_offset.y - base->height + ydiff;
+    draw_image(img, vec2i{ x, y }, color_mask, scale);
+    return img;
+}
+
+const image_t *painter::img_from_below(int image_id, int x, int y, color color_mask, float scale) {
+    OZZY_PROFILER_FUNCTION();
+
+    const image_t *img = image_get(image_id);
+    if (!img) {
+        return nullptr;
+    }
+    draw_image(img, vec2i{ x, y - img->height }, color_mask, scale);
+    return img;
+}
+
+void painter::fill_rect(vec2i start, vec2i size, color color) {
+    g_render.fill_rect(start, size, color);
+}
+
+void painter::draw_rect(vec2i start, vec2i size, color color) {
+    OZZY_PROFILER_FUNCTION();
+
+    g_render.draw_rect(start, size, color);
+}
+
+const image_t *painter::img_letter(const image_t *img, e_font font, int letter_id, int x, int y, color color_mask, float scale) {
+    if (!color_mask) {
+        color_mask = base_color_for_font(font);
+    }
+
+    if (font == FONT_SMALL_SHADED) {
+        if (font_use_utf()) {
+            // Thin antialiased TTF glyphs wash a single black pass out; accumulate it to
+            // match the opaque 1-bit bitmap shadow.
+            draw_image(img, vec2i{ x + 1, y + 1 }, COLOR_BLACK, scale);
+            draw_image(img, vec2i{ x + 1, y + 1 }, COLOR_BLACK, scale);
+            draw_image(img, vec2i{ x + 1, y + 1 }, COLOR_BLACK, scale);
+        } else {
+            draw_image(img, vec2i{ x + 1, y + 1 }, COLOR_BLACK, scale);
+        }
+    }
+
+    if (font_use_utf() && (font == FONT_NORMAL_WHITE_ON_DARK || font == FONT_NORMAL_YELLOW)) {
+        // The original bitmaps bake a dark top-left shadow next to each stroke.
+        draw_image(img, vec2i{ x - 1, y - 1 }, COLOR_FONT_SHADOW, scale);
+    }
+
+    draw_image(img, vec2i{ x, y }, color_mask, scale);
+    return img;
+}
+
+const image_t *painter::img_generic(const image_t *img, vec2i p, color color_mask, float scale, ImgFlags flags) {
+    vec2i offset{ 0, 0 };
+    if (!!(flags & ImgFlag_InternalOffset)) {
+        offset = img->animation.sprite_offset;
+    }
+
+    draw_image(img, p - offset, color_mask, scale, flags);
+    return img;
+}
+
+const image_t *painter::isometric_from_drawtile(int image_id, vec2i pos, color color_mask, ImgFlags flags) {
+    OZZY_PROFILER_FUNCTION();
+
+    const image_t *img = image_get(image_id);
+    if (!img) {
+        return nullptr;
+    }
+
+    pos.y += HALF_TILE_HEIGHT_PIXELS * (img->isometric_size() + 1) - img->height;
+
+    draw_image(img, pos, color_mask, 1.f, flags);
+    return img;
+}
+
+const image_t *painter::isometric_from_drawtile_top(int image_id, vec2i pos, color color_mask, ImgFlags flags) {
+    OZZY_PROFILER_FUNCTION();
+
+    const image_t *img = image_get(image_id);
+    if (!img) {
+        return nullptr;
+    }
+    const image_t *img_top = img->isometric_top;
+    if (!img_top) {
+        return nullptr;
+    }
+    pos.y += HALF_TILE_HEIGHT_PIXELS * (img_top->isometric_size() + 1) - img_top->height;
+
+    draw_image(img_top, pos, color_mask, 1.f, flags);
+    return img_top;
+}
+
+const image_t* painter::img_isometric(int image_id, vec2i p, color color_mask, float scale, ImgFlags flags) {
+    const image_t* img = image_get(image_id);
+    if (!img) {
+        return nullptr;
+    }
+    const int ydiff = img->isometric_size() * HALF_TILE_HEIGHT_PIXELS;
+    isometric_from_drawtile(image_id, p + vec2i{0, ydiff}, color_mask, flags);
+    return isometric_from_drawtile_top(image_id, p, color_mask, flags);
+}
+
+void painter::draw_impl(SDL_Texture *texture, vec2i pos, vec2i offset, vec2i size, color color, float scale_x,
+                        float scale_y, double angle, ImgFlags flags, const bool force_linear) {
+    OZZY_PROFILER_FUNCTION();
+    if (texture == nullptr) {
+        return;
+    }
+
+    if (!color) {
+        color = COLOR_MASK_NONE;
+    }
+
+    const float x_scale_factor = scale_x * global_render_scale;
+    const float y_scale_factor = scale_y * global_render_scale;
+    const float overall_scale_factor = scale_x == scale_y ? x_scale_factor : this->global_render_scale;
+    bool DOWNSCALED_CITY = false;
+    if (this->global_render_scale < 1.0f) {
+        DOWNSCALED_CITY = true;
+    }
+
+    const bool want_linear = force_linear || overall_scale_factor < 1.0f;
+    SDL_Texture *draw_tex = nullptr;
+    SDL_Rect texture_coords;
+    const bool found = res_atlas::enabled()
+                       && res_atlas::resolve(texture, offset, size, want_linear, draw_tex, texture_coords);
+    const bool resident = found && res_atlas::render_enabled();
+    if (!resident) {
+        draw_tex = texture;
+        texture_coords = SDL_Rect{offset.x, offset.y, size.x, size.y};
+        g_render.set_texture_scale_mode(texture, overall_scale_factor, force_linear);
+    }
+
+    int mod_r = (color & COLOR_CHANNEL_RED) >> COLOR_BITSHIFT_RED;
+    int mod_g = (color & COLOR_CHANNEL_GREEN) >> COLOR_BITSHIFT_GREEN;
+    int mod_b = (color & COLOR_CHANNEL_BLUE) >> COLOR_BITSHIFT_BLUE;
+    const int mod_a = (color & COLOR_CHANNEL_ALPHA) >> COLOR_BITSHIFT_ALPHA;
+
+    // Faded draws stay in the premultiplied blend mode by scaling the tint with the alpha, so a
+    // run of sprites never switches blend mode (which ends an SDL batch). Only PNG textures with
+    // straight alpha keep the plain blend.
+    const bool alpha = !!(flags & ImgFlag_Alpha);
+    const bool straight = alpha && texture_alpha::is_straight(texture);
+    if (alpha && !straight) {
+        mod_r = (mod_r * mod_a + 127) / 255;
+        mod_g = (mod_g * mod_a + 127) / 255;
+        mod_b = (mod_b * mod_a + 127) / 255;
+    }
+    SDL_SetTextureColorMod(draw_tex, (Uint8)mod_r, (Uint8)mod_g, (Uint8)mod_b);
+    SDL_SetTextureAlphaMod(draw_tex, (Uint8)mod_a);
+
+    const SDL_BlendMode blend = straight ? SDL_BLENDMODE_BLEND : (SDL_BlendMode)g_render.premult_alpha();
+    SDL_SetTextureBlendMode(draw_tex, blend);
+
+    // uncomment here if you want save something from atlases
+    int k = 0;
+    if (k == 1) {
+        char filename[32] = {0};
+        static int index = 0;
+        sprintf(filename, "%u_img.bmp", index);
+        g_render.save_texture_to_file(filename, draw_tex);
+    }
+
+    SDL_FRect screen_coords;
+    if (DOWNSCALED_CITY) {
+        // hack to prevent ugly dark borders around sprites -- yes, there's DEFINITELY a better way to do this,
+        // but I can't be arsed to find it. I tried, I gave up.
+        screen_coords = {static_cast<float>(pos.x * this->global_render_scale - 0.25),
+                         static_cast<float>(pos.y * this->global_render_scale - 0.25),
+                         static_cast<float>(size.x * x_scale_factor + 0.5),
+                         static_cast<float>(size.y * y_scale_factor + 0.5)};
+    } else {
+        screen_coords = {pos.x * this->global_render_scale,
+                         pos.y * this->global_render_scale,
+                         size.x * x_scale_factor,
+                         size.y * y_scale_factor};
+    }
+
+    {
+        SDL_Rect clip{};
+        SDL_RenderGetClipRect(this->renderer, &clip);
+        if (clip.w > 0 && clip.h > 0 && angle == 0.0) {
+            const float clip_l = (float)clip.x;
+            const float clip_t = (float)clip.y;
+            const float clip_r = (float)(clip.x + clip.w);
+            const float clip_b = (float)(clip.y + clip.h);
+
+            if (screen_coords.x + screen_coords.w <= clip_l || screen_coords.x >= clip_r
+                || screen_coords.y + screen_coords.h <= clip_t || screen_coords.y >= clip_b
+                || screen_coords.w <= 0.f || screen_coords.h <= 0.f) {
+                return;
+            }
+
+            const bool mirrored = !!(flags & ImgFlag_Mirrored);
+            const SDL_FRect full_dst = screen_coords;
+            const SDL_Rect full_src = texture_coords;
+            float src_x = (float)texture_coords.x;
+            float src_y = (float)texture_coords.y;
+            float src_w = (float)texture_coords.w;
+            float src_h = (float)texture_coords.h;
+
+            if (screen_coords.x < clip_l) {
+                const float cut = clip_l - screen_coords.x;
+                const float cut_src = cut * (src_w / screen_coords.w);
+                if (!mirrored) {
+                    src_x += cut_src;
+                }
+                src_w -= cut_src;
+                screen_coords.x = clip_l;
+                screen_coords.w -= cut;
+            }
+            if (screen_coords.w > 0.f && screen_coords.x + screen_coords.w > clip_r) {
+                const float cut = screen_coords.x + screen_coords.w - clip_r;
+                const float cut_src = cut * (src_w / screen_coords.w);
+                if (mirrored) {
+                    src_x += cut_src;
+                }
+                src_w -= cut_src;
+                screen_coords.w -= cut;
+            }
+            if (screen_coords.h > 0.f && screen_coords.y < clip_t) {
+                const float cut = clip_t - screen_coords.y;
+                const float cut_src = cut * (src_h / screen_coords.h);
+                src_y += cut_src;
+                src_h -= cut_src;
+                screen_coords.y = clip_t;
+                screen_coords.h -= cut;
+            }
+            if (screen_coords.h > 0.f && screen_coords.y + screen_coords.h > clip_b) {
+                const float cut = screen_coords.y + screen_coords.h - clip_b;
+                const float cut_src = cut * (src_h / screen_coords.h);
+                src_h -= cut_src;
+                screen_coords.h -= cut;
+            }
+
+            // Keep src/dst aspect matched: round src after float clip, then drop
+            // draws that would leave a sub-pixel garbage column at the edge.
+            texture_coords.x = (int)std::lround(src_x);
+            texture_coords.y = (int)std::lround(src_y);
+            texture_coords.w = (int)std::lround(src_w);
+            texture_coords.h = (int)std::lround(src_h);
+            if (texture_coords.w <= 0 || texture_coords.h <= 0
+                || screen_coords.w < 0.5f || screen_coords.h < 0.5f) {
+                return;
+            }
+
+            // Re-place dst from the rounded src: rounding shifts the src by up to half a texel, which
+            // at zoom-in is several pixels and opens a gap along the row of tiles crossing the clip edge.
+            // The overhang this leaves past the clip edge is cut by the renderer's clip rect.
+            const float kx = full_dst.w / (float)full_src.w;
+            const float ky = full_dst.h / (float)full_src.h;
+            const float lead_x = (float)(texture_coords.x - full_src.x) * kx;
+            screen_coords.w = (float)texture_coords.w * kx;
+            screen_coords.h = (float)texture_coords.h * ky;
+            screen_coords.x = mirrored ? full_dst.x + full_dst.w - lead_x - screen_coords.w : full_dst.x + lead_x;
+            screen_coords.y = full_dst.y + (float)(texture_coords.y - full_src.y) * ky;
+        }
+    }
+
+    render_stats::note_draw(draw_tex, (int)blend, resident);
+    if (!!(flags & ImgFlag_Mirrored)) {
+        SDL_RenderCopyExF(this->renderer, draw_tex, &texture_coords, &screen_coords, angle, nullptr, SDL_FLIP_HORIZONTAL);
+    } else {
+        SDL_RenderCopyExF(this->renderer, draw_tex, &texture_coords, &screen_coords, angle, nullptr, SDL_FLIP_NONE);
+    }
+}
+
+SDL_Texture* painter::convertToGrayscale(SDL_Texture *tx, vec2i offset, vec2i size) {
+    if (!tx) {
+        return nullptr;
+    }
+
+    uint64_t hash = ((uint64_t)tx & 0xffffffff) | ((uint64_t)offset.x << 32) | ((uint64_t)offset.y << 48);
+
+    auto it = grayscaled_txs.find(hash);
+    if (it != grayscaled_txs.end()) {
+        return it->second;
+    }
+
+    auto gray_tx = grayscaled_txs.insert({ hash , nullptr });
+
+    uint32_t format;
+    int w, h;
+
+    /* Get information about texture we want to save */
+    int st = SDL_QueryTexture(tx, &format, NULL, &w, &h);
+    if (st != 0) {
+        return nullptr;
+    }
+
+    if (SDL_BYTESPERPIXEL(format) != 4) {
+        return nullptr;
+    }
+
+    SDL_Texture* ren_tex = SDL_CreateTexture(this->renderer, format, SDL_TEXTUREACCESS_TARGET, size.x, size.y);
+    if (!ren_tex) {
+        return nullptr;
+    }
+
+    struct RenTexDeleter {
+        SDL_Texture *tx;
+        ~RenTexDeleter() { SDL_DestroyTexture(tx); }
+    } _renTexDeleter{ ren_tex };
+
+    /*
+     * Initialize our canvas, then copy texture to a target whose pixel data we
+     * can access
+     */
+    SDL_Texture *old_target = SDL_GetRenderTarget(this->renderer);
+    st = SDL_SetRenderTarget(this->renderer, ren_tex);
+    if (st != 0) {
+        return nullptr;
+    }
+
+    // Declared after the deleter, so it runs first: the target is restored before ren_tex dies.
+    struct RenTargetRestore {
+        SDL_Renderer* renderer;
+        SDL_Texture* target;
+        ~RenTargetRestore() { SDL_SetRenderTarget(renderer, target); }
+    } _renTargetRestore{this->renderer, old_target};
+
+    SDL_SetRenderDrawColor(this->renderer, 0x00, 0x00, 0x00, 0x00);
+    SDL_RenderClear(this->renderer);
+
+    SDL_Rect srcrect{ offset.x, offset.y, size.x, size.y };
+    st = SDL_RenderCopy(this->renderer, tx, &srcrect, NULL);
+    if (st != 0) {
+        return nullptr;
+    }
+
+    /* Create buffer to hold texture data and load it */
+    std::vector<uint32_t> pixels(size.x * size.y);
+    st = SDL_RenderReadPixels(this->renderer, NULL, format, pixels.data(), size.x * SDL_BYTESPERPIXEL(format));
+
+    const SDL_PixelFormat *pxformat = SDL_AllocFormat(format);
+    for (int y = 0; y < size.y; ++y) {
+        for (int x = 0; x < size.x; ++x) {
+            Uint32 *pixel = pixels.data() + y * size.x + x;
+            Uint8 r, g, b, a;
+            SDL_GetRGBA(*pixel, pxformat, &r, &g, &b, &a);
+            Uint8 gray = static_cast<Uint8>(0.3 * r + 0.59 * g + 0.11 * b);
+            *pixel = SDL_MapRGBA(pxformat, gray, gray, gray, a);
+        }
+    }
+
+    /* Copy pixel data over to surface */
+    SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormatFrom(pixels.data(), size.x, size.y, SDL_BITSPERPIXEL(format),
+                                                              size.x * SDL_BYTESPERPIXEL(format), format);
+    if (!surface) {
+        return nullptr;
+    }
+
+    SDL_Texture *gray_tx_ptr = SDL_CreateTextureFromSurface(this->renderer, surface);
+    if (texture_alpha::is_straight(tx)) {
+        texture_alpha::mark_straight(gray_tx_ptr);
+    }
+
+    gray_tx.first->second = gray_tx_ptr;
+    SDL_FreeSurface(surface);
+
+    return gray_tx_ptr;
+}
+
+auto painter::draw_grayscale(SDL_Texture *texture, vec2i pos, vec2i offset, vec2i size, float scale_x, float scale_y,
+                             double angle, ImgFlags flags, bool force_linear) -> void {
+    OZZY_PROFILER_FUNCTION();
+    if (texture == nullptr) {
+        return;
+    }
+
+    SDL_Texture *grtx = convertToGrayscale(texture, offset, size);
+    if (!grtx) { 
+        return;
+    }
+
+    draw_impl(grtx, pos, vec2i{ 0, 0 }, size, COLOR_WHITE, scale_x, scale_y, angle, flags, force_linear);
+}
+
+void painter::draw(const sprite &spr, vec2i pos, color color_mask, float scale_x, float scale_y, double angle, ImgFlags flags, const bool force_linear) {
+    if (spr.img == nullptr) {
+        return;
+    }
+
+    vec2i offset = spr.img->atlas.offset;
+    vec2i size = spr.img->size();
+    draw(spr.img->atlas.p_atlas->texture, pos, offset, size, color_mask, scale_x, scale_y, angle, flags, force_linear);
+}
+
+sprite_resource_icon::sprite_resource_icon(e_resource res) {
+    int image_id = image_id_resource_icon(res);
+    img = image_get(image_id);
+}

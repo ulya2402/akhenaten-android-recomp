@@ -1,0 +1,184 @@
+log_info("akhenaten: message dialog window started")
+
+// General message dialog (MESSAGE_TYPE_GENERAL, TYPE_MANUAL, TYPE_ABOUT, TYPE_MISSION)
+[es=message_dialog_window]
+message_dialog_window_general {
+    pos: [(sw(0) - px(30))/2, (sh(0) - px(20))/2]
+    help_id: ""
+
+    ui {
+        background     : outer_panel({size: [30, 20]})
+
+        title          : text({pos[0, 14], size[px(30), 20], align:"center", font: FONT_LARGE_BLACK_ON_LIGHT})
+        subtitle       : text({pos[0, 34], size[px(30), 20], align:"center", font: FONT_NORMAL_BLACK_ON_LIGHT})
+
+        content_panel  : inner_panel({pos[16, 54], size[28, 14]})
+        content_text   : text({pos[16, 54], size[px(28), px(14)], font: FONT_NORMAL_WHITE_ON_DARK, rich: true, clip_area: true, text_margin{ left:10, right:20 }})
+
+        button_help    : help_button({})
+        button_close   : close_button({})
+
+        button_advisor : image_button({pos[0, 0], size[27, 27], pack:PACK_GENERAL, id:106, enabled: false})
+
+        // Video mode (26x28 dialog): relative to window pos, matching Julius layout
+        video_area     : dummy({pos[8, 8], size[402, 294], enabled: false})
+        bottom_title   : text({pos[8, 414], size[400, 20], align: "center", font: FONT_NORMAL_BLACK_ON_LIGHT, enabled: false})
+        bottom_content : inner_panel({pos[8, 308], size[25, 6], enabled: false})
+        bottom_text    : text({pos[16, 312], size[384, 88], font: FONT_NORMAL_WHITE_ON_DARK, rich: true, clip_area: true, enabled: false})
+    }
+}
+
+// Disaster message dialog (MESSAGE_TYPE_DISASTER)
+[es=message_dialog_window]
+message_dialog_window_disaster {
+    pos: [(sw(0) - px(30))/2, (sh(0) - px(20))/2]
+    help_id: ""
+
+    ui : baseui(message_dialog_window_general, {
+        content_panel  : inner_panel({pos: [16, 48], size: [28, 13]})
+        content_text   : text({pos: [24, 54], size: [px(28), px(34)], font: FONT_NORMAL_WHITE_ON_DARK, rich: true, clip_area: true})
+
+        button_go_to_problem : image_button({ margin:{ bottom:-60, centerx:-87 }, size[27, 27], pack:PACK_GENERAL, id:136, offset:17*3+1  })
+        button_go_to_problem_text : text({ margin:{ bottom:-40, centerx:-40 }, size[-1, 20], font: FONT_NORMAL_BLACK_ON_LIGHT, text: "#goto_site_of_event"})
+    })
+}
+
+// Imperial message dialog (MESSAGE_TYPE_IMPERIAL)
+[es=message_dialog_window]
+message_dialog_window_imperial {
+    pos: [(sw(0) - px(30))/2, (sh(0) - px(20))/2]
+    help_id: ""
+
+    ui : baseui(message_dialog_window_general, {
+        content_panel  : inner_panel({pos[16, 48], size[28, 14]}),
+        content_text   : text({pos[24, 54], size[px(28), px(14)], font: FONT_NORMAL_WHITE_ON_DARK, rich: true, clip_area: true})
+    })
+}
+
+// Emigration message dialog (MESSAGE_TYPE_EMIGRATION)
+[es=message_dialog_window]
+message_dialog_window_emigration {
+    pos: [(sw(0) - px(30))/2, (sh(0) - px(20))/2]
+    help_id: ""
+
+    ui :baseui(message_dialog_window_general, {
+
+    })
+}
+
+// Tutorial message dialog (MESSAGE_TYPE_TUTORIAL)
+[es=message_dialog_window]
+message_dialog_window_tutorial {
+    pos: [(sw(0) - px(30))/2, (sh(0) - px(20))/2]
+    help_id: ""
+
+    ui :baseui(message_dialog_window_general, {
+        title          : text({ pos[0, 14], size[px(30), 20], align:"center", font: FONT_LARGE_BLACK_ON_LIGHT}) 
+    })
+}
+
+// Trade change message dialog (MESSAGE_TYPE_TRADE_CHANGE)
+[es=message_dialog_window]
+message_dialog_window_trade_change {
+    pos: [(sw(0) - px(30))/2, (sh(0) - px(20))/2]
+    help_id: ""
+
+    ui :baseui(message_dialog_window_general, {
+
+    })
+}
+
+// Price change message dialog (MESSAGE_TYPE_PRICE_CHANGE)
+[es=message_dialog_window]
+message_dialog_window_price_change {
+    pos: [(sw(0) - px(30))/2, (sh(0) - px(20))/2]
+    help_id: ""
+
+    ui :baseui(message_dialog_window_general, {
+
+    })
+}
+
+// Invasion message dialog (MESSAGE_TYPE_INVASION)
+[es=message_dialog_window]
+message_dialog_window_invasion {
+    pos: [(sw(0) - px(30))/2, (sh(0) - px(20))/2]
+    help_id: ""
+
+    ui :baseui(message_dialog_window_general, {
+        button_go_to_problem : image_button({pos: [0, 0], size: [27, 27], pack:PACK_GENERAL, id:136, enabled: false})
+    })
+}
+
+// God message dialog (messages from gods)
+[es=message_dialog_window]
+message_dialog_window_god {
+    pos: [(sw(0) - px(30))/2, (sh(0) - px(28))/2]
+    help_id: ""
+
+    god_images {
+        osiris { pack:PACK_UNLOADED, id:16, offset:18 }
+        ra     { pack:PACK_UNLOADED, id:16, offset:19 }
+        seth   { pack:PACK_UNLOADED, id:16, offset:20 }
+        bast   { pack:PACK_UNLOADED, id:16, offset:21 }
+        ptah   { pack:PACK_UNLOADED, id:16, offset:22 }
+    }
+
+    ui : baseui(message_dialog_window_general, {
+        background     : outer_panel({size: [30, 28]}) 
+        title          : text({margin{ bottom:-36 }, size [px(30), 20], align: "center", font: FONT_NORMAL_BLACK_ON_LIGHT})
+        god_image_area : dummy({ margin{ top:px(2) }, size [px(29), px(10)]})
+        content_panel  : inner_panel({ margin{ left:8, bottom:-px(14) }, size [29, 11]})
+        content_text   : text({ margin{ left:16, bottom:-px(13) }, size [px(28), px(12)], font: FONT_NORMAL_WHITE_ON_DARK, rich: true, clip_area: true})
+    })
+}
+
+[es=message_dialog_window]
+message_dialog_window_image {
+    pos: [(sw(0) - px(30))/2, (sh(0) - px(20))/2]
+    help_id: ""
+
+    ui :baseui(message_dialog_window_general, {
+
+    })
+}
+
+// Gift message dialog (OG MESSAGE_TEMPLATE_GIFT): the replies shown are the message's gift buttons.
+[es=message_dialog_window]
+message_dialog_window_gift {
+    pos: [(sw(0) - px(30))/2, (sh(0) - px(20))/2]
+    help_id: ""
+
+    ui :baseui(message_dialog_window_general, {
+        content_panel  : inner_panel({pos[16, 54], size[28, 13]})
+        content_text   : text({pos[16, 54], size[px(28), px(13)], font: FONT_NORMAL_WHITE_ON_DARK, rich: true, clip_area: true, text_margin{ left:10, right:20 }})
+        button_refuse  : button({pos[38, 274], size[130, 25], text:"#gift_refuse", font:FONT_NORMAL_BLACK_ON_LIGHT, enabled: false})
+        button_later   : button({pos[172, 274], size[130, 25], text:"#gift_later", font:FONT_NORMAL_BLACK_ON_LIGHT, enabled: false})
+        button_accept  : button({pos[306, 274], size[130, 25], text:"#gift_accept", font:FONT_NORMAL_BLACK_ON_LIGHT, enabled: false})
+    })
+}
+
+[es=message_dialog_window]
+message_dialog_window_troop_request {
+    pos: [(sw(0) - px(30))/2, (sh(0) - px(32))/2]
+    help_id: ""
+
+    ui :baseui(message_dialog_window_general, {
+        background     : outer_panel({size: [30, 30]}) 
+        image          : image({ margin { left:0, top:16 }, pack:PACK_UNLOADED, id:16, offset:11, size [px(30), px(16)], centering [0, 0] })
+        content_panel  : inner_panel({ margin{ left:8, bottom:-px(14) }, size [29, 11]})
+        content_text   : text({ margin{ left:16, bottom:-px(13) }, size [px(28), px(12)], font: FONT_NORMAL_WHITE_ON_DARK, rich: true, clip_area: true})
+        title          : text({ margin{ bottom:-36 }, size [px(30), 20], text: "#message_dialog_distant_battle", align: "center", font: FONT_NORMAL_BLACK_ON_LIGHT})
+    })
+}
+
+[es=(message_dialog_window, help)]
+function message_dialog_on_help(window) {
+    window_message_dialog_help()
+}
+
+[es=(message_dialog_window, go_back)]
+function message_dialog_on_go_back(window) {
+    window_go_back()
+}
+

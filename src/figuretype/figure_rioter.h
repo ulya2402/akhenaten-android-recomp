@@ -1,0 +1,25 @@
+#pragma once
+
+#include "figure/figure.h"
+
+enum e_rioter_action {
+    ACTION_120_RIOTER_CREATED = 120,
+    ACTION_121_RIOTER_MOVING = 121,
+    ACTION_122_RIOTER_HIDE = 122,
+    ACTION_123_RIOTER_LEAVING = 123,
+    ACTION_122_RIOTER_ATTACK = 124,
+};
+
+struct event_rioter_created { int id; };
+
+class figure_rioter : public figure_impl {
+public:
+    FIGURE_METAINFO(FIGURE_RIOTER, figure_rioter)
+    figure_rioter(figure *f) : figure_impl(f) {}
+
+    virtual void on_create() override {}
+    virtual void figure_action() override;
+    virtual void update_animation() override;
+
+    int collapse_building();
+};

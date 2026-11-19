@@ -1,0 +1,4 @@
+log_info("akhenaten: loading building_house_meager_shanty")
+
+[es=(building_house_meager_shanty, consume_food_weekly)]
+function building_house_meager_shanty_consume_food_weekly(ev) { house_es_consume_food_weekly(ev) }

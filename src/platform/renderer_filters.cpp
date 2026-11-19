@@ -1,0 +1,957 @@
+#include "renderer.h"
+
+#include "core/log.h"
+#include "core/profiler.h"
+#include "imgui.h"
+#include "imgui_internal.h"
+#include "widget/debug_console.h"
+#include "platform/platform.h"
+
+#include <SDL.h>
+
+ANK_REGISTER_PROPS_ITERATOR(config_load_filter_properties);
+
+#if defined(GAME_PLATFORM_WIN) || defined(GAME_PLATFORM_LINUX)
+#include "gpupixel.h"
+
+struct renderer_filter_t {
+    // Basic filters
+    gpupixel::FilterPtr grayscale;
+    bool grayscale_active = false;
+    
+    gpupixel::FilterPtr brightness;
+    bool brightness_active = false;
+    
+    gpupixel::FilterPtr contrast;
+    bool contrast_active = false;
+    
+    gpupixel::FilterPtr saturation;
+    bool saturation_active = false;
+    
+    gpupixel::FilterPtr exposure;
+    bool exposure_active = false;
+    
+    gpupixel::FilterPtr hue;
+    bool hue_active = false;
+    
+    gpupixel::FilterPtr colorInvert;
+    bool colorInvert_active = false;
+    
+    gpupixel::FilterPtr posterize;
+    bool posterize_active = false;
+    
+    gpupixel::FilterPtr gaussianBlur;
+    bool gaussianBlur_active = false;
+    
+    gpupixel::FilterPtr boxBlur;
+    bool boxBlur_active = false;
+    
+    gpupixel::FilterPtr cannyEdgeDetection;
+    bool cannyEdgeDetection_active = false;
+    
+    gpupixel::FilterPtr crosshatch;
+    bool crosshatch_active = false;
+    
+    gpupixel::FilterPtr emboss;
+    bool emboss_active = false;
+    
+    gpupixel::FilterPtr glassSphere;
+    bool glassSphere_active = false;
+    
+    gpupixel::FilterPtr halftone;
+    bool halftone_active = false;
+    
+    gpupixel::FilterPtr pixellation;
+    bool pixellation_active = false;
+    
+    gpupixel::FilterPtr rgb;
+    bool rgb_active = false;
+    
+    gpupixel::FilterPtr smoothToon;
+    bool smoothToon_active = false;
+    
+    gpupixel::FilterPtr toon;
+    bool toon_active = false;
+    
+    gpupixel::FilterPtr whiteBalance;
+    bool whiteBalance_active = false;
+    
+    gpupixel::SourceImagePtr sourceImage;
+    std::shared_ptr<gpupixel::TargetView> outputImage;
+
+    bool render_support_filters = false;
+    bool any_filter_active = false;
+
+    // GPUPixel needs an OpenGL context; under another renderer (direct3d, ...) it gets a hidden window
+    // of its own. Frames come and go as pixel buffers, so it never shares textures with the renderer.
+    SDL_Window *own_gl_window = nullptr;
+    SDL_GLContext own_gl_context = nullptr;
+};
+
+renderer_filter_t g_renderer_filter;
+
+bool platform_render_any_filter_active() {
+    auto &data = g_renderer_filter;
+
+    return data.grayscale_active ||
+           data.brightness_active || data.contrast_active ||
+           data.saturation_active || data.exposure_active ||
+           data.hue_active || data.colorInvert_active ||
+           data.posterize_active || data.gaussianBlur_active ||
+           data.boxBlur_active || data.cannyEdgeDetection_active ||
+           data.crosshatch_active || data.emboss_active ||
+           data.glassSphere_active ||
+           data.halftone_active || data.pixellation_active ||
+           data.rgb_active || data.smoothToon_active || data.toon_active ||
+           data.whiteBalance_active;
+}
+
+bool platform_render_support_filters() {
+    return g_renderer_filter.render_support_filters;
+}
+
+static void filters_make_current() {
+    auto &data = g_renderer_filter;
+    if (data.own_gl_context) {
+        SDL_GL_MakeCurrent(data.own_gl_window, data.own_gl_context);
+    }
+}
+
+static bool filters_create_own_context() {
+    auto &data = g_renderer_filter;
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+
+    data.own_gl_window = SDL_CreateWindow("gpupixel", 0, 0, 1, 1, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
+    if (!data.own_gl_window) {
+        logs::warn("GPU filters disabled: no hidden OpenGL window (%s)", SDL_GetError());
+        return false;
+    }
+
+    data.own_gl_context = SDL_GL_CreateContext(data.own_gl_window);
+    if (!data.own_gl_context) {
+        logs::warn("GPU filters disabled: no OpenGL context for the filters (%s)", SDL_GetError());
+        SDL_DestroyWindow(data.own_gl_window);
+        data.own_gl_window = nullptr;
+        return false;
+    }
+
+    filters_make_current();
+    return true;
+}
+
+static void filters_destroy_own_context() {
+    auto &data = g_renderer_filter;
+    if (data.own_gl_context) {
+        SDL_GL_DeleteContext(data.own_gl_context);
+        data.own_gl_context = nullptr;
+    }
+    if (data.own_gl_window) {
+        SDL_DestroyWindow(data.own_gl_window);
+        data.own_gl_window = nullptr;
+    }
+}
+
+void platform_render_init_filters() {
+    auto &data = g_renderer_filter;
+
+    data.render_support_filters = SDL_VERSION_ATLEAST(2, 0, 12);
+    if (!platform_render_support_filters()) {
+        return;
+    }
+
+    xstring driver = get_video_driver();
+    if (driver != "opengl") {
+        if (!filters_create_own_context()) {
+            data.render_support_filters = false;
+            return;
+        }
+        logs::info("GPU filters: own OpenGL context for the %s renderer", driver.c_str());
+    } else if (!SDL_GL_GetCurrentContext()) {
+        logs::warn("GPU filters disabled: no active OpenGL context");
+        data.render_support_filters = false;
+        return;
+    }
+
+    gpupixel::GPUPixelContext::initOpengl();
+
+    // Create the source image with a non-zero size (1x1). A 0x0 source image
+    // would create a degenerate 0x0 framebuffer texture on startup, which Mesa
+    // rejects with GL_INVALID_VALUE (glTexImage2D/glFramebufferTexture2D) and
+    // left a stale error behind that gpupixel's CHECK_GL later misreported as
+    // its own "GL ERROR ... framebuffer.cc:41". The real dimensions are set
+    // later in platform_render_proceed_filter() -> sourceImage->init(w,h,...),
+    // so this placeholder only needs to be a valid texture.
+    data.sourceImage = gpupixel::SourceImage::create_from_memory(1, 1, 4, nullptr);
+    if (!data.sourceImage) {
+        logs::warn("GPU filters disabled: failed to initialize GPUPixel shaders");
+        filters_destroy_own_context();
+        data.render_support_filters = false;
+        return;
+    }
+
+    // Initialize all filters
+    data.grayscale = gpupixel::GrayscaleFilter::create();
+
+    gpupixel::GPUPixelContext::getInstance()->runSync([&] {
+        data.brightness = gpupixel::BrightnessFilter::Create();
+        data.contrast = gpupixel::ContrastFilter::Create();
+        data.saturation = gpupixel::SaturationFilter::Create();
+        data.exposure = gpupixel::ExposureFilter::Create();
+        data.hue = gpupixel::HueFilter::Create();
+        data.colorInvert = gpupixel::ColorInvertFilter::Create();
+        data.posterize = gpupixel::PosterizeFilter::Create();
+        data.gaussianBlur = gpupixel::GaussianBlurFilter::Create();
+        data.boxBlur = gpupixel::BoxBlurFilter::Create();
+        data.cannyEdgeDetection = gpupixel::CannyEdgeDetectionFilter::Create();
+        data.crosshatch = gpupixel::CrosshatchFilter::Create();
+        data.emboss = gpupixel::EmbossFilter::Create();
+        data.glassSphere = gpupixel::GlassSphereFilter::Create();
+        data.halftone = gpupixel::HalftoneFilter::Create();
+        data.pixellation = gpupixel::PixellationFilter::Create();
+        data.rgb = gpupixel::RGBFilter::Create();
+        data.smoothToon = gpupixel::SmoothToonFilter::Create();
+        data.toon = gpupixel::ToonFilter::Create();
+        data.whiteBalance = gpupixel::WhiteBalanceFilter::Create();
+    });
+
+    data.outputImage = gpupixel::TargetView::create();
+    if (!data.outputImage || !data.outputImage->has_valid_program()) {
+        logs::warn("GPU filters disabled: failed to initialize GPUPixel output view");
+        data.sourceImage.reset();
+        filters_destroy_own_context();
+        data.render_support_filters = false;
+        return;
+    }
+
+    data.sourceImage->addTarget(data.outputImage);
+}
+
+void platform_render_shutdown_filters() {
+    auto &data = g_renderer_filter;
+
+    if (!data.render_support_filters) {
+        return;
+    }
+
+    filters_make_current();
+    glGetError();
+
+    data.outputImage.reset();
+    data.sourceImage.reset();
+
+    data.grayscale.reset();
+    data.brightness.reset();
+    data.contrast.reset();
+    data.saturation.reset();
+    data.exposure.reset();
+    data.hue.reset();
+    data.colorInvert.reset();
+    data.posterize.reset();
+    data.gaussianBlur.reset();
+    data.boxBlur.reset();
+    data.cannyEdgeDetection.reset();
+    data.crosshatch.reset();
+    data.emboss.reset();
+    data.glassSphere.reset();
+    data.halftone.reset();
+    data.pixellation.reset();
+    data.rgb.reset();
+    data.smoothToon.reset();
+    data.toon.reset();
+    data.whiteBalance.reset();
+
+    filters_destroy_own_context();
+    data.render_support_filters = false;
+}
+
+void game_debug_show_filter_property_float(gpupixel::FilterPtr filter, const char *name, const float step = 1.f) {
+    if (!filter) {
+        return;
+    }
+
+    if (!filter->hasProperty(name)) {
+        return;
+    }
+
+    float value, save_value;
+    filter->getProperty(name, value);
+    save_value = value;
+    game_debug_set_property_opt(step);
+    game_debug_show_property(name, value);
+    if(save_value != value) {
+        filter->setProperty(name, value);
+    }
+}
+
+bool platform_render_grayscale_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.grayscale_active;
+    ImGui::PushID(0x10000000 | 0x2);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Grayscale", ImGuiTreeNodeFlags_None, "Grayscale");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.grayscale_active);
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.grayscale_active);
+}
+
+bool platform_render_brightness_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.brightness_active;
+    ImGui::PushID(0x10000000 | 0x3);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Brightness", ImGuiTreeNodeFlags_None, "Brightness");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.brightness_active);
+        game_debug_show_filter_property_float(data.brightness, "brightness_factor", 0.05f);
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.brightness_active);
+}
+
+bool platform_render_contrast_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.contrast_active;
+    ImGui::PushID(0x10000000 | 0x4);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Contrast", ImGuiTreeNodeFlags_None, "Contrast");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.contrast_active);
+        game_debug_show_filter_property_float(data.contrast, "contrast", 0.05f);
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.contrast_active);
+}
+
+bool platform_render_saturation_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.saturation_active;
+    ImGui::PushID(0x10000000 | 0x5);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Saturation", ImGuiTreeNodeFlags_None, "Saturation");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.saturation_active);
+        game_debug_show_filter_property_float(data.saturation, "saturation");
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.saturation_active);
+}
+
+bool platform_render_exposure_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.exposure_active;
+    ImGui::PushID(0x10000000 | 0x6);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Exposure", ImGuiTreeNodeFlags_None, "Exposure");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.exposure_active);
+        if (data.exposure->hasProperty("exposure")) {
+            game_debug_show_filter_property_float(data.exposure, "exposure");
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.exposure_active);
+}
+
+bool platform_render_hue_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.hue_active;
+    ImGui::PushID(0x10000000 | 0x7);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Hue", ImGuiTreeNodeFlags_None, "Hue");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.hue_active);
+        if (data.hue->hasProperty("hueAdjustment")) {
+            game_debug_show_filter_property_float(data.hue, "hueAdjustment");
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.hue_active);
+}
+
+bool platform_render_colorInvert_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.colorInvert_active;
+    ImGui::PushID(0x10000000 | 0x8);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Color Invert", ImGuiTreeNodeFlags_None, "Color Invert");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.colorInvert_active);
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.colorInvert_active);
+}
+
+bool platform_render_posterize_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.posterize_active;
+    ImGui::PushID(0x10000000 | 0x9);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Posterize", ImGuiTreeNodeFlags_None, "Posterize");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.posterize_active);
+        if (data.posterize->hasProperty("colorLevels")) {
+            game_debug_show_filter_property_float(data.posterize, "colorLevels");
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.posterize_active);
+}
+
+bool platform_render_gaussianBlur_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.gaussianBlur_active;
+    ImGui::PushID(0x10000000 | 0xA);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Gaussian Blur", ImGuiTreeNodeFlags_None, "Gaussian Blur");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.gaussianBlur_active);
+        if (data.gaussianBlur->hasProperty("radius")) {
+            game_debug_show_filter_property_float(data.gaussianBlur, "radius");
+        }
+        if (data.gaussianBlur->hasProperty("sigma")) {
+            game_debug_show_filter_property_float(data.gaussianBlur, "sigma");
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.gaussianBlur_active);
+}
+
+bool platform_render_boxBlur_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.boxBlur_active;
+    ImGui::PushID(0x10000000 | 0xB);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Box Blur", ImGuiTreeNodeFlags_None, "Box Blur");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.boxBlur_active);
+        if (data.boxBlur->hasProperty("radius")) {
+            game_debug_show_filter_property_float(data.boxBlur, "radius");
+        }
+        if (data.boxBlur->hasProperty("sigma")) {
+            game_debug_show_filter_property_float(data.boxBlur, "sigma");
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.boxBlur_active);
+}
+
+bool platform_render_cannyEdgeDetection_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.cannyEdgeDetection_active;
+    ImGui::PushID(0x10000000 | 0x10);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Canny Edge Detection", ImGuiTreeNodeFlags_None, "Canny Edge Detection");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.cannyEdgeDetection_active);
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.cannyEdgeDetection_active);
+}
+
+bool platform_render_crosshatch_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.crosshatch_active;
+    ImGui::PushID(0x10000000 | 0x11);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Crosshatch", ImGuiTreeNodeFlags_None, "Crosshatch");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.crosshatch_active);
+        if (data.crosshatch->hasProperty("crossHatchSpacing")) {
+            game_debug_show_filter_property_float(data.crosshatch, "crossHatchSpacing", 0.001f);
+        }
+        if (data.crosshatch->hasProperty("lineWidth")) {
+            game_debug_show_filter_property_float(data.crosshatch, "lineWidth", 0.0001f);
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.crosshatch_active);
+}
+
+bool platform_render_emboss_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.emboss_active;
+    ImGui::PushID(0x10000000 | 0x12);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Emboss", ImGuiTreeNodeFlags_None, "Emboss");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.emboss_active);
+        if (data.emboss->hasProperty("intensity")) {
+            game_debug_show_filter_property_float(data.emboss, "intensity", 0.1f);
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.emboss_active);
+}
+
+bool platform_render_glassSphere_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.glassSphere_active;
+    ImGui::PushID(0x10000000 | 0x14);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Glass Sphere", ImGuiTreeNodeFlags_None, "Glass Sphere");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.glassSphere_active);
+        if (data.glassSphere->hasProperty("positionX")) {
+            game_debug_show_filter_property_float(data.glassSphere, "positionX", 0.01f);
+        }
+        if (data.glassSphere->hasProperty("positionY")) {
+            game_debug_show_filter_property_float(data.glassSphere, "positionY", 0.01f);
+        }
+        if (data.glassSphere->hasProperty("radius")) {
+            game_debug_show_filter_property_float(data.glassSphere, "radius", 0.01f);
+        }
+        if (data.glassSphere->hasProperty("refractiveIndex")) {
+            game_debug_show_filter_property_float(data.glassSphere, "refractiveIndex", 0.01f);
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.glassSphere_active);
+}
+
+bool platform_render_halftone_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.halftone_active;
+    ImGui::PushID(0x10000000 | 0x15);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Halftone", ImGuiTreeNodeFlags_None, "Halftone");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.halftone_active);
+        if (data.halftone->hasProperty("pixelSize")) {
+            game_debug_show_filter_property_float(data.halftone, "pixelSize", 0.001f);
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.halftone_active);
+}
+
+bool platform_render_pixellation_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.pixellation_active;
+    ImGui::PushID(0x10000000 | 0x18);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Pixellation", ImGuiTreeNodeFlags_None, "Pixellation");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.pixellation_active);
+        if (data.pixellation->hasProperty("pixelSize")) {
+            game_debug_show_filter_property_float(data.pixellation, "pixelSize", 0.01f);
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.pixellation_active);
+}
+
+bool platform_render_rgb_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.rgb_active;
+    ImGui::PushID(0x10000000 | 0x19);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("RGB", ImGuiTreeNodeFlags_None, "RGB");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.rgb_active);
+        if (data.rgb->hasProperty("redAdjustment")) {
+            game_debug_show_filter_property_float(data.rgb, "redAdjustment", 0.05f);
+        }
+        if (data.rgb->hasProperty("greenAdjustment")) {
+            game_debug_show_filter_property_float(data.rgb, "greenAdjustment", 0.05f);
+        }
+        if (data.rgb->hasProperty("blueAdjustment")) {
+            game_debug_show_filter_property_float(data.rgb, "blueAdjustment", 0.05f);
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.rgb_active);
+}
+
+bool platform_render_smoothToon_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.smoothToon_active;
+    ImGui::PushID(0x10000000 | 0x1A);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Smooth Toon", ImGuiTreeNodeFlags_None, "Smooth Toon");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.smoothToon_active);
+        if (data.smoothToon->hasProperty("blurRadius")) {
+            game_debug_show_filter_property_float(data.smoothToon, "blurRadius", 0.5f);
+        }
+        if (data.smoothToon->hasProperty("toonThreshold")) {
+            game_debug_show_filter_property_float(data.smoothToon, "toonThreshold", 0.01f);
+        }
+        if (data.smoothToon->hasProperty("toonQuantizationLevels")) {
+            game_debug_show_filter_property_float(data.smoothToon, "toonQuantizationLevels", 0.5f);
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.smoothToon_active);
+}
+
+bool platform_render_toon_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.toon_active;
+    ImGui::PushID(0x10000000 | 0x1B);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("Toon", ImGuiTreeNodeFlags_None, "Toon");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.toon_active);
+        if (data.toon->hasProperty("threshold")) {
+            game_debug_show_filter_property_float(data.toon, "threshold", 0.01f);
+        }
+        if (data.toon->hasProperty("quantizationLevels")) {
+            game_debug_show_filter_property_float(data.toon, "quantizationLevels", 0.5f);
+        }
+        if (data.toon->hasProperty("texelSizeMultiplier")) {
+            game_debug_show_filter_property_float(data.toon, "texelSizeMultiplier", 0.1f);
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.toon_active);
+}
+
+bool platform_render_whiteBalance_options() {
+    auto &data = g_renderer_filter;
+
+    bool save_active = data.whiteBalance_active;
+    ImGui::PushID(0x10000000 | 0x1D);
+
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    bool common_open = ImGui::TreeNodeEx("White Balance", ImGuiTreeNodeFlags_None, "White Balance");
+    ImGui::TableSetColumnIndex(1);
+
+    if (common_open) {
+        game_debug_show_property("Active", data.whiteBalance_active);
+        if (data.whiteBalance->hasProperty("temperature")) {
+            game_debug_show_filter_property_float(data.whiteBalance, "temperature", 100.0f);
+        }
+        if (data.whiteBalance->hasProperty("tint")) {
+            game_debug_show_filter_property_float(data.whiteBalance, "tint", 1.0f);
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+
+    return (save_active != data.whiteBalance_active);
+}
+
+void platform_render_proceed_filter(int w, int h, int format, const std::vector<uint8_t>&pixels, std::vector<uint8_t> &output_pixels) {
+    auto &data = g_renderer_filter;
+
+    // GPUPixel shares the SDL OpenGL context. SDL renderer calls (rendercopy,
+    // readpixels, ...) may leave an unread GL error behind; gpupixel's CHECK_GL
+    // would then misattribute that stale error to itself and spam bogus
+    // "GL ERROR" log lines. Clear the error state before gpupixel does any GL.
+    filters_make_current();
+    glGetError();
+
+    data.sourceImage->init(w, h, SDL_BYTESPERPIXEL(format), (uint8_t *)pixels.data());
+    data.sourceImage->proceed();
+
+    output_pixels.resize(w * h * SDL_BYTESPERPIXEL(format));
+    memcpy(output_pixels.data(), data.outputImage->getPixels(), w * h * SDL_BYTESPERPIXEL(format));
+}
+
+void config_load_filter_properties(bool header) {
+    if (!platform_render_support_filters()) {
+        ImGui::Dummy(ImVec2(0, 0));
+        return;
+    }
+
+    auto &data = g_renderer_filter;
+    static bool _debug_filter_open = false;
+
+    bool filter_changed = false;
+    if (header) {
+        return;
+    }
+
+    bool common_open = ImGui::TreeNodeEx("Filters", ImGuiTreeNodeFlags_None, "Filters");
+    if (common_open) {
+        ImGui::BeginTable("Filters", 2, ImGuiTableFlags_BordersOuter | ImGuiTableFlags_Resizable);
+
+        bool changed = false;
+        changed |= platform_render_grayscale_options();
+        changed |= platform_render_brightness_options();
+        changed |= platform_render_contrast_options();
+        changed |= platform_render_saturation_options();
+        changed |= platform_render_exposure_options();
+        changed |= platform_render_hue_options();
+        changed |= platform_render_colorInvert_options();
+        changed |= platform_render_posterize_options();
+        changed |= platform_render_gaussianBlur_options();
+        changed |= platform_render_boxBlur_options();
+        changed |= platform_render_cannyEdgeDetection_options();
+        changed |= platform_render_crosshatch_options();
+        changed |= platform_render_emboss_options();
+        changed |= platform_render_glassSphere_options();
+        changed |= platform_render_halftone_options();
+        changed |= platform_render_pixellation_options();
+        changed |= platform_render_rgb_options();
+        changed |= platform_render_smoothToon_options();
+        changed |= platform_render_toon_options();
+        changed |= platform_render_whiteBalance_options();
+        
+        filter_changed = changed;
+
+        ImGui::EndTable();
+
+        ImGui::TreePop();
+    }
+
+    if (filter_changed) {
+        data.sourceImage->removeAllTargets();
+
+        gpupixel::SourcePtr last = data.sourceImage;
+        
+        // Apply filters in order
+        if (data.grayscale_active) {
+            last = last->addTarget(data.grayscale);
+        }
+        if (data.brightness_active) {
+            last = last->addTarget(data.brightness);
+        }
+        if (data.contrast_active) {
+            last = last->addTarget(data.contrast);
+        }
+        if (data.saturation_active) {
+            last = last->addTarget(data.saturation);
+        }
+        if (data.exposure_active) {
+            last = last->addTarget(data.exposure);
+        }
+        if (data.hue_active) {
+            last = last->addTarget(data.hue);
+        }
+        if (data.colorInvert_active) {
+            last = last->addTarget(data.colorInvert);
+        }
+        if (data.posterize_active) {
+            last = last->addTarget(data.posterize);
+        }
+        if (data.gaussianBlur_active) {
+            last = last->addTarget(data.gaussianBlur);
+        }
+        if (data.boxBlur_active) {
+            last = last->addTarget(data.boxBlur);
+        }
+        if (data.cannyEdgeDetection_active) {
+            last = last->addTarget(data.cannyEdgeDetection);
+        }
+        if (data.crosshatch_active) {
+            last = last->addTarget(data.crosshatch);
+        }
+        if (data.emboss_active) {
+            last = last->addTarget(data.emboss);
+        }
+        if (data.glassSphere_active) {
+            last = last->addTarget(data.glassSphere);
+        }
+        if (data.halftone_active) {
+            last = last->addTarget(data.halftone);
+        }
+        if (data.pixellation_active) {
+            last = last->addTarget(data.pixellation);
+        }
+        if (data.rgb_active) {
+            last = last->addTarget(data.rgb);
+        }
+        if (data.smoothToon_active) {
+            last = last->addTarget(data.smoothToon);
+        }
+        if (data.toon_active) {
+            last = last->addTarget(data.toon);
+        }
+        if (data.whiteBalance_active) {
+            last = last->addTarget(data.whiteBalance);
+        }
+
+        last->addTarget(data.outputImage);
+    }
+}
+
+#else
+
+void platform_render_init_filters() {}
+void platform_render_shutdown_filters() {}
+bool platform_render_support_filters() { return false; }
+bool platform_render_any_filter_active() { return false; }
+void platform_render_proceed_filter(int w, int h, int format, const std::vector<uint8_t> &pixels, std::vector<uint8_t> &output_pixels) {}
+void platform_render_init_filter_context() {}
+void config_load_filter_properties(bool) {}
+
+#endif // 

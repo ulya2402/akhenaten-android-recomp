@@ -1,0 +1,131 @@
+log_info("akhenaten: building_wood_cutter started")
+
+[es=building]
+building_wood_cutter {
+  type: BUILDING_WOOD_CUTTERS
+  animations {
+    preview { pos : [0, 0], pack:PACK_GENERAL, id:65 }
+    base { pos : [0, 0], pack:PACK_GENERAL, id:65 }
+    work { pos : [30, -17], pack:PACK_GENERAL, id:65, offset:1, max_frames:12, duration:4 }
+  }
+  overlay_anims {
+    wood {
+      pos : [65, 3]
+      pack:PACK_GENERAL
+      id:202
+      resource : RESOURCE_TIMBER
+      default_active : true
+    }
+  }
+  output {
+    resource : RESOURCE_TIMBER
+  }
+  flags {
+    is_harvester: true
+    is_industry: true
+    work_anim: true
+  }
+  building_size : 2
+  meta { text_id:120, help_link:"message_building_woodcutter_and_reed_gatherer" }
+  info_sound : "Wavs/lumber.wav"
+  sound_channel : SOUND_CHANNEL_CITY_NONE
+  labor_category : LABOR_CATEGORY_INDUSTRY_COMMERCE
+  min_houses_coverage : 100
+  max_storage_amount : 200
+  max_gatherers : 1
+  cost [ 10, 20, 40, 80, 140 ]
+  desirability { value[-4], step[1], step_size[1], range[3] }
+  laborers[8], fire_risk[4], damage_risk[3]
+}
+
+// OG spawn_wood_cutters: pct>=100→3, >=50→2, >=1→1; then (500-stored)/25.
+// Remake feature caps the worker-based max at max_gatherers (1).
+function wood_cutter_max_lumberjacks(b) {
+    var pct = b.worker_percentage
+    var max = 0
+    if (pct >= 100) {
+        max = 3
+    } else if (pct >= 50) {
+        max = 2
+    } else if (pct >= 1) {
+        max = 1
+    }
+
+    if (game_features.gameplay_change_wood_cutter_single_gatherer) {
+        var remake_cap = dcy_get(building_wood_cutter.max_gatherers)
+        if (max > remake_cap) {
+            max = remake_cap
+        }
+    }
+
+    var carry = dcy_get(figure_lumberjack.max_amount)
+    if (carry < 1) {
+        carry = 25
+    }
+    var space = Math.floor((500 - b.stored_resource(RESOURCE_TIMBER)) / carry)
+    if (space < max) {
+        max = space
+    }
+    if (max < 0) {
+        max = 0
+    }
+    return max
+}
+
+function wood_cutter_has_lumberjack_capacity(b) {
+    return b.get_figures_number(FIGURE_LUMBERJACK) < wood_cutter_max_lumberjacks(b)
+}
+
+function wood_cutter_can_spawn_lumberjack(b) {
+    var trees_ok = game_features.gameplay_change_wood_cutter_single_gatherer
+        ? b.citizen_found_terrain(TERRAIN_TREE)
+        : __map_trees_reachable()
+    return trees_ok && wood_cutter_has_lumberjack_capacity(b)
+}
+
+function wood_cutter_spawn_lumberjacks_up_to_max(b) {
+    // OG send_gatherers: burst-fill to max in one spawn tick.
+    while (wood_cutter_can_spawn_lumberjack(b)) {
+        var fid = b.create_figure_generic(FIGURE_LUMBERJACK, ACTION_1_LUMBERJACK_RECALCULATE, BUILDING_SLOT_SERVICE)
+        if (!fid) {
+            break
+        }
+        city.get_figure(fid).wait_ticks = fid % 30
+    }
+}
+
+[es=(building_wood_cutter, spawn_figure)]
+function building_wood_cutter_spawn_figure(ev) {
+    var b = city.get_building(ev.bid)
+    b.check_labor_problem()
+    if (b.is_enemies_nearby()) {
+        return
+    }
+
+    if (b.has_road_access) {
+        b.common_spawn_labor_seeker(building_wood_cutter.min_houses_coverage)
+        var spawn_delay = b.figure_spawn_timer()
+        if (spawn_delay == -1) {
+            return
+        }
+
+        b.figure_spawn_delay += 1
+        if (b.figure_spawn_delay > spawn_delay) {
+            b.figure_spawn_delay = 0
+            wood_cutter_spawn_lumberjacks_up_to_max(b)
+        }
+    }
+
+    b.common_spawn_goods_output_cartpusher()
+}
+
+[es=(building_wood_cutter, update_animation)]
+function building_wood_cutter_on_update_animation(ev) {
+    var b = city.get_building(ev.bid)
+    if (!b.play_animation) {
+        return
+    }
+    if (b.stored_resource(RESOURCE_TIMBER) >= building_wood_cutter.max_storage_amount) {
+        b.play_animation = false
+    }
+}

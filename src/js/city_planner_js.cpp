@@ -1,0 +1,283 @@
+#include "js_game.h"
+
+#include "building/building.h"
+#include "building/building_dock.h"
+#include "building/construction/build_planner.h"
+#include "building/construction/routed.h"
+#include "core/calc.h"
+#include "core/profiler.h"
+#include "game/game.h"
+#include "game/undo.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/view/view.h"
+#include "grid/building.h"
+#include "grid/building_tiles.h"
+#include "grid/figure.h"
+#include "grid/image.h"
+#include "grid/orientation.h"
+#include "grid/routing/routing.h"
+#include "grid/terrain.h"
+#include "mujs/mujs.h"
+
+ANK_GLOBAL_OBJECT(g_city_planner, __city_planner,
+    build_type,
+    in_progress,
+    draw_as_constructing,
+    construction_update_items,
+    should_update_land_routing,
+    finalize_check_result,
+    need_flag_result,
+    preview_allow_result,
+    absolute_orientation,
+    relative_orientation,
+    building_variant,
+    custom_building_variant,
+    start,
+    end,
+    total_cost,
+    global_rotation,
+    road_orientation
+);
+
+void __city_planner_reset() {
+    g_city_planner.reset();
+}
+ANK_FUNCTION(__city_planner_reset)
+
+void __city_planner_update(int x, int y) {
+    g_city_planner.update(tile2i(x, y));
+}
+ANK_FUNCTION_2(__city_planner_update);
+
+int __city_planner_can_be_placed() {
+    return g_city_planner.can_be_placed();
+}
+ANK_FUNCTION(__city_planner_can_be_placed);
+
+void __city_planner_construction_start(int x, int y) {
+    g_city_planner.construction_start(tile2i(x, y));
+}
+ANK_FUNCTION_2(__city_planner_construction_start);
+
+void __city_planner_construction_update(int x, int y) {
+    g_city_planner.construction_update(tile2i(x, y));
+}
+ANK_FUNCTION_2(__city_planner_construction_update);
+
+void __city_planner_construction_finalize() {
+    g_city_planner.construction_finalize();
+}
+ANK_FUNCTION(__city_planner_construction_finalize);
+
+void __city_planner_construction_cancel() {
+    g_city_planner.construction_cancel();
+}
+ANK_FUNCTION(__city_planner_construction_cancel);
+
+void __city_planner_update_orientations() {
+    g_city_planner.update_orientations();
+}
+ANK_FUNCTION(__city_planner_update_orientations);
+
+void __city_planner_next_building_variant() {
+    g_city_planner.next_building_variant();
+}
+ANK_FUNCTION(__city_planner_next_building_variant);
+
+void __city_planner_set_tiles_building(int image_id, int size) {
+    g_city_planner.set_tiles_building(image_id, size);
+}
+ANK_FUNCTION_2(__city_planner_set_tiles_building);
+
+void __city_planner_init_tiles(int size_x, int size_y) {
+    g_city_planner.init_tiles(size_x, size_y);
+}
+ANK_FUNCTION_2(__city_planner_init_tiles);
+
+void __city_planner_update_tiles_building(int image_id) {
+    g_city_planner.update_tiles_building(image_id);
+}
+ANK_FUNCTION_1(__city_planner_update_tiles_building);
+
+void __city_planner_draw_tile_graphics_array(tile2i start, tile2i end, vec2i pixel) {
+    painter ctx = game.painter();
+    g_city_planner.draw_tile_graphics_array(ctx, start, end, pixel);
+}
+ANK_FUNCTION_3(__city_planner_draw_tile_graphics_array);
+
+int __city_planner_last_created_building_id() {
+    building *b = g_city_planner.last_created_building;
+    return (b && b->id > 0) ? b->id : 0;
+}
+ANK_FUNCTION(__city_planner_last_created_building_id);
+
+void __city_planner_validate_last_created() {
+    building *b = g_city_planner.last_created_building;
+    if (!b || b->id <= 0) {
+        return;
+    }
+
+    b = b->main();
+    for (int guard = 0; b && b->id > 0 && guard < 128; ++guard) {
+        b->state = BUILDING_STATE_VALID;
+        if (!b->has_next()) {
+            break;
+        }
+        b = b->next();
+    }
+}
+ANK_FUNCTION(__city_planner_validate_last_created);
+
+void __city_planner_draw_blocked(vec2i pixel) {
+    painter ctx = game.painter();
+    g_city_planner.draw_flat_tile(ctx, pixel, COLOR_MASK_RED);
+}
+ANK_FUNCTION_1(__city_planner_draw_blocked);
+
+void __city_planner_draw_ghost(vec2i pixel, int image_id) {
+    painter ctx = game.painter();
+    g_city_planner.draw_building_ghost(ctx, image_id, pixel);
+}
+ANK_FUNCTION_2(__city_planner_draw_ghost);
+
+void __city_planner_draw_ghost_overlay(vec2i pixel, int image_id) {
+    painter ctx = game.painter();
+    build_planner::draw_ghost_overlay(ctx, image_id, pixel);
+}
+ANK_FUNCTION_2(__city_planner_draw_ghost_overlay);
+
+void __city_planner_draw_from_below(vec2i pixel, int image_id) {
+    painter ctx = game.painter();
+    build_planner::draw_from_below(ctx, image_id, pixel, COLOR_MASK_GREEN);
+}
+ANK_FUNCTION_2(__city_planner_draw_from_below);
+
+int __map_venue_build_orientation(tile2i tile, int mode) {
+    int view_orientation = 0;
+    if (!map_venue_ghost_orientation(tile, (e_venue_mode_orientation)mode, &view_orientation)) {
+        return -1;
+    }
+    return view_orientation;
+}
+ANK_FUNCTION_2(__map_venue_build_orientation);
+
+void __city_planner_draw_flat_tiles(vec2i pixel, int count) {
+    painter ctx = game.painter();
+    for (int i = 0; i < count; i++) {
+        g_city_planner.draw_flat_tile(ctx, pixel + VIEW_OFFSETS[i], COLOR_MASK_RED);
+    }
+}
+ANK_FUNCTION_2(__city_planner_draw_flat_tiles);
+
+void __city_planner_draw_isometric_ghost(vec2i pixel, int image_id, color color_mask) {
+    painter ctx = game.painter();
+    ctx.img_isometric(image_id, pixel, color_mask, 1.f, ImgFlag_None);
+}
+ANK_FUNCTION_3(__city_planner_draw_isometric_ghost);
+
+void __city_planner_draw_overlay_tile(vec2i pixel, int image_id, color color_mask, float scale) {
+    painter ctx = game.painter();
+    build_planner::draw_overlay_tile(ctx, image_id, pixel, color_mask, scale);
+}
+ANK_FUNCTION_4(__city_planner_draw_overlay_tile);
+
+void __city_planner_draw_flat_tile(vec2i pixel, color color_mask) {
+    painter ctx = game.painter();
+    build_planner::draw_flat_tile(ctx, pixel, color_mask);
+}
+ANK_FUNCTION_2(__city_planner_draw_flat_tile);
+
+int __city_planner_tile_grid_offset(int orientation, int index) {
+    return build_planner::tile_grid_offset(orientation, index);
+}
+ANK_FUNCTION_2(__city_planner_tile_grid_offset);
+
+void __city_planner_set_warning(xstring warning) {
+    g_city_planner.set_warning(warning);
+}
+ANK_FUNCTION_1(__city_planner_set_warning);
+
+bool __city_planner_is_blocked_for_building(tile2i tile, int size, unsigned int restricted_terrain) {
+    blocked_tile_vec blocked_tiles;
+    return !!build_planner::is_blocked_for_building(tile, size, blocked_tiles, restricted_terrain);
+}
+ANK_FUNCTION_3(__city_planner_is_blocked_for_building);
+
+int __map_orientation_for_gatehouse(tile2i tile) {
+    return map_orientation_for_gatehouse(tile.x(), tile.y());
+}
+ANK_FUNCTION_1(__map_orientation_for_gatehouse);
+
+int __map_adjust_building_determine_orientation(tile2i tile, int size, int adjust_xy, int adjacent, int btype) {
+    const adjust_orientation result = map_adjust_building_determine_orientation(
+        tile, size, !!adjust_xy, !!adjacent, (e_building_type)btype);
+    return result.match ? result.orientation : -1;
+}
+ANK_FUNCTION_5(__map_adjust_building_determine_orientation);
+
+bool __map_tile_is_connected_to_open_water(tile2i tile) {
+    return map_tile_is_connected_to_open_water(tile);
+}
+ANK_FUNCTION_1(__map_tile_is_connected_to_open_water);
+
+tile2i __map_tile_shift_offset(tile2i tile, int offset) {
+    return tile.shifted(offset);
+}
+ANK_FUNCTION_2(__map_tile_shift_offset);
+
+bool __map_has_figure_at(tile2i tile) {
+    return map_has_figure_at(tile);
+}
+ANK_FUNCTION_1(__map_has_figure_at);
+
+vec2i __lookup_tile_to_pixel(tile2i t) {
+    return g_camera.lookup_tile_to_pixel(t);
+}
+ANK_FUNCTION_1(__lookup_tile_to_pixel);
+
+int __map_routing_distance(tile2i tile) {
+    return map_routing_distance(tile);
+}
+ANK_FUNCTION_1(__map_routing_distance);
+
+int __map_citizen_grid(tile2i tile) {
+    return tile.valid() ? map_citizen_grid(tile.grid_offset()) : -1;
+}
+ANK_FUNCTION_1(__map_citizen_grid);
+
+int __calc_general_direction(tile2i from, tile2i to) {
+    return calc_general_direction(from, to);
+}
+ANK_FUNCTION_2(__calc_general_direction);
+
+void __game_undo_restore_map(int include_properties) {
+    game_undo_restore_map(include_properties);
+}
+ANK_FUNCTION_1(__game_undo_restore_map);
+
+bool __map_routing_calculate_distances_for_building(int mode, tile2i tile) {
+    return map_routing_calculate_distances_for_building((e_routed_mode)mode, tile);
+}
+ANK_FUNCTION_2(__map_routing_calculate_distances_for_building);
+
+int __place_routed_building(tile2i start, tile2i end, int mode) {
+    const routed_building_result result = place_routed_building(start, end, (e_routed_mode)mode);
+    return result.ok ? result.items : 0;
+}
+ANK_FUNCTION_3(__place_routed_building);
+
+int __map_image_at(tile2i tile) {
+    return map_image_at(tile);
+}
+ANK_FUNCTION_1(__map_image_at);
+
+void __map_image_set(tile2i tile, int image_id) {
+    map_image_set(tile, image_id);
+}
+ANK_FUNCTION_2(__map_image_set);
+
+void __map_building_tiles_add(int building_id, tile2i tile, int size, int image_id, int terrain) {
+    map_building_tiles_add(building_id, tile, size, image_id, terrain);
+}
+ANK_FUNCTION_5(__map_building_tiles_add);

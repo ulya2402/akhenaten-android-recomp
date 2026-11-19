@@ -1,0 +1,240 @@
+cmake_minimum_required(VERSION 3.18.1)
+
+# Set ANDROID_STL before project() so the toolchain initializes correctly.
+# This provides __cxa_guard_acquire and related symbols for C++ static initialization.
+# Use c++_static to match statically linked dependencies (SDL2, SDL2_mixer, etc.).
+if(ANDROID)
+    set(ANDROID_STL "c++_static" CACHE STRING "" FORCE)
+endif()
+
+project(akhenaten)
+
+# CMakeRC: generate cmrc/cmrc.hpp headers.
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../cmake")
+include("${CMAKE_MODULE_PATH}/CMakeRC.cmake")
+
+# Prebuilt third-party libraries.
+set(PREBUILT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../prebuilt")
+set(PREBUILT_LIB_DIR "${PREBUILT_DIR}/${ANDROID_ABI}/lib")
+set(PREBUILT_INCLUDE_DIR "${PREBUILT_DIR}/${ANDROID_ABI}/include")
+
+# Root of engine sources.
+set(SRC_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../src")
+
+# ImGui sources (fetched by Gradle).
+set(DEPS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/_deps")
+
+# Source file glob (same layout as the top-level CMakeLists.txt).
+file(GLOB PLATFORM_FILES ${SRC_ROOT}/platform/*.cpp)
+file(GLOB ANDROID_FILES ${SRC_ROOT}/platform/android/*.cpp)
+file(GLOB CONFIG_FILES ${SRC_ROOT}/config/*.cpp)
+file(GLOB CONTENT_FILES ${SRC_ROOT}/content/*.cpp)
+file(GLOB CORE_FILES ${SRC_ROOT}/core/*.cpp)
+file(GLOB CORE_ENCODING_FILES ${SRC_ROOT}/core/encoding/*.cpp)
+file(GLOB BUILDING_FILES ${SRC_ROOT}/building/*.cpp)
+file(GLOB BUILDING_CONSTRUCTION_FILES ${SRC_ROOT}/building/construction/*.cpp)
+file(GLOB CITY_FILES ${SRC_ROOT}/city/*.cpp)
+file(GLOB EMPIRE_FILES ${SRC_ROOT}/empire/*.cpp)
+file(GLOB FIGURE_FILES ${SRC_ROOT}/figure/*.cpp)
+file(GLOB FIGURETYPE_FILES ${SRC_ROOT}/figuretype/*.cpp)
+file(GLOB GAME_FILES ${SRC_ROOT}/game/*.cpp)
+file(GLOB TUTORIAL_FILES ${SRC_ROOT}/tutorial/*.cpp)
+file(GLOB INPUT_FILES ${SRC_ROOT}/input/*.cpp)
+file(GLOB GRID_FILES ${SRC_ROOT}/grid/*.cpp)
+file(GLOB GRID_ROUTING_FILES ${SRC_ROOT}/grid/routing/*.cpp)
+file(GLOB SCENARIO_FILES ${SRC_ROOT}/scenario/*.cpp)
+file(GLOB GRAPHICS_ELEMENTS_FILES ${SRC_ROOT}/graphics/elements/*.cpp)
+file(GLOB GRAPHICS_VIEW_FILES ${SRC_ROOT}/graphics/view/*.cpp)
+file(GLOB GRAPHICS_FONTGEN_FILES ${SRC_ROOT}/graphics/fontgen/*.cpp)
+file(GLOB SOUND_FILES ${SRC_ROOT}/sound/*.cpp)
+file(GLOB WIDGET_FILES ${SRC_ROOT}/widget/*.cpp)
+file(GLOB WIDGET_CITY_FILES ${SRC_ROOT}/widget/city/*.cpp)
+file(GLOB OVERLAYS_FILES ${SRC_ROOT}/overlays/*.cpp)
+file(GLOB WIDGET_SIDEBAR_FILES ${SRC_ROOT}/widget/sidebar/*.cpp)
+file(GLOB WINDOW_ADVISOR_FILES ${SRC_ROOT}/window/advisor/*.cpp)
+file(GLOB WINDOW_FILES ${SRC_ROOT}/window/*.cpp)
+file(GLOB WINDOW_EDITOR_FILES ${SRC_ROOT}/window/editor/*.cpp)
+file(GLOB WINDOW_BUILDING_FILES ${SRC_ROOT}/window/building/*.cpp)
+file(GLOB DEV_FILES ${SRC_ROOT}/dev/*.cpp)
+file(GLOB DEBUG_FILES ${SRC_ROOT}/debug/*.cpp)
+file(GLOB EDITOR_FILES ${SRC_ROOT}/editor/*.cpp)
+file(GLOB TRANSLATION_FILES ${SRC_ROOT}/translation/*.cpp)
+file(GLOB GRAPHICS_FILES ${SRC_ROOT}/graphics/*.cpp)
+file(GLOB IO_FILES ${SRC_ROOT}/io/*.cpp)
+file(GLOB IO_GAMEFILES_FILES ${SRC_ROOT}/io/gamefiles/*.cpp)
+file(GLOB IO_GAMESTATE_FILES ${SRC_ROOT}/io/gamestate/*.cpp)
+file(GLOB IO_OG_SAVE_FILES ${SRC_ROOT}/io/og_save/*.cpp)
+file(GLOB RESOURCE_FILES ${SRC_ROOT}/resource/*.cpp)
+file(GLOB JS_FILES ${SRC_ROOT}/js/*.cpp)
+file(GLOB JS_TEST_FILES ${SRC_ROOT}/js/test/*.cpp)
+file(GLOB SCRIPTS_FILES ${SRC_ROOT}/scripts/*.cpp)
+file(GLOB NET_FILES ${SRC_ROOT}/net/*.cpp)
+file(GLOB LZMA_FILES ${SRC_ROOT}/lzma/*.c)
+file(GLOB BZIP_FILES ${SRC_ROOT}/bzip/*.c)
+file(GLOB LAME_FILES ${SRC_ROOT}/lame/libmp3lame/*.c)
+file(GLOB MUJS_FILES ${SRC_ROOT}/mujs/*.cpp)
+
+if(ANDROID)
+    list(FILTER DEV_FILES EXCLUDE REGEX ".*/perfmon\\.cpp$")
+    list(FILTER DEV_FILES EXCLUDE REGEX ".*/perfmon_nanoprofiler\\.cpp$")
+    list(FILTER DEV_FILES EXCLUDE REGEX ".*/perfmon_widget\\.cpp$")
+endif()
+
+# ImGui sources (fetched by Gradle).
+set(IMGUI_FILES
+    ${DEPS_ROOT}/imgui-src/imgui.cpp
+    ${DEPS_ROOT}/imgui-src/imgui_draw.cpp
+    ${DEPS_ROOT}/imgui-src/imgui_tables.cpp
+    ${DEPS_ROOT}/imgui-src/imgui_widgets.cpp
+    ${DEPS_ROOT}/imgui-src/backends/imgui_impl_sdl2.cpp
+    ${DEPS_ROOT}/imgui-src/backends/imgui_impl_sdlrenderer2.cpp
+    ${DEPS_ROOT}/imgui-src/misc/cpp/imgui_stdlib.cpp
+)
+
+# Prebuilt libs live under prebuilt/; build and place them under android/prebuilt/${ANDROID_ABI}/ first.
+
+# All translation units for the shared library.
+set(SOURCE_FILES
+    ${PLATFORM_FILES}
+    ${ANDROID_FILES}
+    ${CONFIG_FILES}
+    ${CONTENT_FILES}
+    ${CORE_FILES}
+    ${CORE_ENCODING_FILES}
+    ${BUILDING_FILES}
+    ${BUILDING_CONSTRUCTION_FILES}
+    ${CITY_FILES}
+    ${EMPIRE_FILES}
+    ${FIGURE_FILES}
+    ${FIGURETYPE_FILES}
+    ${GAME_FILES}
+    ${TUTORIAL_FILES}
+    ${INPUT_FILES}
+    ${GRID_FILES}
+    ${GRID_ROUTING_FILES}
+    ${SCENARIO_FILES}
+    ${GRAPHICS_FILES}
+    ${GRAPHICS_ELEMENTS_FILES}
+    ${GRAPHICS_VIEW_FILES}
+    ${GRAPHICS_FONTGEN_FILES}
+    ${SOUND_FILES}
+    ${WIDGET_FILES}
+    ${WIDGET_CITY_FILES}
+    ${OVERLAYS_FILES}
+    ${WIDGET_SIDEBAR_FILES}
+    ${WINDOW_FILES}
+    ${WINDOW_ADVISOR_FILES}
+    ${WINDOW_EDITOR_FILES}
+    ${WINDOW_BUILDING_FILES}
+    ${DEV_FILES}
+    ${DEBUG_FILES}
+    ${EDITOR_FILES}
+    ${TRANSLATION_FILES}
+    ${IO_FILES}
+    ${IO_GAMEFILES_FILES}
+    ${IO_GAMESTATE_FILES}
+    ${IO_OG_SAVE_FILES}
+    ${RESOURCE_FILES}
+    ${JS_FILES}
+    ${JS_TEST_FILES}
+    ${SCRIPTS_FILES}
+    ${NET_FILES}
+    ${LZMA_FILES}
+    ${BZIP_FILES}
+    ${LAME_FILES}
+    ${MUJS_FILES}
+    ${IMGUI_FILES}
+)
+
+# Embedded resources (CMRC).
+set(PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../")
+set(SCRIPTS_FOLDER "${PROJECT_ROOT}/src/scripts")
+file(GLOB_RECURSE SCRIPT_FILES "${SCRIPTS_FOLDER}/*.js")
+set(RES_FOLDER "${PROJECT_ROOT}/res")
+
+cmrc_add_resource_library(
+    resources
+    ALIAS akhenaten::rc
+    NAMESPACE akhenaten
+)
+
+# Register resources with base path (WHENCE).
+cmrc_add_resources(
+    resources
+    WHENCE ${PROJECT_ROOT}
+    ${SCRIPT_FILES}
+    ${PROJECT_ROOT}/data/neucha.ttf
+    ${RES_FOLDER}/akhenaten_72.png
+    ${RES_FOLDER}/patreon_48.png
+)
+
+# Shared library target.
+add_library(akhenaten SHARED ${SOURCE_FILES})
+
+if (LAME_FILES)
+    set_source_files_properties(${LAME_FILES} PROPERTIES COMPILE_FLAGS "-Wno-absolute-value")
+endif()
+
+if (MUJS_FILES)
+    set_source_files_properties(${MUJS_FILES} PROPERTIES COMPILE_FLAGS "-Wno-writable-strings")
+endif()
+
+set_source_files_properties(${SRC_ROOT}/core/interlocked.cpp PROPERTIES COMPILE_FLAGS "-Wno-atomic-alignment")
+
+# Include directories.
+target_include_directories(akhenaten PRIVATE
+    ${SRC_ROOT}
+    ${SRC_ROOT}/mujs
+    ${SRC_ROOT}/lame/include
+    ${PREBUILT_INCLUDE_DIR}
+    ${PREBUILT_INCLUDE_DIR}/SDL2
+    ${PREBUILT_INCLUDE_DIR}/SDL2_mixer
+    ${PREBUILT_INCLUDE_DIR}/freetype2
+    ${PREBUILT_INCLUDE_DIR}/harfbuzz
+    ${PREBUILT_INCLUDE_DIR}/png
+    ${DEPS_ROOT}/imgui-src
+    ${DEPS_ROOT}/imgui-src/backends
+    ${DEPS_ROOT}/imgui-src/misc/cpp
+    ${DEPS_ROOT}/stb-src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../ext
+    ${CMRC_INCLUDE_DIR}
+)
+
+# Preprocessor / compile definitions.
+string(TIMESTAMP GAME_BUILD_DATE "%Y-%m-%d" UTC)
+string(TIMESTAMP GAME_BUILD_TIME "%H:%M:%S" UTC)
+target_compile_definitions(akhenaten PRIVATE
+    ANDROID_BUILD=ON
+    GAME_BUILD_NUMBER=0
+    "GAME_BUILD_DATE=\"${GAME_BUILD_DATE}\""
+    "GAME_BUILD_TIME=\"${GAME_BUILD_TIME}\""
+    HAVE_MEMCPY=1
+    STDC_HEADERS=1
+    HAVE_MPGLIB=1
+)
+
+# Compiler options (C++ only).
+target_compile_options(akhenaten PRIVATE
+    $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wno-format-security>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wno-switch>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wno-absolute-value>
+)
+
+# Link prebuilt and system libraries.
+target_link_libraries(akhenaten
+    akhenaten::rc
+    ${PREBUILT_LIB_DIR}/libSDL2-static.a
+    ${PREBUILT_LIB_DIR}/libSDL2_mixer.a
+    ${PREBUILT_LIB_DIR}/libzlibstatic.a
+    ${PREBUILT_LIB_DIR}/libfreetype.a
+    ${PREBUILT_LIB_DIR}/libharfbuzz.a
+    ${PREBUILT_LIB_DIR}/libpng.a
+    log
+    android
+    EGL
+    GLESv2
+    GLESv1_CM
+    OpenSLES
+    c++_static
+)

@@ -1,0 +1,2455 @@
+log_info("akhenaten: localization_hu config started")
+
+localization_hu = [
+  {key:"#TR_NO_PATCH_TITLE", text:"Hiányzó javítócsomag"}
+  {key:"#TR_NO_PATCH_MESSAGE", text:"A Pharaoh telepítéséből hiányzik a szükséges javítócsomag."}
+  {key:"#TR_MISSING_FONTS_TITLE", text:"Hiányzó betűkészletek"}
+  {key:"#TR_MISSING_FONTS_MESSAGE", text:"A Pharaoh telepítéséből hiányoznak a szükséges betűkészletek."}
+  {key:"#TR_NO_EDITOR_TITLE", text:"A szerkesztő nincs telepítve"}
+  {key:"#TR_NO_EDITOR_MESSAGE", text:"A Pharaoh telepítése nem tartalmazza a szerkesztő fájljait."}
+  {key:"#editor_generate_map", text:"Térkép generálása"}
+  {key:"#TR_INVALID_LANGUAGE_TITLE", text:"Érvénytelen nyelvi mappa"}
+  {key:"#TR_INVALID_LANGUAGE_MESSAGE", text:"A kiválasztott mappa nem tartalmaz érvényes nyelvi csomagot. A részletekért ellenőrizd a naplót."}
+  {key:"#TR_BUTTON_OK", text:"OK"}
+  {key:"#TR_CONFIG_IRONWILL", text:"Vasfegyelem mód — mentés csak a főmenübe lépéskor (Save, Ctrl+S, autosave, quicksave/load tiltva)"}
+  {key:"#TR_CONFIG_UNLOCK_ALL_CAMPAIGNS", text:"Összes kampányidőszak feloldása a Family History-ban"}
+  {key:"#ironwill_briefing_label", text:"Vasfegyelem"}
+  {key:"#ironwill_save_blocked", text:"Vasfegyelem: mentés csak kilépéskor a menübe"}
+  {key:"#ironwill_load_blocked", text:"Vasfegyelem: betöltés csak a főmenüből (Continue)"}
+  {key:"#ironwill_save_failed", text:"Vasfegyelem mentés sikertelen — a városban maradsz"}
+  {key:"#TR_BUTTON_CANCEL", text:"Mégse"}
+  {key:"#TR_BUTTON_PAUSE", text:"Szünet"}
+  {key:"#TR_BUTTON_RESUME", text:"Folytatás"}
+  {key:"#TR_GAME_PAUSED", text:"A játék szüneteltetve ('{0}' billentyűvel folytatható)"}
+  {key:"#TR_BUTTON_RESET_DEFAULTS", text:"Alapértékek visszaállítása"}
+  {key:"#TR_BUTTON_CONFIGURE_HOTKEYS", text:"Gyorsbillentyűk beállítása"}
+  {key:"#TR_BUTTON_NEXT", text:"+"}
+  {key:"#TR_BUTTON_PREV", text:"-"}
+  {key:"#TR_CONFIG_TITLE", text:"Kibővített beállítások"}
+  {key:"#TR_CONFIG_LANGUAGE_LABEL", text:"Nyelv:"}
+  {key:"#TR_CONFIG_LANGUAGE_DEFAULT", text:"(alapértelmezett)"}
+  {key:"#TR_CONFIG_PAGE_LABEL", text:"Oldal"}
+  {key:"#TR_CONFIG_HEADER_UI_CHANGES", text:"Felhasználói felület"}
+  {key:"#TR_CONFIG_HEADER_GAMEPLAY_CHANGES", text:"Játékmenet"}
+  {key:"#TR_CONFIG_HEADER_GODS_CHANGES", text:"Istenek"}
+  {key:"#TR_CONFIG_HEADER_BUILDING_CHANGES", text:"Épületek"}
+  {key:"#TR_CONFIG_HEADER_RESOURCE_CHANGES", text:"Erőforrások"}
+  {key:"#TR_CONFIG_SHOW_INTRO_VIDEO", text:"Bevezető videók lejátszása"}
+  {key:"#TR_CONFIG_HIDE_NEW_GAME_TOP_MENU", text:"Új játék gomb elrejtése a felső menüben"}
+  {key:"#TR_CONFIG_SAVE_YEAR_KINGDOME_RATING", text:"Birodalmi besorolás mentése éves frissítéskor"}
+  {key:"#TR_CONFIG_SIDEBAR_INFO", text:"További információk a vezérlőpanelen"}
+  {key:"#TR_CONFIG_BUILDING_MOTHBALL_BUTTON", text:"Épület leállítása gomb megjelenítése az épületablakokban"}
+  {key:"#TR_CONFIG_PROMPT_SAVE_ON_EXIT", text:"Kilépéskor mentés felajánlása (Alt+F4)"}
+  {key:"#dock_order_trade", text:"Kereskedés"}
+  {key:"#dock_order_dont_trade", text:"Nincs kereskedés"}
+  {key:"#dock_order_accept_all", text:"Mindent elfogad"}
+  {key:"#dock_orders_hint", text:"A hajók csak akkor használják ezt a dokkot, ha legalább egy árujuk Kereskedésre van állítva."}
+  {key:"#dock_orders_closed", text:"Ez a dokk nem fogad árukat — a hajók nem kötnek ki itt."}
+  {key:"#TR_CONFIG_SMOOTH_SCROLLING", text:"Folyamatos görgetés engedélyezése"}
+  {key:"#TR_CONFIG_SMOOTH_ZOOM", text:"Folyamatos nagyítás engedélyezése"}
+  {key:"#TR_CONFIG_VISUAL_FEEDBACK_ON_DELETE", text:"Területrendezés vizuális visszajelzésének javítása"}
+  {key:"#TR_CONFIG_ALLOW_CYCLING_TEMPLES", text:"Templomok egymás utáni építésének engedélyezése"}
+  {key:"#TR_CONFIG_SHOW_WATER_STRUCTURE_RANGE", text:"Víztározók, szökőkutak és kutak hatótávolságának megjelenítése építéskor"}
+  {key:"#TR_CONFIG_SHOW_BUILDING_ROAD_ACCESS", text:"Épület útkapcsolati mezőjének megjelenítése elhelyezéskor vagy rámutatáskor (klasszikus: egy mező)"}
+  {key:"#TR_CONFIG_SHOW_DELIVERY_PATHS", text:"Szállítási útvonalak megjelenítése Alt lenyomva tartásával siló vagy vadászház fölött"}
+  {key:"#delivery_path_no_road", text:"Nincs útcsatlakozás — szállítás lehetetlen"}
+  {key:"#delivery_path_understaffed", text:"Nincs fogadó raktár — nincs elég munkás"}
+  {key:"#delivery_path_no_destination", text:"Nincs fogadó célhely ehhez az áruhoz"}
+  {key:"#delivery_path_no_route", text:"Van cél, de nincs útvonal az utakon"}
+  {key:"#TR_CONFIG_SHOW_CONSTRUCTION_SIZE", text:"Húzható építmények méretének megjelenítése"}
+  {key:"#TR_CONFIG_PAUSE_SIM_WHILE_BUILDING", text:"Szimuláció szüneteltetése épületek elhelyezése közben" }
+  {key:"#TR_CONFIG_HIGHLIGHT_LEGIONS", text:"Légió kiemelése a kurzor ráhúzásakor"}
+  {key:"#TR_CONFIG_ROTATE_MANUALLY", text:"Kapuház és diadalív forgatása gyorsbillentyűvel"}
+  {key:"#TR_CONFIG_FIX_IMMIGRATION_BUG", text:"Bevándorlási hiba javítása nagyon nehéz fokozaton"}
+  {key:"#TR_CONFIG_FIX_100_YEAR_GHOSTS", text:"100 éves szellemek hibájának javítása"}
+  {key:"#TR_CONFIG_FIX_EDITOR_EVENTS", text:"Uralkodóváltás és túlélési idő javítása egyéni küldetésekben"}
+  {key:"#TR_CONFIG_DRAW_WALKER_WAYPOINTS", text:"Járókelők útvonalpontjainak megjelenítése fedvényen jobb kattintás után"}
+  {key:"#TR_CONFIG_ZOOM_STEPPED", text:"Nagyítás engedélyezése (lassabb lehet, több RAM-ot használ)"}
+  {key:"#TR_CONFIG_COMPLETE_RATING_COLUMNS", text:"Alacsony célértékeknél hiányzó értékelési oszlopok javítása"}
+  {key:"#TR_CONFIG_GRANDFESTIVAL", text:"A nagy ünnepségek további isteni áldást adhatnak"}
+  {key:"#TR_CONFIG_JEALOUS_GODS", text:"Az istenek féltékenységének kikapcsolása"}
+  {key:"#TR_CONFIG_GLOBAL_LABOUR", text:"Globális munkaerőpiac engedélyezése"}
+  {key:"#TR_CONFIG_NOBLES_DONT_PROVIDE_LABOR", text:"A kúriák és magasabb házak nem adnak munkaerőt"}
+  {key:"#TR_CONFIG_SCHOOL_WALKERS", text:"Iskolai járókelők hatótávjának növelése"}
+  {key:"#TR_CONFIG_RETIRE_AT_60", text:"Nyugdíjkorhatár emelése 50-ről 60 évre"}
+  {key:"#TR_CONFIG_FIXED_WORKERS", text:"Rögzített munkaerő: a közemberek 38%-a"}
+  {key:"#workers_staffing_tooltip", text:"%d / %d dolgozó"}
+  {key:"#TR_CONFIG_EXTRA_FORTS", text:"4 további erőd építésének engedélyezése"}
+  {key:"#TR_CONFIG_WOLVES_BLOCK", text:"Építés tiltása a farkasok közelében"}
+  {key:"#TR_CONFIG_DYNAMIC_GRANARIES", text:"A magtárakhoz nem vezethetnek zsákutcák"}
+  {key:"#TR_CONFIG_MORE_STOCKPILE", text:"A házak több árut halmoznak fel a piacról"}
+  {key:"#TR_CONFIG_NO_BUYER_DISTRIBUTION", text:"A beszerző piaci árusok nem osztanak szét árut"}
+  {key:"#TR_CONFIG_IMMEDIATELY_DELETE_BUILDINGS", text:"Épületek azonnali lebontása"}
+  {key:"#TR_CONFIG_GETTING_GRANARIES_GO_OFFROAD", text:"A beszállító magtárak taligásai letérhetnek az útról"}
+  {key:"#TR_CONFIG_GRANARIES_GET_DOUBLE", text:"A beszállító magtárak taligásainak kapacitása kétszeres"}
+  {key:"#TR_CONFIG_DOCK_DOUBLE_HAUL", text:"A dokkmunkások kétszeres rakományt szállítanak (800/út)"}
+  {key:"#TR_CONFIG_TRADER_CAPACITY_1600", text:"Nagyobb kereskedőkapacitás (1600/látogatás; nem éves birodalmi limit)"}
+  {key:"#TR_CONFIG_TRADER_PER_GOOD_1600", text:"New Era: árunként max 1600/látogatás (nem éves limit; nem csak összes kapacitás)"}
+  {key:"#trader_capacity_per_good", text:"Kapacitás (árunként)"}
+  {key:"#TR_CONFIG_BAST_LION_RAID", text:"Bast haragja: oroszlánrajtaütés templomokból/állatkertből (TEMP Enhanced)"}
+  {key:"#TR_CONFIG_SETH_ASP_RAID", text:"Seth haragja: kígyórajtaütés templomokból század nélkül (TEMP Enhanced)"}
+  {key:"#TR_CONFIG_PTAH_SCORPION_RAID", text:"Ptah haragja: skorpiórajtaütés templomokból ipar nélkül (TEMP Enhanced)"}
+  {key:"#TR_CONFIG_AUTO_RESOLVE_INVASIONS", text:"Inváziók auto-megoldása: az ellenség a bejáratnál vár, gyorscsata 8 nap múlva (fal/torony nem számít; fáraó benne; nem felkelés)"}
+  {key:"#TR_CONFIG_INVASION_BRIBE", text:"Megszállók megvesztegetése: deben fizetésével visszavonulásra késztetheted a külföldi/fáraói megszállókat (nem vonatkozik a királyság hadseregére vagy felkelésekre)"}
+  {key:"#invasion_bribe_button", text:"Megvesztegetés"}
+  {key:"#invasion_bribe_cost_line", text:"Megvesztegetés: {cost} Db   Kincstár: {treasury}"}
+  {key:"#TR_CONFIG_FLOOD_BASINS", text:"Enhanced: gátak / medencék (zárd körbe — jobb termés áradás után)"}
+  {key:"#TR_CONFIG_FOOD_MILL", text:"Enhanced: bazár ételváltozatosság + malom épület (ideiglenes grafika)"}
+  {key:"#TR_CONFIG_INDUSTRY_OFFICE", text:"Enhanced: ipari hivatal — műhelyek leállítása sugárban (papirusz + írnokok)"}
+  {key:"#TR_CONFIG_LABOR_CATEGORY_SPLIT", text:"Enhanced: raktárak/dokkok külön az ipartól a munkaügyi tanácsadóban"}
+  {key:"#TR_CONFIG_WALKER_SPAWN_BOOST", text:"Enhanced: gyakoribb szolgálati járók (alacsony létszám kevésbé szigorú)"}
+  {key:"#TR_CONFIG_WALKER_MOVE_BOOST", text:"Enhanced: gyorsabb polgárok / rövidebb taliga-várakozás"}
+  {key:"#TR_CONFIG_FESTIVAL_CALENDAR", text:"Enhanced: szezonális naptári szertartások (fesztivál témák)"}
+  {key:"#TR_CONFIG_LOCAL_CULTS", text:"Enhanced: helyi kultuszok a templomkomplexum oltárán/orákulumán"}
+  {key:"#local_cult_anubis", text:"Anubisz"}
+  {key:"#local_cult_thoth", text:"Thot"}
+  {key:"#local_cult_hathor", text:"Hathor"}
+  {key:"#local_cult_inactive", text:"Építsd meg a hozzá tartozó oltárt vagy jósdát a befogadó komplexumban"}
+  {key:"#local_cults_header", text:"Helyi kultuszok"}
+  {key:"#festival_calendar_upcoming", text:"Közelgő szertartás"}
+  {key:"#labor_category_storage", text:"Tárolás és elosztás"}
+  {key:"#labor_category_industry", text:"Ipar"}
+  {key:"#labor_category_industry_commerce", text:"Ipar és kereskedelem"}
+  {key:"#labor_category_culture", text:"Kultúra"}
+  {key:"#TR_CONFIG_HISTORICAL_ECONOMY", text:"Enhanced: történelmi gazdaság — a deben értékmérő; a bérek egy része magtári gabonából"}
+  {key:"#finance_deben_unit_of_account", text:"deben-súly"}
+  {key:"#finance_historical_economy_hint", text:"A deben értékmérő (fémsúly), nem érme. A munka egy része magtári gabonából fizethető, ha van."}
+  {key:"#finance_wages_paid_in_grain", text:"Gabonában fizetett bér (deben-egyenérték)"}
+  {key:"#building_food_mill", text:"Malom (ideiglenes)"}
+  {key:"#building_food_mill_info", text:"Élelmiszerraktár a bazárokhoz. A farmok a magtárakat töltik; a malmon állíts GET-et magtárból/raktárból. A bazárok a feltöltött malmot részesítik előnyben, és egy látogatáson több ételtípust vihetnek. Ideiglenes grafika (zöld kockák)."}
+  {key:"#building_industry_office", text:"Ipari hivatal (ideiglenes)"}
+  {key:"#building_industry_office_info", text:"Az írnokok a közeli ipari létesítményeket irányítják, amíg papiruszkészlet áll rendelkezésre. A zöld kockák az épület helyét jelölik, amíg az elkészített grafika meg nem érkezik."}
+  {key:"#industry_office_managing", text:"Irányított műhelyek:"}
+  {key:"#industry_office_needs_papyrus", text:"Papirusz szükséges"}
+  {key:"#industry_office_needs_workers", text:"Írnokok szükségesek (dolgozók)"}
+  {key:"#industry_office_inactive", text:"A hivatal inaktív"}
+  {key:"#industry_office_working", text:"Gyártási megrendelések kiadása"}
+  {key:"#industry_office_mothball_all", text:"Összes leállítása"}
+  {key:"#industry_office_unmothball_all", text:"Összes újraindítása"}
+  {key:"#food_mill_no_road_access", text:"A malomnak nincs útcsatlakozása. A munkások nem tudnak ételt szállítani."}
+  {key:"#food_mill_storing", text:"Tárolva"}
+  {key:"#food_mill_space_for", text:"Hely"}
+  {key:"#food_mill_units", text:"egység"}
+  {key:"#food_mill_quality_now", text:"Élelmiszer minősége:"}
+  {key:"#food_mill_variety_none", text:"nincs (üres)"}
+  {key:"#food_mill_variety_bland", text:"Ízetlen"}
+  {key:"#food_mill_variety_plain", text:"Egyszerű"}
+  {key:"#food_mill_variety_appetizing", text:"Ínycsiklandó"}
+  {key:"#food_mill_variety_tasty", text:"Ízletes"}
+  {key:"#bazaar_desired_variety", text:"Kívánt ételtípusok:"}
+  {key:"#bazaar_min_variety", text:"Min. malom-változatosság:"}
+  {key:"#bazaar_waiting_mill_variety", text:"Várakozás a malom ételváltozatosságára."}
+  {key:"#TR_CONFIG_ENHANCED_NILOMETER", text:"Enhanced: nilométer HUD (áradás minősége, fázis, ártér info)"}
+  {key:"#TR_CONFIG_ENHANCED_SHRINE_INFO", text:"Enhanced: szentély leíró szöveg az vizsgáló ablakban"}
+  {key:"#flood_phase_imminent", text:"Áradás közelít"}
+  {key:"#flood_phase_flooding", text:"Áradás"}
+  {key:"#flood_phase_inundated", text:"Elárasztva"}
+  {key:"#flood_phase_contracting", text:"Víz visszahúzódik"}
+  {key:"#flood_phase_resting", text:"Áradás pihen"}
+  {key:"#flood_phase_farmable", text:"Ártér művelhető"}
+  {key:"#nilometer_last_prefix", text:"Előző áradás:"}
+  {key:"#nilometer_hud_tooltip", text:"Nilométer — következő áradás és aktuális ártéri fázis"}
+  {key:"#building_dike", text:"Gát"}
+  {key:"#building_dike_info", text:"Földsánc az ártéri medence-öntözéshez. Zárd körbe a földeket — jobb termés az áradás után."}
+  {key:"#terrain_dike_sealed", text:"Zárt medence"}
+  {key:"#terrain_dike_breached", text:"Nincs zárt medence mellette — zárd körbe az ártéri farmokat, hogy megmaradjon az áradás ajándéka."}
+  {key:"#terrain_dike_tiles", text:"mező"}
+  {key:"#terrain_dike_farms", text:"farm"}
+  {key:"#terrain_dike_bonus_hint", text:"Zárt kontúr mellett jobb a termékenység és a farm növekedése."}
+  {key:"#farm_in_flood_basin", text:"Ártéri medencében — jobb termés az áradás után, amíg a kontúr zárt."}
+  {key:"#overlay_flood_basin", text:"Ártéri medencék"}
+  {key:"#overlay_flood_basin_off", text:"Ártéri medencék (Enhanced) kikapcsolva"}
+  {key:"#overlay_flood_basin_open", text:"Nyílt ártér — nincs zárt medence"}
+  {key:"#overlay_flood_basin_none", text:"Itt nincs ártéri medence"}
+  {key:"#warning_auto_resolve_orders_blocked", text:"A századok nem vonulhatnak befagyasztott inváziós hullámra"}
+  {key:"#warning_auto_resolve_queue_full", text:"Túl sok várakozó invázió — ez a hullám a térképen harcol"}
+  {key:"#follow_walker", text:"Gyalogos követése"}
+  {key:"#stop_following", text:"Stop"}
+  {key:"#warning_follow_walker_lost", text:"A követett gyalogos elveszett"}
+  {key:"#invasion_quick_battle_title", text:"Gyorscsata"}
+  {key:"#invasion_quick_battle_hint", text:"A támadók a bejáratnál várnak. Toborozz, ha kell. Harcolj most, vagy várd ki az időzítőt."}
+  {key:"#invasion_quick_battle_resolve", text:"Harcolj most"}
+  {key:"#invasion_quick_battle_wait", text:"Várakozás"}
+  {key:"#invasion_quick_battle_strength", text:"Erőitek: {player}   Ellenség: {enemy}"}
+  {key:"#invasion_quick_battle_days", text:"Csata {days} nap múlva"}
+  {key:"#invasion_quick_battle_queue", text:"({n} a sorban)"}
+  {key:"#invasion_quick_battle_head", text:"Hullám #{id} ({i}/{n})"}
+  {key:"#invasion_quick_battle_none", text:"Nincs várakozó csata"}
+  {key:"#TR_CONFIG_BAZAAR_MULTI_BUYERS", text:"A bazárok egyszerre két beszerzőt küldhetnek (élelem + áruk)"}
+  {key:"#TR_CONFIG_TOWER_SENTRIES_GO_OFFROAD", text:"Az őrtornyok őreinek nem kell útkapcsolat a laktanyához"}
+  {key:"#TR_CONFIG_FARMS_DELIVER_CLOSE", text:"A farmok és kikötők csak közeli magtárakba szállítanak"}
+  {key:"#TR_CONFIG_FARM_HARVEST_FERTILITY", text:"Ártéri aratás termékenység szerint (remake; eredeti: csak progress)"}
+  {key:"#TR_CONFIG_FARM_MEADOW_HARVEST_RETRY", text:"Réti farmok 1. napon is aratnak (remake; eredeti: csak 0. nap)"}
+  {key:"#TR_CONFIG_FARM_HARVEST_FERTILITY", text:"Ártéri aratás termékenység szerint (remake; eredeti: csak progress)"}
+  {key:"#TR_CONFIG_FARM_MEADOW_HARVEST_RETRY", text:"Réti farmok 1. napon is aratnak (remake; eredeti: csak 0. nap)"}
+  {key:"#TR_CONFIG_DELIVER_ONLY_TO_ACCEPTING_GRANARIES", text:"Az élelem nem kerül beszállító magtárakba"}
+  {key:"#TR_CONFIG_ALL_HOUSES_MERGE", text:"Minden ház összevonható"}
+  {key:"#TR_CONFIG_RANDOM_COLLAPSES_TAKE_MONEY", text:"A véletlen bányaomlások pénzveszteséget okoznak"}
+  {key:"#TR_CONFIG_DISASTER_EVENTS_USE_AMOUNT", text:"Agyagárvíz / aranybánya-omlás az esemény amount épületét rombolja"}
+  {key:"#TR_CONFIG_MULTIPLE_BARRACKS", text:"Több laktanya építésének engedélyezése"}
+  {key:"#TR_CONFIG_NOT_ACCEPTING_WAREHOUSES", text:"Az új raktárak kezdetben semmit sem fogadnak"}
+  {key:"#TR_CONFIG_HOUSES_DONT_EXPAND_INTO_GARDENS", text:"A házak nem terjeszkednek a kertekre"}
+  {key:"#TR_CONFIG_IRRIGATION_RANGE_5X5", text:"Farmok öntözése 5x5-ös területről"}
+  {key:"#TR_CONFIG_FIX_FARM_PRODUCING", text:"Farmtermelés javítása"}
+  {key:"#TR_CONFIG_EMPIRE_MAP_RUNS_SIMULATION", text:"A város szimulációja a birodalmi térképen is fut"}
+  {key:"#TR_CONFIG_CAMERA_KEEP_INERTIA", text:"A kamera megtartja a tehetetlenségét"}
+  {key:"#TR_CONFIG_UNDERSTAFFED_ACCEPT_GOODS", text:"Alulfinanszírozott épületek is fogadnak árut"}
+  {key:"#TR_CONFIG_MULTIPLE_TEMPLE_COMPLEXES", text:"Több templomkomplexum engedélyezése"}
+  {key:"#TR_CONFIG_MULTIPLE_MONUMENTS", text:"Több emlékmű építésének engedélyezése"}
+  {key:"#TR_CONFIG_SOIL_DEPLETION", text:"Talaj kimerülése"}
+  {key:"#TR_CONFIG_MULTIPLE_GATHERERS", text:"Több gyűjtögető engedélyezése"}
+  {key:"#TR_CONFIG_FIREMAN_RETURNING", text:"A tűzoltó visszatér oltás után"}
+  {key:"#TR_CONFIG_ARCHITECT_PATROL_MOST_DAMAGED", text:"Az építészek útvonala a legsúlyosabban megrongálódott épületekhez"}
+  {key:"#TR_CONFIG_CART_SPEED_DEPENDS_QUANTITY", text:"A taliga sebessége a rakománytól függ"}
+  {key:"#TR_CONFIG_CH_CITIZEN_ROAD_OFFSET", text:"Eltérő útpozíciók használata a polgároknál"}
+  {key:"#TR_CONFIG_CH_WORK_CAMP_ONE_WORKER_PER_MONTH", text:"A munkatábor havonta egy munkást küld"}
+  {key:"#TR_CONFIG_CH_CLAY_PIT_FIRE_RISK_REDUCED", text:"Az agyagbánya tűzveszélye csökkentve"}
+  {key:"#TR_CONFIG_CITY_HAS_ANIMALS", text:"Állatok megjelennek a városban"}
+  {key:"#TR_CONFIG_GOLDMINE_REDUCED_PRODUCTION", text:"Az aranybánya a munkások 1/10-es ütemében termel"}
+  {key:"#TR_CONFIG_NEW_TAX_COLLECTION_SYSTEM", text:"Új adóbeszedési rendszer"}
+  {key:"#TR_CONFIG_SMALL_HUT_NOT_CREATE_EMIGRANT", text:"A kis kunyhókból nem indul kivándorlás"}
+  {key:"#TR_CONFIG_DELIVERY_BOY_GOES_TO_MARKET_ALONE", text:"A kifutó egyedül megy a piacra"}
+  {key:"#TR_CONFIG_RELIGION_COVERAGE_INFLUENCE_SENTIMENT", text:"A vallási ellátottság befolyásolja a hangulatot"}
+  {key:"#TR_CONFIG_MONUMENTS_INFLUENCE_SENTIMENT", text:"Az emlékművek befolyásolják a hangulatot"}
+  {key:"#TR_CONFIG_WELL_RADIUS_DEPENDS_MOISTURE", text:"A kút hatósugara a talaj nedvességétől függ"}
+  {key:"#TR_CONFIG_ENTER_POINT_ON_NEAREST_TILE", text:"Az épület bejárata a legközelebbi mezőre kerül"}
+  {key:"#TR_CONFIG_FISHING_WHARF_SPAWN_BOATS", text:"A halászkikötők csónakokat bocsátanak ki"}
+  {key:"#TR_CONFIG_CITY_FLOTSAM_ENABLED", text:"Uszadék megjelenítése a városban"}
+  {key:"#TR_CONFIG_COPPER_NEAR_MOUNTAINS", text:"Rézbánya építhető hegyek közelében"}
+  {key:"#TR_CONFIG_RECRUITER_NOT_NEED_FORTS", text:"A toborzónak nincs szüksége erődökre"}
+  {key:"#TR_CONFIG_BUILDING_CLOSEST_ROAD", text:"Az épület bejárata a legközelebbi úthoz kerüljön"}
+  {key:"#TR_CONFIG_FLOODPLAIN_RANDOM_GROW", text:"Ártéri növényzet véletlenszerű növekedése"}
+  {key:"#TR_CONFIG_DRAW_FPS", text:"FPS megjelenítése"}
+  {key:"#TR_CONFIG_SHOW_CURRENT_SELECT_TILE", text:"A kurzor alatti mező megjelenítése"}
+  {key:"#TR_CONFIG_SHOW_INPUT_NEAR_CURSOR", text:"Lenyomott billentyűk és egérgombok megjelenítése a kurzornál"}
+  {key:"#TR_CONFIG_ROAD_PREVIEW_IN_MAP_ORDER", text:"Útépítési előnézet rajzolása a térkép megjelenítési sorrendjében"}
+  {key:"#TR_CONFIG_HIGHLIGHT_TOP_MENU_HOVER", text:"Felső menüelemek kiemelése rámutatáskor"}
+  {key:"#TR_CONFIG_EMPIRE_CITY_OLD_NAMES", text:"Régi városnevek megjelenítése a birodalmi térképen"}
+  {key:"#TR_CONFIG_DRAW_CLOUD_SHADOWS", text:"Felhőárnyékok megjelenítése (kísérleti)"}
+  {key:"#TR_CONFIG_CONSERVATORY_HELPS_DANCE_SCHOOL", text:"A konzervatórium segíti a tánciskolát (csökkenti a kiküldési késleltetést)"}
+  {key:"#TR_CONFIG_JUGGLER_SCHOOL_ONE_WALKER", text:"A zsonglőr iskola megvárja az előző zsonglőrt (OG átfedést enged)"}
+  {key:"#TR_CONFIG_JEWELS_WORKSHOPS_CULTURE_BONUS", text:"Az ékszerkészítő műhelyek kulturális bónuszt adnak (+1 minden 3 műhely után)"}
+  {key:"#TR_CONFIG_OVERLAY_SHOW_GRAY_BUILDINGS", text:"A nem megjelenített épületek szürkén látszanak a fedvényeken"}
+  {key:"#TR_CONFIG_BREWERY_REQUIRES_WATER", text:"A sörfőzdéhez vízellátás szükséges"}
+  {key:"#TR_CONFIG_CARTPUSHERS_YIELD_BY_ID", text:"A taligások a munkásazonosító alapján szállítanak árut"}
+  {key:"#TR_CONFIG_REBALANCE_WORKSHOP_OUTPUT", text:"A műhelyek termelése a nehézségi szinthez igazodik"}
+  {key:"#TR_CONFIG_PREVENT_DELETE_NEAR_BURNING_RUINS", text:"Égő romok közelében ne lehessen bontani"}
+  {key:"#TR_CONFIG_DISABLE_NILOMETER_POPUPS", text:"A nilométer árvíz-előrejelző felugró ablakainak kikapcsolása"}
+  {key:"#TR_CONFIG_HEADER_SCENARIO_CHANGES", text:"Küldetések"}
+  {key:"#TR_CONFIG_HEADER_RESOURCES", text:"Erőforrások"}
+  {key:"#TR_CONFIG_ANIMALS", text:"Állatok"}
+  {key:"#TR_CONFIG_FLOTSAM", text:"Uszadék"}
+  {key:"#TR_GAMEPLAY_GOD_DISABLED", text:"Isten kikapcsolva"}
+  {key:"#TR_HOTKEY_TITLE", text:"Gyorsbillentyűk beállítása"}
+  {key:"#TR_HOTKEY_LABEL", text:"Gyorsbillentyű"}
+  {key:"#TR_HOTKEY_ALTERNATIVE_LABEL", text:"Másodlagos"}
+  {key:"#TR_HOTKEY_HEADER_ARROWS", text:"Nyílbillentyűk"}
+  {key:"#TR_HOTKEY_HEADER_GLOBAL", text:"Globális gyorsbillentyűk"}
+  {key:"#TR_HOTKEY_HEADER_CITY", text:"Városi gyorsbillentyűk"}
+  {key:"#TR_HOTKEY_HEADER_ADVISORS", text:"Tanácsadók"}
+  {key:"#TR_HOTKEY_HEADER_OVERLAYS", text:"Fedvények"}
+  {key:"#TR_HOTKEY_HEADER_BOOKMARKS", text:"Várostérkép könyvjelzői"}
+  {key:"#TR_HOTKEY_HEADER_EDITOR", text:"Szerkesztő"}
+  {key:"#TR_HOTKEY_HEADER_BUILD", text:"Építési gyorsbillentyűk"}
+  {key:"#TR_HOTKEY_ARROW_UP", text:"Fel"}
+  {key:"#TR_HOTKEY_ARROW_DOWN", text:"Le"}
+  {key:"#TR_HOTKEY_ARROW_LEFT", text:"Balra"}
+  {key:"#TR_HOTKEY_ARROW_RIGHT", text:"Jobbra"}
+  {key:"#TR_HOTKEY_TOGGLE_FULLSCREEN", text:"Teljes képernyő be/ki"}
+  {key:"#TR_HOTKEY_CENTER_WINDOW", text:"Ablak középre igazítása"}
+  {key:"#TR_HOTKEY_RESIZE_TO_640", text:"Ablakméret: 640×480"}
+  {key:"#TR_HOTKEY_RESIZE_TO_800", text:"Ablakméret: 800×600"}
+  {key:"#TR_HOTKEY_RESIZE_TO_1024", text:"Ablakméret: 1024×768"}
+  {key:"#TR_HOTKEY_SAVE_SCREENSHOT", text:"Képernyőkép mentése"}
+  {key:"#TR_HOTKEY_SAVE_CITY_SCREENSHOT", text:"Teljes város képernyőképének mentése"}
+  {key:"#TR_HOTKEY_LOAD_FILE", text:"Játék betöltése"}
+  {key:"#TR_HOTKEY_SAVE_FILE", text:"Játék mentése"}
+  {key:"#TR_HOTKEY_QUICKSAVE", text:"Gyorsmentés"}
+  {key:"#TR_HOTKEY_QUICKLOAD", text:"Gyorsbetöltés"}
+  {key:"#quicksave_ok", text:"Gyorsmentés kész"}
+  {key:"#quickload_ok", text:"Gyorsbetöltés kész"}
+  {key:"#quicksave_missing", text:"Nincs gyorsmentés"}
+  {key:"#quicksave_failed", text:"A gyorsmentés sikertelen"}
+  {key:"#quickload_failed", text:"A gyorsbetöltés sikertelen"}
+  {key:"#TR_HOTKEY_INCREASE_GAME_SPEED", text:"Játék gyorsítása"}
+  {key:"#TR_HOTKEY_DECREASE_GAME_SPEED", text:"Játék lassítása"}
+  {key:"#TR_HOTKEY_TOGGLE_PAUSE", text:"Szünet be/ki"}
+  {key:"#TR_HOTKEY_CYCLE_LEGION", text:"Váltás a légiók között"}
+  {key:"#TR_HOTKEY_ROTATE_MAP_LEFT", text:"Térkép forgatása balra"}
+  {key:"#TR_HOTKEY_ROTATE_MAP_RIGHT", text:"Térkép forgatása jobbra"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_LABOR", text:"Munkaügyi tanácsadó"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_MILITARY", text:"Katonai tanácsadó"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_IMPERIAL", text:"Birodalmi tanácsadó"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_RATINGS", text:"Értékelési tanácsadó"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_TRADE", text:"Kereskedelmi tanácsadó"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_POPULATION", text:"Népességi tanácsadó"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_HEALTH", text:"Egészségügyi tanácsadó"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_EDUCATION", text:"Oktatási tanácsadó"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_ENTERTAINMENT", text:"Szórakoztatási tanácsadó"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_RELIGION", text:"Vallási tanácsadó"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_FINANCIAL", text:"Pénzügyi tanácsadó"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_CHIEF", text:"Főtanácsadó"}
+  {key:"#TR_HOTKEY_SHOW_ADVISOR_HOUSING", text:"Lakhatási tanácsadó"}
+  {key:"#TR_HOTKEY_TOGGLE_OVERLAY", text:"Aktuális fedvény be/ki"}
+  {key:"#TR_HOTKEY_TOGGLE_FLAT_BUILDINGS", text:"Lapos épületnézet"}
+  { key: "#sidebar_flat_buildings", text: "Lapos nézet" }
+  { key: "#sidebar_flat_buildings_on", text: "Lapos nézet: BE" }
+  { key: "#TR_CONFIG_FLAT_BUILDINGS", text: "Lapos épületnézet (Shift+F) — magas épületek összecsukása, hogy lásd az utakat mögöttük" }
+  { key: "#TR_TOOLTIP_FLAT_BUILDINGS", text: "Lapos épületnézet (Shift+F). BE állapotban: Ctrl+jobb klikk visszaállít egy épületet." }
+  {key:"#TR_HOTKEY_SHOW_OVERLAY_WATER", text:"Víz fedvény"}
+  {key:"#TR_HOTKEY_SHOW_OVERLAY_FIRE", text:"Tűzveszély fedvény"}
+  {key:"#TR_HOTKEY_SHOW_OVERLAY_DAMAGE", text:"Károk fedvény"}
+  {key:"#TR_HOTKEY_SHOW_OVERLAY_CRIME", text:"Bűnözés fedvény"}
+  {key:"#TR_HOTKEY_ROTATE_BUILDING", text:"Épület forgatása"}
+  {key:"#TR_HOTKEY_COPY_BUILD", text:"Kurzor alatti épület másolása"}
+  {key:"#TR_HOTKEY_BUILD_CLEAR_LAND", group:68, id:21}
+  {key:"#TR_HOTKEY_BUILD_VACANT_HOUSE", group:67, id:7}
+  {key:"#TR_HOTKEY_BUILD_ROAD", group:28, id:5}
+  {key:"#TR_HOTKEY_BUILD_PLAZA", group:28, id:38}
+  {key:"#TR_HOTKEY_BUILD_GARDENS", group:28, id:39}
+  {key:"#TR_HOTKEY_BUILD_FIREHOUSE", group:28, id:167}
+  {key:"#TR_HOTKEY_BUILD_ARCHITECT", group:28, id:81}
+  {key:"#TR_HOTKEY_BUILD_APOTHECARY", group:28, id:46}
+  {key:"#TR_HOTKEY_BUILD_GRANARY", group:28, id:71}
+  {key:"#TR_HOTKEY_BUILD_STORAGE_YARD", group:28, id:72}
+  {key:"#TR_HOTKEY_BUILD_BAZAAR", group:28, id:70}
+  {key:"#TR_HOTKEY_BUILD_WALL", group:28, id:6}
+  {key:"#TR_HOTKEY_BUILD_GATEHOUSE", group:28, id:58}
+  {key:"#TR_HOTKEY_BUILD_WATERLIFT", group:28, id:7}
+  {key:"#TR_HOTKEY_BUILD_CANAL", group:28, id:8}
+  {key:"#TR_HOTKEY_BUILD_WATER_SUPPLY", group:28, id:180}
+  {key:"#TR_HOTKEY_BUILD_ROADBLOCK", group:28, id:138}
+  {key:"#TR_HOTKEY_SHOW_OVERLAY_PROBLEMS", text:"Problémák fedvény"}
+  {key:"#TR_HOTKEY_SHOW_OVERLAY_MALARIA_RISK", text:"Maláriakockázat fedvény"}
+  {key:"#TR_HOTKEY_SHOW_OVERLAY_DISEASE", text:"Betegség fedvény"}
+  {key:"#TR_HOTKEY_SHOW_OVERLAY_HIDE_CLIFFS", text:"Sziklák elrejtése"}
+  { key: "#grain_stocks_none", text: "This house has no stocks of grain" }
+  { key: "#grain_stocks_low", text: "This house will soon eat through its limited stocks of grain" }
+  { key: "#grain_stocks_medium", text: "This house has grain stocks to last for at least the coming month" }
+  { key: "#grain_stocks_high", text: "This house has no problems in getting the grain it requires" }
+  { key: "#chickpeas_stocks_none", text: "This house has no stocks of chickpeas" }
+  { key: "#chickpeas_stocks_low", text: "This house will soon eat through its limited stocks of chickpeas" }
+  { key: "#chickpeas_stocks_medium", text: "This house has chickpea stocks to last for at least the coming month" }
+  { key: "#chickpeas_stocks_high", text: "This house has no problems in getting the chickpeas it requires" }
+  { key: "#pomegranates_stocks_none", text: "This house has no stocks of pomegranates" }
+  { key: "#pomegranates_stocks_low", text: "This house will soon eat through its limited stocks of pomegranates" }
+  { key: "#pomegranates_stocks_medium", text: "This house has pomegranate stocks to last for at least the coming month" }
+  { key: "#pomegranates_stocks_high", text: "This house has no problems in getting the pomegranates it requires" }
+  { key: "#figs_stocks_none", text: "This house has no stocks of figs" }
+  { key: "#figs_stocks_low", text: "This house will soon eat through its limited stocks of figs" }
+  { key: "#figs_stocks_medium", text: "This house has fig stocks to last for at least the coming month" }
+  { key: "#figs_stocks_high", text: "This house has no problems in getting the figs it requires" }
+  { key: "#meat_stocks_none", text: "This house has no stocks of meat" }
+  { key: "#meat_stocks_low", text: "This house will soon eat through its limited stocks of meat" }
+  { key: "#meat_stocks_medium", text: "This house has meat stocks to last for at least the coming month" }
+  { key: "#meat_stocks_high", text: "This house has no problems in getting the meat it requires" }
+  { key: "#game_stocks_none", text: "This house has no stocks of game meat" }
+  { key: "#game_stocks_low", text: "This house will soon eat through its limited stocks of game meat" }
+  { key: "#game_stocks_medium", text: "This house has game meat stocks to last for at least the coming month" }
+  { key: "#game_stocks_high", text: "This house has no problems in getting the game meat it requires" }
+  { key: "#pottery_stocks_none", text: "This house has no stocks of pottery" }
+  { key: "#pottery_stocks_low", text: "This house will soon use up its limited stocks of pottery" }
+  { key: "#pottery_stocks_medium", text: "This house has pottery stocks to last for at least the coming month" }
+  { key: "#pottery_stocks_high", text: "This house has no problems in getting the pottery it requires" }
+  { key: "#jewelry_stocks_none", text: "This house has no stocks of jewelry" }
+  { key: "#jewelry_stocks_low", text: "This house will soon use up its limited stocks of jewelry" }
+  { key: "#jewelry_stocks_medium", text: "This house has jewelry stocks to last for at least the coming month" }
+  { key: "#jewelry_stocks_high", text: "This house has no problems in getting the jewelry it requires" }
+  { key: "#linen_stocks_none", text: "This house has no stocks of linen" }
+  { key: "#linen_stocks_low", text: "This house will soon use up its limited stocks of linen" }
+  { key: "#linen_stocks_medium", text: "This house has linen stocks to last for at least the coming month" }
+  { key: "#linen_stocks_high", text: "This house has no problems in getting the linen it requires" }
+  { key: "#empty_housing_vacant", text: "No one lives in this dwelling" }
+  { key: "#irrigation_none", text: "This land is not irrigated" }
+  { key: "#irrigation_low", text: "This land has limited irrigation" }
+  { key: "#irrigation_medium", text: "This land is moderately irrigated" }
+  { key: "#irrigation_high", text: "This land is well irrigated" }
+  { key: "#overlay_water_crossings_ferry", text: "Ferry crossing" }
+  { key: "#overlay_water_crossings_bridge", text: "Bridge crossing" }
+  { key: "#overlay_city_defenses_structure", text: "City defense structure" }
+  { key: "#overlay_hide_cliffs_hint", text: "Cliffs are temporarily flattened" }
+  { key: "#overlay_grain", text: "Gabona" }
+  { key: "#overlay_chickpeas", text: "Csicseriborsó" }
+  { key: "#overlay_pomegranates", text: "Gránátalma" }
+  { key: "#overlay_figs", text: "Füge" }
+  { key: "#overlay_meat", text: "Hús" }
+  { key: "#overlay_game", text: "Vad" }
+  { key: "#overlay_pottery", text: "Fazekasáru" }
+  { key: "#overlay_jewelry", text: "Ékszerek" }
+  { key: "#overlay_linen", text: "Vászon" }
+  { key: "#overlay_beer", text: "Sör" }
+  { key: "#overlay_disease", text: "Betegség" }
+  { key: "#overlay_infected_housing", text: "Fertőzött házak" }
+  { key: "#overlay_malaria", text: "Malária" }
+  { key: "#overlay_water_crossings", text: "Vízi átkelők" }
+  { key: "#overlay_empty_housing", text: "Üres házak" }
+  { key: "#overlay_irrigation", text: "Öntözés" }
+  { key: "#overlay_city_defenses", text: "Városvédelem" }
+  { key: "#overlay_hide_cliffs", text: "Sziklák elrejtése" }
+  {key:"#TR_HOTKEY_GO_TO_BOOKMARK_1", text:"Ugrás az 1. könyvjelzőre"}
+  {key:"#TR_HOTKEY_GO_TO_BOOKMARK_2", text:"Ugrás a 2. könyvjelzőre"}
+  {key:"#TR_HOTKEY_GO_TO_BOOKMARK_3", text:"Ugrás a 3. könyvjelzőre"}
+  {key:"#TR_HOTKEY_GO_TO_BOOKMARK_4", text:"Ugrás a 4. könyvjelzőre"}
+  {key:"#TR_HOTKEY_SET_BOOKMARK_1", text:"1. könyvjelző beállítása"}
+  {key:"#TR_HOTKEY_SET_BOOKMARK_2", text:"2. könyvjelző beállítása"}
+  {key:"#TR_HOTKEY_SET_BOOKMARK_3", text:"3. könyvjelző beállítása"}
+  {key:"#TR_HOTKEY_SET_BOOKMARK_4", text:"4. könyvjelző beállítása"}
+  {key:"#TR_HOTKEY_EDITOR_TOGGLE_BATTLE_INFO", text:"Csatainformációk be/ki"}
+  {key:"#TR_HOTKEY_EDIT_TITLE", text:"Nyomd le az új gyorsbillentyűt"}
+  {key:"#TR_HOTKEY_DUPLICATE_TITLE", text:"A billentyűparancs már használatban van"}
+  {key:"#TR_HOTKEY_DUPLICATE_MESSAGE", text:"Ez a billentyű már hozzá van rendelve ehhez: „{0}”."}
+  {key:"#TR_BUILDING_ROADBLOCK", text:"Útzár"}
+  {key:"#TR_BUILDING_ROADBLOCK_DESC", text:"Az útzár megakadályozza a céltalanul kóborló polgárok áthaladását."}
+  {key:"#TR_HEADER_HOUSING", text:"Lakhatás"}
+  {key:"#TR_ADVISOR_HOUSING_ROOM", text:"A város lakóhelyeinek szabad kapacitása:"}
+  {key:"#TR_ADVISOR_HOUSING_NO_ROOM", text:"Nincs több hely a város lakóépületeiben."}
+  {key:"#TR_ADVISOR_RESIDENCES_DEMANDING_POTTERY", text:"Kerámiát igénylő lakóházak"}
+  {key:"#TR_ADVISOR_RESIDENCES_DEMANDING_FURNITURE", text:"Bútort igénylő lakóházak"}
+  {key:"#TR_ADVISOR_RESIDENCES_DEMANDING_OIL", text:"Olajat igénylő lakóházak"}
+  {key:"#TR_ADVISOR_RESIDENCES_DEMANDING_LINEN", text:"Lenszövetet igénylő lakóházak"}
+  {key:"#TR_ADVISOR_RESIDENCES_DEMANDING_WINE", text:"Bort igénylő lakóházak"}
+  {key:"#TR_ADVISOR_RESIDENCES_DEMANDING_BEER", text:"Sört igénylő lakóházak"}
+  {key:"#TR_ADVISOR_TOTAL_NUM_HOUSES", text:"Lakóházak összesen:"}
+  {key:"#TR_ADVISOR_AVAILABLE_HOUSING_CAPACITY", text:"Szabad férőhelyek:"}
+  {key:"#TR_ADVISOR_TOTAL_HOUSING_CAPACITY", text:"Összes férőhely:"}
+  {key:"#TR_ADVISOR_ADVISOR_HEADER_HOUSING", text:"Népesség - Lakhatás"}
+  {key:"#TR_ADVISOR_BUTTON_GRAPHS", text:"Grafikonok"}
+  {key:"#TR_ADVISOR_HOUSING_PROSPERITY_RATING", text:"A lakóépületek jóléti értékelése:"}
+  {key:"#TR_ADVISOR_PERCENTAGE_IN_MANORS", text:"A lakosságod villákban és palotákban élő aránya:"}
+  {key:"#TR_ADVISOR_PERCENTAGE_IN_SHANTIES", text:"A lakosságod sátrakban és viskókban élő aránya:"}
+  {key:"#TR_ADVISOR_AVERAGE_TAX", text:"Egy lakóház átlagos adóbevétele:"}
+  {key:"#TR_ADVISOR_AVERAGE_AGE", text:"A lakosságod átlagéletkora:"}
+  {key:"#TR_ADVISOR_PERCENT_IN_WORKFORCE", text:"A munkaerőben lévő lakosság aránya:"}
+  {key:"#TR_ADVISOR_BIRTHS_LAST_YEAR", text:"Születések az elmúlt évben:"}
+  {key:"#TR_ADVISOR_DEATHS_LAST_YEAR", text:"Halálozások az elmúlt évben:"}
+  {key:"#TR_ADVISOR_TOTAL_POPULATION", text:"összes lakos"}
+
+  {key: "#main_menu_mods", text:"Módosítások"}
+  {key: "#main_menu_editor", text:"Szerkesztő"}
+  {key: "#main_menu_free_play", text:"Szabad játék"}
+  {key:"#advisor_imperial_political_overseer_for", text:"Politikai felügyelője"}
+  {key:"#warship_moving_to_position", text:"Elfoglalja a kijelölt pozíciót"}
+  {key:"#warship_moving_to_position_text", text:"A hajó a kijelölt pozíció felé hajózik, és ott marad, amíg más parancsot nem kap."}
+  {key:"#main_menu_update_downloading", text:"Frissítés letöltése..."}
+  {key:"#main_menu_update_now", text:"frissítés most"}
+  {key:"#main_menu_update_later", text:"később"}
+  {key:"#main_menu_loading_commits", text:"Legutóbbi módosítások betöltése..."}
+  {key:"#message_dialog_distant_battle", text:"Távoli csata"}
+  {key:"#mods_window_title", text:"Modok"}
+  {key:"#mods_window_unpack_scripts", text:"Parancsfájlok kicsomagolása"}
+  {key:"#mods_window_refresh_list", text:"Lista frissítése"}
+  {key:"#mods_window_hint", text:"Jobb kattintás a kilépéshez, dupla kattintás a mod ki- és bekapcsolásához"}
+  {key:"#records_not_played_yet", text:"még nem játszott vele"}
+  {key:"#report_bug_title", text:"Hibajelentés"}
+  {key:"#report_bug_field_title", text:"Cím"}
+  {key:"#report_bug_field_description", text:"Leírás"}
+  {key:"#report_bug_submit_question", text:"Elküldi?"}
+  {key:"#report_bug_error_no_title", text:"Kérjük, adjon meg egy címet."}
+  {key:"#report_bug_error_short_description", text:"Kérjük, írjon leírást (legalább 10 karakterben)."}
+  {key:"#report_bug_sending", text:"Küldés..."}
+  {key:"#report_bug_sent", text:"Hiba jelentve! Köszönjük."}
+  {key:"#report_bug_error", text:"Hiba:"}
+  {key:"#report_bug_tooltip", text:"Hiba jelentése"}
+  {key:"#scenario_selection_file_schema", text:"Fájlséma:"}
+  {key:"#features_god_enabled", text:"Isten mód engedélyezve"}
+  {key:"#features_city_allow", text:"Város engedélyezése"}
+  {key:"#features_prev_page", text:"Előző"}
+  {key:"#features_next_page", text:"Következő"}
+  {key: "#mission2_store_figs", text:"Építs magtárat, és töltsd fel fügével"}
+
+  {key: "#message_population_title", text:"Népességi mérföldkő"}
+  {key: "#message_population_100", text:"100 ember költözött a faludba"}
+  {key: "#message_population_500", text:"Fejlődő városod már ötszáz lakosnak ad otthont"}
+  {key: "#message_population_1000", text:"Városodnak immár ezer lakója van."}
+  {key: "#message_population_2000", text:"Kétezer lakosával városod egyre fontosabbá válik."}
+  {key: "#message_population_3000", text:"Városod népessége története során először elérte a háromezret."}
+  {key: "#message_population_5000", text:"Városod már igen nagynak számít. Immár ötezer ember él itt."}
+  {key: "#message_population_10000", text:"A tízezer fős népesség Egyiptom legjelentősebb városai közé emeli."}
+  {key: "#message_population_15000", text:"Új városok is versenyre kelhetnek a tiéddel, amely immár tizenötezer polgárnak ad otthont."}
+  {key: "#message_population_20000", text:"Más kormányzók és nomarkhák csodálattal nézik, hogy városod húszezer embernek ad otthont!"}
+  {key: "#message_population_25000", text:"Az első bevándorlók, akik oly sok évvel ezelőtt megalapították városodat, sosem gondolták volna, hogy huszonötezer fősre duzzad!"}
+  {key: "#mission0_goal_create_housing", text:"Hozz létre egy lakónegyedet, és figyeld, ahogy bevándorlók érkeznek"}
+  {key: "#mission0_goal_build_granary", text:"Építs magtárat, amelyet a vadászok vadhússal tölthetnek fel"}
+  {key: "#mission1_goal_build_mines", text:"Bányássz aranyat a palota kincstára számára"}
+  {key: "#mission1_goal_build_temples", text:"Építs templomokat és szentélyeket Básztet tiszteletére"}
+  {key: "#mission1_goal_build_entertainment", text:"Építs bódékat és zsonglőriskolákat a városi kultúra növelésére"}
+
+  {key: "#exit_this_panel", text:"Panel bezárása"}
+  {key: "#display_options_title", text:"Megjelenítési beállítások"}
+  {key: "#popup_dialog_quit", text:"Kilépés"}
+  {key: "#popup_dialog_open_trade", text:"Kereskedelmi útvonal megnyitása"}
+  {key: "#popup_dialog_send_goods", text:"Elküldöd az árut?"}
+  {key: "#popup_dialog_not_enough_goods", text:"Fáraói kérés"}
+  {key: "#mission_won_culture_rating", text:"Végső kulturális érték"}
+  {key: "#mission_won_prosperity_rating", text:"Végső jóléti érték"}
+  {key: "#mission_won_monument_rating", text:"Végső emlékműérték"}
+  {key: "#mission_won_kingdom_rating", text: "Végső királyságérték" }
+  {key: "#mission_won_population", text:"Végső lakosság" }
+  {key: "#popup_dialog_no_legions_available", text:"Fáraói kérés"}
+  {key: "#popup_dialog_no_legions_selected", text:"Fáraói kérés"}
+  {key: "#popup_dialog_send_troops", text:"Fáraói kérés"}
+  {key: "#popup_dialog_delete_fort", text:"Erőd lebontása"}
+  {key: "#popup_dialog_delete_bridge", text:"Híd lebontása"}
+  {key: "#popup_dialog_quit_without_saving", text:"Kilépés"}
+  {key: "#popup_dialog_map_file_missing", text:"A pályafájl hiányzik"}
+  {key: "#exit_without_saving", text:"Kilépés mentés nélkül?"}
+  {key: "#popup_dialog_no_festival_square", text:"Ünnepség: nincs ünnepi tér"}
+  {key: "#popup_dialog_delete_dynasty", text:"Dinasztia törlése?"}
+  {key: "#popup_dialog_no_dynasty", text:"Nincs dinasztia"}
+  {key: "#popup_dialog_no_player_name", text:"Adjon meg egy családnevet."}
+  {key: "#replay_mission", text:"Küldetés újrajátszása"}
+  {key: "#ui_gift_to_kingdome_window_title", text:"Ajándék Egyiptom népének"}
+  {key: "#ui_unable_to_fulfill_request", text:"A kérés nem teljesíthető"}
+  {key: "#ui_gift_time_since_last", text:"Az utolsó ajándék óta eltelt idő"}
+  {key: "#ui_gift_label_modest", text:"Szerény:"}
+  {key: "#ui_gift_label_generous", text:"Bőkezű:"}
+  {key: "#ui_gift_label_lavish", text:"Pazar:"}
+  {key: "#ui_gift_dispatch_modest", text:"Szerény ajándék küldése"}
+  {key: "#ui_gift_dispatch_generous", text:"Bőkezű ajándék küldése"}
+  {key: "#ui_gift_dispatch_lavish", text:"Pazar ajándék küldése"}
+  {key: "#ui_gift_cannot_afford_savings", text:"Nincs elegendő személyes megtakarításod ahhoz, hogy ajándékot küldj Egyiptomnak. Próbálj magasabb fizetést adni magadnak!"}
+  {key: "#ui_mission_choice_prompt", text:"Kattints egy városra, amelyet irányítani szeretnél"}
+  {key: "#granary_info_title", text:"Magtár"}
+  {key: "#granary_no_road_access", text:"FIGYELEM: Ez az épület nem kapcsolódik úthoz"}
+  {key: "#granary_kingdom_supplies_grain", text:"Erre a magtárra nincs szükség. Egyiptom biztosítja városunk számára a szükséges gabonát. Az általunk termelt élelmiszer közvetlenül a szabad hellyel rendelkező raktárakba kerül."}
+  {key: "#granary_storing", text:"Tárolás"}
+  {key: "#granary_space_for", text:"Férőhely"}
+  {key: "#granary_units", text:"egység."}
+  {key: "#chief_overseer", text:"Főfelügyelő"}
+  {key: "#chief_adv_sentiment", text:"Városi hangulat"}
+  {key: "#chief_adv_migration", text:"Vándorlás"}
+  {key: "#chief_adv_workers", text:"Foglalkoztatás"}
+  {key: "#chief_adv_foodstocks", text:"Élelmiszerkészletek"}
+  {key: "#chief_adv_foodconsumption", text:"Élelmiszer-termelés"}
+  {key: "#chief_adv_health", text:"Egészség"}
+  {key: "#chief_adv_religion", text:"Vallás"}
+  {key: "#chief_adv_finance", text:"Pénzügyek"}
+  {key: "#chief_adv_crime", text:"Bűnözés"}
+  {key: "#chief_adv_military", text:"Hadsereg"}
+  {key: "#chief_adv_kingdom", text:"Birodalom"}
+  {key: "#chief_adv_nilometr", text:"Nilométer"}
+  {key: "#trade_overseer", text:"Kereskedelmi felügyelő"}
+  {key: "#trade_overseer_hint", group:54, id:1 }
+  {key: "#building_have_no_access", text:"FIGYELEM: Ez az épület nem kapcsolódik úthoz"}
+  {key: "#bazaar_info_title", text:"Bazár"}
+  {key: "#well_info_title", text:"Kút"}
+  {key: "#well_info_necessary", text: "A tiszta vízszállítással nem rendelkező polgárok kutakból nyerhetnek vizet, de a kútvizes városrészek nem a legegészségesebb vagy legvonzóbb helyek az élethez." }
+  {key: "#well_info_unneeded_fountain", text: "Ez a kút felesleges. Minden általa ellátott ház vízellátóból kap vizet." }
+  {key: "#well_info_unneeded_no_houses", text: "Ennek a kútnak kárba vész a vize, mivel nincs egyetlen ház sem a szolgáltatási körzetében." }
+  {key: "#trade_overseer_prices", group:54, id:2}
+  {key: "#trade_overseer_prices_hint", group:68, id:108}
+  {key: "#trade_overseer_goto_empire", group:54, id:30}
+  {key: "#trade_overseer_goto_empire_hint", group:68, id:42}
+  {key: "#festival_square_info_title", group:188, id:0}
+  {key: "#visit_rating_advisor", text:"Felkeresed az Értékelési felügyelőt?"}
+  {key: "#tax_rate_of", text:"Adókulcs:"}
+  {key: "#palace_vaults_hold", text:"A trezorban:"}
+  {key: "#debens", text:"Deben"}
+  {key: "#building_no_road_access", text:"FIGYELEM: Ez az épület nem kapcsolódik úthoz"}
+  {key: "#building_no_people_in_city", text:"Nincsenek emberek a városban!"}
+  {key: "#building_no_workers_nearby", text:"Nem élnek munkások a közelben"}
+  {key: "#building_labor_could_shift", text:"A munkások felügyelője átcsoportosíthatna némi munkaerőt"}
+  {key: "#building_poor_worker_access", text:"FIGYELEM: Rossz hozzáférés a munkásokhoz"}
+  {key: "#hunting_lodge", text:"Vadászház"}
+  {key: "#hunting_lodge_info", text:"Az itt élő vadászok követik és elejtik a környék vadállatait. A Vadászház ezután a vadhúst a helyi raktárakba vagy magtárakba szállítja."}
+  {key: "#hunting_lodge_production_is", text:"A termelés"}
+  {key: "#hunting_lodge_complete", text:"befejeződött."}
+  {key: "#hunting_lodge_mothballed", text:"A Kereskedelmi felügyelő elrendelte a vadászat beszüntetését."}
+  {key: "#hunting_lodge_no_workers", text:"Ennek a vadászháznak nincsenek dolgozói. A vadászatot törölték."}
+  {key: "#hunting_lodge_workers_full", text:"Ennek a vadászháznak minden szükséges dolgozója megvan. A vadászok minden fellelhető csordát nyomon követnek."}
+  {key: "#hunting_lodge_workers_below_max", text:"Ez a vadászház nem teljes kapacitással működik. Emiatt az élelem begyűjtése lassabb lesz."}
+  {key: "#hunting_lodge_workers_understaffed", text:"Ennek a vadászháznak kevés a dolgozója, ezért a hús begyűjtése tovább tart a kelleténél."}
+  {key: "#hunting_lodge_workers_few", text:"Nagyon kevesen dolgoznak itt. A hús begyűjtése valóban lassú."}
+  {key: "#hunting_lodge_workers_hardly", text:"Alig dolgozik itt néhány vadász, ezért a zsákmányállatok zavartalanul járják a vidéket. Könnyen lehet, hogy nagyon éhes száraz évszak elé nézünk..."}
+  {key: "#hunting_lodge_hunters_seeking", text:"Ennek a vadászháznak a vadászai zsákmány után kutatnak."}
+  {key: "#hunting_lodge_too_far", text:"Túl sokáig tart, amíg a hús visszajut a vadászházba. Próbáld közelebb építeni a vadon élő állatokhoz."}
+  {key: "#hunting_lodge_stored_meat", text:"Tárolt hús,"}
+  {key: "#gardens_describe", text:"Ez a kellemes terület enyhülést nyújt a polgároknak a város zajától, hőségétől és szennyeződésétől, hűs zöld oázist biztosítva. Mindenki szívesen látna egy kertet a szomszédságában."}
+  {key: "#popup_dialog_proceed", text:"Folytatod?"}
+
+  {key: "#must_build_on_cleared_land", group:19, id:0}
+  {key: "#out_of_credit", group:19, id:1}
+  {key: "#only_one_building_of_this_type", group:19, id:2}
+  {key: "#house_evolution_off", group:19, id:3}
+  {key: "#house_evolution_on", group:19, id:4}
+  {key: "#road_evolution_off", group:19, id:5}
+  {key: "#road_evolution_on", group:19, id:6}
+  {key: "#show_people_off", group:19, id:7}
+  {key: "#show_people_on", group:19, id:8}
+  {key: "#needs_road_access", group:19, id:9}
+  {key: "#building_not_next_to_water", group:19, id:10}
+  {key: "#not_available_in_this_assignment", group:19, id:11}
+  {key: "#not_available_yet", group:19, id:12}
+  {key: "#unused_alabaster1", group:19, id:13}
+  {key: "#unused_alabaster2", group:19, id:14}
+  {key: "#city_needs_more_workers", group:19, id:15}
+  {key: "#people_eat_more_than_produce", group:19, id:16}
+  {key: "#build_bazaars_to_distribute_food", group:19, id:17}
+  {key: "#build_farms_on_meadow", group:19, id:18}
+  {key: "#build_clay_pits_close_to_water", group:19, id:19}
+  {key: "#build_next_to_rocky_areas", group:19, id:20}
+  {key: "#build_wood_cutters_next_to_trees", group:19, id:21}
+  {key: "#build_next_to_rocky_areas_ex", group:19, id:22}
+  {key: "#scout_along_river_for_site", group:19, id:23}
+  {key: "#building_needs_copper_ore", group:19, id:24}
+  {key: "#needs_barley", group:19, id:25}
+  {key: "#building_needs_flax", group:19, id:26}
+  {key: "#building_needs_clay", group:19, id:27}
+  {key: "#needs_gems", group:19, id:28}
+  {key: "#setup_trade_route_to_import", group:19, id:29}
+  {key: "#overseer_of_commerce_to_import", group:19, id:30}
+  {key: "#build_copper_mine", group:19, id:31}
+  {key: "#build_barley_farm", group:19, id:32}
+  {key: "#build_flax_farm", group:19, id:33}
+  {key: "#build_clay_pit", group:19, id:34}
+  {key: "#build_gem_mine", group:19, id:35}
+  {key: "#needs_access_to_water_lift", group:19, id:36}
+  {key: "#needs_to_be_next_to_water_to_fill", group:19, id:37}
+  {key: "#use_irrigation_ditches", group:19, id:38}
+  {key: "#must_be_next_to_wall_for_patrol", group:19, id:39}
+  {key: "#needs_recruiter_to_conscript", group:19, id:40}
+  {key: "#soldiers_need_supplies_of_weapons", group:19, id:41}
+  {key: "#build_juggling_school", group:19, id:42}
+  {key: "#build_conservatory", group:19, id:43}
+  {key: "#build_dance_school", group:19, id:44}
+  {key: "#build_senet_house", group:19, id:45}
+  {key: "#unused_demo1", group:19, id:46}
+  {key: "#build_towers_on_thick_walls", group:19, id:47}
+  {key: "#too_close_to_enemy_troops", group:19, id:48}
+  {key: "#company_morale_too_low", group:19, id:49}
+  {key: "#army_has_full_complement_of_forts", group:19, id:50}
+  {key: "#autosave_slots", text: "Autosave slotok"}
+  {key: "#cannot_demolish_bridge_with_people", group:19, id:53}
+  {key: "#inland_lake_has_no_sea_access", group:19, id:54}
+  {key: "#cannot_set_windows_mode", group:19, id:55}
+  {key: "#build_reed_gatherers_near_marsh", group:19, id:56}
+  {key: "#shipwrights_need_wood_for_war_vessels", group:19, id:57}
+  {key: "#palace_required_for_gold_conversion", group:19, id:58}
+  {key: "#cannot_build_over_animal_breeding_grounds", group:19, id:59}
+  {key: "#plots_too_far_from_road", group:19, id:60}
+  {key: "#city_isolated_from_kingdom_road", group:19, id:61}
+  {key: "#restore_access_or_sector_will_stagnate", group:19, id:62}
+  {key: "#data_limit_reached", group:19, id:63}
+  {key: "#only_build_roadblocks_on_roads", group:19, id:64}
+  {key: "#place_other_ferry_landing", group:19, id:65}
+  {key: "#no_valid_spot_for_ferry_landing", group:19, id:66}
+  {key: "#maximum_food_types_reached", group:19, id:67}
+  {key: "#cannot_add_meat_without_straw", group:19, id:68}
+  {key: "#cannot_produce_meat_in_city", group:19, id:69}
+  {key: "#only_one_special_rock_type", group:19, id:70}
+  {key: "#must_build_temple_complex_first", group:19, id:71}
+  {key: "#temple_complex_limits", group:19, id:72}
+  {key: "#oracle_altar_placement", group:19, id:73}
+  {key: "#needs_groundwater", group:19, id:74}
+  {key: "#entertainment_venue_at_intersection", group:19, id:75}
+  {key: "#must_have_completed_temple_first", group:19, id:76}
+  {key: "#need_500_papyrus_for_library", group:19, id:77}
+  {key: "#building_needs_reeds", group:19, id:78}
+  {key: "#build_reed_gatherer", group:19, id:79}
+  {key: "#building_needs_straw", group:19, id:80}
+  {key: "#build_grain_farm", group:19, id:81}
+  {key: "#full_complement_of_warship_wharves", group:19, id:82}
+  {key: "#need_blocks_of_granite_for_obelisk", group:19, id:83}
+  {key: "#need_blocks_of_granite_for_large_obelisk", group:19, id:84}
+  {key: "#need_100_blocks_of_granite_for_obelisk", group:19, id:83}
+  {key: "#need_200_blocks_of_granite_for_large_obelisk", group:19, id:84}
+  {key: "#monuments_removed", group:19, id:85}
+  {key: "#only_one_obelisk_at_a_time", group:19, id:86}
+  {key: "#no_taxes_without_palace", group:19, id:87}
+  {key: "#need_220_blocks_of_sandstone_for_sun_temple", group:19, id:88}
+  {key: "#only_one_sun_temple_at_a_time", group:19, id:89}
+  {key: "#too_few_jobs_for_population", group:19, id:90}
+  {key: "#low_food_levels", group:19, id:91}
+  {key: "#people_eating_more_than_produced", group:19, id:92}
+  {key: "#city_health_appalling_plague_imminent", group:19, id:93}
+  {key: "#city_health_terrible_plague_likely", group:19, id:94}
+  {key: "#city_health_worsening_serious_risk", group:19, id:95}
+  {key: "#city_health_getting_worse_plague_could_strike", group:19, id:96}
+  {key: "#plague_likely_health_improving", group:19, id:97}
+  {key: "#risk_of_plague_but_improving", group:19, id:98}
+  {key: "#health_improving_plague_still_possible", group:19, id:99}
+  {key: "#palace_robbed", group:19, id:100}
+  {key: "#thief_stole_savings", group:19, id:101}
+  {key: "#no_troops_for_defense", group:19, id:102}
+  {key: "#loathed_in_city", group:19, id:103}
+  {key: "#people_very_angry", group:19, id:104}
+  {key: "#people_angry", group:19, id:105}
+  {key: "#people_very_upset", group:19, id:106}
+  {key: "#people_upset", group:19, id:107}
+  {key: "#people_annoyed", group:19, id:108}
+  {key: "#people_indifferent", group:19, id:109}
+  {key: "#people_pleased", group:19, id:110}
+  {key: "#people_very_pleased", group:19, id:111}
+  {key: "#people_extremely_pleased", group:19, id:112}
+  {key: "#people_love_you", group:19, id:113}
+  {key: "#people_idolize_you", group:19, id:114}
+  {key: "#unhappiness_lack_of_food", group:19, id:115}
+  {key: "#unhappiness_lack_of_jobs", group:19, id:116}
+  {key: "#unhappiness_high_taxes", group:19, id:117}
+  {key: "#unhappiness_low_wages", group:19, id:118}
+  {key: "#unhappiness_too_many_slums", group:19, id:119}
+  {key: "#immigration_people_coming", group:19, id:120}
+  {key: "#immigration_people_wont_come", text: "Az emberek nem akarnak a városodba költözni" }
+  {key: "#immigration_no_housing", group:19, id:121}
+  {key: "#immigration_low_wages_deter", group:19, id:122}
+  {key: "#immigration_lack_of_jobs", group:19, id:123}
+  {key: "#immigration_lack_of_food", group:19, id:124}
+  {key: "#immigration_high_taxes", group:19, id:125}
+  {key: "#immigration_slums_deter", group:19, id:126}
+  {key: "#immigration_low_sentiment", group:19, id:127}
+  {key: "#emigration_no_housing", group:19, id:128}
+  {key: "#emigration_low_wages", group:19, id:129}
+  {key: "#emigration_high_unemployment", group:19, id:130}
+  {key: "#emigration_lack_of_food", group:19, id:131}
+  {key: "#emigration_high_taxes", group:19, id:132}
+  {key: "#emigration_slums_encourage_leaving", group:19, id:133}
+  {key: "#emigration_low_sentiment", group:19, id:134}
+  {key: "#building_needs_beer", group:19, id:135}
+  {key: "#build_brewery", group:19, id:136}
+  {key: "#needs_papyrus", group:19, id:137}
+  {key: "#build_papyrus_maker", group:19, id:138}
+  {key: "#building_needs_linen", group:19, id:139}
+  {key: "#build_weaver", group:19, id:140}
+  {key: "#building_needs_wood", group:19, id:141}
+  {key: "#build_wood_cutter", group:19, id:142}
+  {key: "#building_needs_clay_and_straw", group:19, id:143}
+  {key: "#import_clay_trade_route", group:19, id:144}
+  {key: "#import_clay_overseer", group:19, id:145}
+  {key: "#import_straw_trade_route", group:19, id:146}
+  {key: "#import_straw_overseer", group:19, id:147}
+  {key: "#monument_needs_stone_and_limestone", group:19, id:148}
+  {key: "#build_stone_quarry", group:19, id:149}
+  {key: "#import_stone_trade_route", group:19, id:150}
+  {key: "#import_stone_overseer", group:19, id:151}
+  {key: "#build_limestone_quarry", group:19, id:152}
+  {key: "#import_limestone_trade_route", group:19, id:153}
+  {key: "#import_limestone_overseer", group:19, id:154}
+  {key: "#monument_needs_plain_stone", group:19, id:155}
+  {key: "#monument_needs_limestone", group:19, id:156}
+  {key: "#monument_needs_bricks_and_limestone", group:19, id:157}
+  {key: "#build_brickworks", group:19, id:158}
+  {key: "#import_bricks_trade_route", group:19, id:159}
+  {key: "#import_bricks_overseer", group:19, id:160}
+  {key: "#monument_needs_bricks", group:19, id:161}
+  {key: "#monument_needs_sandstone", group:19, id:162}
+  {key: "#build_sandstone_quarry", group:19, id:163}
+  {key: "#import_beer_overseer", group:19, id:164}
+  {key: "#import_beer_trade_route", group:19, id:165}
+  {key: "#import_barley_overseer", group:19, id:166}
+  {key: "#import_barley_trade_route", group:19, id:167}
+  {key: "#import_reeds_overseer", group:19, id:168}
+  {key: "#import_reeds_trade_route", group:19, id:169}
+  {key: "#import_papyrus_overseer", group:19, id:170}
+  {key: "#import_papyrus_trade_route", group:19, id:171}
+  {key: "#import_flax_overseer", group:19, id:172}
+  {key: "#import_flax_trade_route", group:19, id:173}
+  {key: "#import_linen_overseer", group:19, id:174}
+  {key: "#import_linen_trade_route", group:19, id:175}
+  {key: "#building_removed_mortuaries", group:19, id:176}
+  {key: "#building_removed_senet_house", group:19, id:177}
+  {key: "#building_removed_scribal_schools", group:19, id:178}
+  {key: "#building_removed_libraries", group:19, id:179}
+  {key: "#building_removed_weaponsmiths", group:19, id:180}
+  {key: "#building_removed_chariot_maker", group:19, id:181}
+  {key: "#building_removed_fort_infantry", group:19, id:182}
+  {key: "#building_removed_fort_archers", group:19, id:183}
+  {key: "#building_removed_fort_charioteers", group:19, id:184}
+  {key: "#building_removed_academies", group:19, id:185}
+  {key: "#building_removed_fort_infantry_weapons", group:19, id:186}
+  {key: "#building_removed_fort_charioteers_chariots", group:19, id:187}
+  {key: "#mausoleum_needs_sandstone", group:19, id:188}
+  {key: "#build_brewery_or_import_beer", group:19, id:189}
+  {key: "#build_brewery_or_import_beer_route", group:19, id:190}
+  {key: "#build_papyrus_maker_or_import", group:19, id:191}
+  {key: "#build_papyrus_maker_or_import_route", group:19, id:192}
+  {key: "#build_weaver_or_import_linen", group:19, id:193}
+  {key: "#build_weaver_or_import_linen_route", group:19, id:194}
+  {key: "#tax_collector_robbed", group:19, id:195}
+  {key: "#courthouse_robbed", group:19, id:196}
+  {key: "#mansion_destroyed", group:19, id:197}
+  {key: "#mansion_protected_by_police", text:"Rendőrség védi"}
+  {key: "#mansion_not_protected_theft", text:"Nincs védelem - tolvajok ellophatják a megtakarításokat"}
+  {key: "#palace_destroyed", group:19, id:198}
+  {key: "#tax_collector_destroyed", group:19, id:199}
+  {key: "#courthouse_destroyed", group:19, id:200}
+  {key: "#gold_miner_robbed", group:19, id:201}
+  {key: "#build_granary", group:19, id:202}
+  {key: "#build_granaries", group:19, id:203}
+  {key: "#max_docks_reached", group:19, id:204}
+  {key: "#shrines_near_road_required", group:19, id:205}
+  {key: "#build_jugglers_school", group:19, id:206}
+  {key: "#venue_build_conservatory", group:19, id:207}
+  {key: "#venue_build_dance_school", group:19, id:208}
+  {key: "#company_cannot_reach_destination", group:19, id:209}
+  {key: "#game_saved", group:19, id:210}
+  {key: "#must_be_on_clear_land", group:19, id:211}
+  {key: "#causeway_needs_water", group:19, id:212}
+  {key: "#festival_square_on_intersection", group:19, id:213}
+  {key: "#no_immigration_with_enemies", group:19, id:214}
+  {key: "#cheats_enabled", group:19, id:215}
+  {key: "#cheats_disabled", group:19, id:216}
+  {key: "#flood_perfect", group:19, id:217}
+  {key: "#flood_excellent", group:19, id:218}
+  {key: "#flood_good", group:19, id:219}
+  {key: "#flood_mediocre", group:19, id:220}
+  {key: "#flood_poor", group:19, id:221}
+  {key: "#flood_failed", group:19, id:222}
+  {key: "#price_increase", group:19, id:223}
+  {key: "#price_decrease", group:19, id:224}
+  {key: "#wages_lowered", group:19, id:225}
+  {key: "#wages_raised", group:19, id:226}
+  {key: "#trade_decreases", group:19, id:227}
+  {key: "#trade_increases", group:19, id:228}
+  {key: "#kingdom_standing_rises", group:19, id:229}
+  {key: "#population_milestone", group:19, id:230}
+  {key: "#minor_god_blessing", group:19, id:231}
+  {key: "#festival_starting", group:19, id:232}
+  {key: "#goods_auto_dispatched", group:19, id:233}
+  {key: "#building_removed_zoo", group:19, id:234}
+  {key: "#building_needs_game_meat", group:19, id:235}
+  {key: "#build_hunting_lodge", group:19, id:236}
+  {key: "#build_hunting_lodge_or_import", group:19, id:237}
+  {key: "#game_meat_import_trade_route", group:19, id:238}
+  {key: "#monument_needs_copper", group:19, id:239}
+  {key: "#monument_needs_marble", group:19, id:240}
+  {key: "#one_library_only", group:19, id:241}
+  {key: "#one_pharos_only", group:19, id:242}
+  {key: "#one_caesareum_only", group:19, id:243}
+  {key: "#disease_strikes", group:19, id:244}
+  {key: "#malaria_strikes", group:19, id:245}
+  {key: "#monument_needs_granite", group:19, id:246}
+  {key: "#must_be_over_rocks", group:19, id:247}
+  {key: "#pharos_not_demolishable", group:19, id:248}
+  {key: "#abu_simbel_not_demolishable", text: "Abu Simbel nem bontható le"}
+  {key: "#monument_not_demolishable", text: "Az emlékművek nem bonthatók le"}
+  {key: "#tomb_robbers_plundered", group:19, id:249}
+  {key: "#mausoleum_plundered", group:19, id:250}
+  {key: "#tomb_robbers_stole_provisions", group:19, id:251}
+  {key: "#tomb_robber_caught", group:19, id:252}
+  {key: "#building_needs_oil_and_pottery", group:19, id:253}
+  {key: "#build_potter", group:19, id:254}
+  {key: "#import_pottery_trade_route", group:19, id:255}
+  {key: "#import_pottery_overseer", group:19, id:256}
+  {key: "#import_oil_trade_route", group:19, id:257}
+  {key: "#import_oil_overseer", group:19, id:258}
+  {key: "#building_needs_henna", group:19, id:259}
+  {key: "#build_henna_farm", group:19, id:260}
+  {key: "#import_henna_trade_route", group:19, id:262}
+  {key: "#import_henna_overseer", group:19, id:261}
+  {key: "#building_needs_oil", group:19, id:263}
+  {key: "#building_needs_pottery", group:19, id:264}
+  {key: "#build_paint_maker_or_import", group:19, id:265}
+  {key: "#paint_import_overseer", group:19, id:266}
+  {key: "#build_paint_maker", group:19, id:267}
+  {key: "#building_needs_clay_and_paint", group:19, id:268}
+  {key: "#employees_needed", group:19, id:269}
+  {key: "#must_be_over_cliffs", group:19, id:270}
+  {key: "#entrance_on_clear_land", group:19, id:271}
+  {key: "#warning_shipwright_needed", group:19, id:316}
+
+  {key: "#figure_none", group:64, id:0 }
+  {key: "#figure_immigrant", group:64, id:1 }
+  {key: "#figure_emigrant", group:64, id:2 }
+  {key: "#figure_homeless", group:64, id:3 }
+  {key: "#figure_cartpusher", group:64, id:4 }
+  {key: "#figure_labor_seeker", group:64, id:5 }
+  {key: "#figure_explosion", group:64, id:6 }
+  {key: "#figure_tax_collector", group:64, id:7 }
+  {key: "#figure_architect", group:64, id:8 }
+  {key: "#figure_storageyard_cart", group:64, id:9 }
+  {key: "#figure_fireman", group:64, id:10 }
+  {key: "#figure_archer", group:64, id:11 }
+  {key: "#figure_infantry", group:64, id:12 }
+  {key: "#figure_fcharioteer", group:64, id:13 }
+  {key: "#figure_standard_bearer", group:64, id:14 }
+  {key: "#figure_juggler", group:64, id:15 }
+  {key: "#figure_musician", group:64, id:16 }
+  {key: "#figure_dancer", group:64, id:17 }
+  {key: "#figure_senet_player", group:64, id:18 }
+  {key: "#figure_trade_caravan", group:64, id:19 }
+  {key: "#figure_trade_ship", group:64, id:20 }
+  {key: "#figure_trade_caravan_donkey", group:64, id:21 }
+  {key: "#figure_protester", group:64, id:22 }
+  {key: "#figure_robber", group:64, id:23 }
+  {key: "#figure_tomb_rober", group:64, id:24 }
+  {key: "#figure_fishing_boat", group:64, id:25 }
+  {key: "#figure_market_trader", group:64, id:26 }
+  {key: "#figure_priest", group:64, id:27 }
+  {key: "#figure_bubbles", group:64, id:28 }
+  {key: "#figure_teacher", group:64, id:29 }
+  {key: "#figure_scriber", text: "Írnok" }
+  {key: "#figure_librarian", group:64, id:30 }
+  {key: "#figure_dentist", group:64, id:31 }
+  {key: "#figure_physician", group:64, id:32 }
+  {key: "#figure_herbalist", group:64, id:33 }
+  {key: "#figure_embalmer", group:64, id:34 }
+  {key: "#figure_worker", group:64, id:35 }
+  {key: "#figure_map_flag", group:64, id:36 }
+  {key: "#figure_flotsam", group:64, id:37 }
+  {key: "#figure_docker", group:64, id:38 }
+  {key: "#figure_market_buyer", group:64, id:39 }
+  {key: "#figure_nobles", group:64, id:40 }
+  { key: "#pharaoh_inspecting_city", text: "Népem között járok. Hadd lássák a fáraójukat." }
+  { key: "#pharaoh_disease_risk", text: "Láz az utcáimon? Orvosaim rendbe teszik ezt." }
+  { key: "#pharaoh_no_food_in_city", text: "Üres magtárak az uralmam alatt? Ez nem maradhat így." }
+  { key: "#pharaoh_city_have_no_army", text: "Nincsenek erődök? Egyetlen rajtaütés, és a városom elesik. Emeljétek fel a zászlókat!" }
+  { key: "#pharaoh_gods_are_angry", text: "Az istenek rosszallóan tekintenek ránk. Még a fáraónak is hallgatnia kell a templomokra." }
+  { key: "#pharaoh_low_entertainment", text: "Már régóta nem volt ünnepség. Népem megérdemli a zenét és a bort." }
+  { key: "#pharaoh_city_is_good", text: "Szép város. Rend, kenyér és hűség – így kell ennek lennie." }
+  { key: "#pharaoh_city_is_amazing", text: "Ez a város úgy ragyog, mint a Nílus hajnalban. Maga Egyiptom is büszke rá!" }
+  { key: "#plagued_i_feel_awful", text: "Szörnyen érzem magam... minden forog körülöttem és lángol." }
+  { key: "#plagued_fever_spreads", text: "A láz terjed. Maradjatok távol – nem tudom abbahagyni a járkálást." }
+  { key: "#plagued_no_food_in_city", text: "Üres magtárak és égő láz. Micsoda módja ez az éhezésnek." }
+  { key: "#plagued_city_have_no_army", text: "Nincsenek erődök? A betegség előbb elragadja ezt a várost, mint bármely ellenség." }
+  { key: "#plagued_gods_are_angry", text: "Az istenek haragszanak. Talán ez az ő átkuk kúszik végig rajtam?" }
+  { key: "#plagued_low_entertainment", text: "Már régóta nem volt ünnepség... csak köhögés hallatszik az utcákon." }
+  { key: "#plagued_city_is_good", text: "A város jónak tűnt. Miért éppen engem választott ez a láz?" }
+  { key: "#plagued_city_is_amazing", text: "Ezt nevezik a legjobb városnak – akkor miért haldoklom az utcáin?" }
+  { key: "#protestor_we_want_justice", text: "Igazságot akarunk! Halljátok meg a hangunkat az utcákon!" }
+  { key: "#protestor_tax_too_high", text: "Ezek az adók teljesen kifosztanak minket! Elég volt!" }
+  { key: "#protestor_wages_too_low", text: "A fizetésünkből kenyérre sem futja. Tisztességes bért, vagy maradunk!" }
+  { key: "#protestor_no_jobs", text: "Nincs munka, nincs remény – és azt várjátok, hogy csendben maradjunk?" }
+  { key: "#protestor_no_food_in_city", text: "Üres magtárak! Meddig kell még csendben éheznünk?" }
+  { key: "#protestor_city_have_no_army", text: "Nincsenek erődök? Védtelenül és túladóztatva hagynak minket!" }
+  { key: "#protestor_gods_are_angry", text: "Még az istenek is rosszallóan néznek ránk. Ez a város letért a helyes útról!" }
+  { key: "#protestor_low_entertainment", text: "Nincsenek ünnepségek, csak éhezés és adók. Miféle élet ez?" }
+  { key: "#protestor_city_is_good", text: "Azt mondják, a város rendben van. De kinek?" }
+  { key: "#protestor_city_is_amazing", text: "Csodálatos város? Ezt mondd az üres gyomroknak és üres erszényeknek!" }
+  { key: "#rioter_burn_it_down", text: "Égessük fel! Ez a város majd a tűz szavára hallgat!" }
+  { key: "#rioter_tax_too_high", text: "Először az adószedőket – aztán a csinos kis városotok többi részét!" }
+  { key: "#rioter_wages_too_low", text: "Morzsákon éheztettek minket, mi pedig összetörjük, amit nem engedhetünk meg magunknak!" }
+  { key: "#rioter_no_jobs", text: "Nincs munka? Akkor teremtünk magunknak – fáklyákkal!" }
+  { key: "#rioter_no_food_in_city", text: "Üres magtárak! Elvesszük, amire szükségünk van a raktáraitokból!" }
+  { key: "#rioter_city_have_no_army", text: "Nincsenek erődök? Semmi sem áll köztünk és a palota között!" }
+  { key: "#rioter_gods_are_angry", text: "Az istenek tombolnak – és mi is! Döntsétek romba az egészet!" }
+  { key: "#rioter_low_entertainment", text: "Nincsenek ünnepségek? Akkor itt egy műsor – nézzétek, ahogy ledőlnek az épületek!" }
+  { key: "#rioter_city_is_good", text: "Jó város? A gazdagoknak jó. Nekünk nem!" }
+  { key: "#rioter_city_is_amazing", text: "Csodálatos utcák, amiket fel lehet gyújtani. Nézzétek, ahogy ma este ragyognak!" }
+  { key: "#robber_maybe_stealing_will_get_attention", text: "Talán a lopás végre felkelti valakinek a figyelmét!" }
+  { key: "#robber_i_take_what_i_want", text: "Azt veszem el, amit akarok!" }
+  { key: "#robber_more_profitable_than_other_jobs", text: "Jövedelmezőbb, mint bármely más munka ebben a városban." }
+  { key: "#robber_take_take_take", text: "Elvenni, elvenni, elvenni!" }
+  { key: "#robber_tax_too_high", text: "Az adók tőletek vesznek el – én a palotától veszek el!" }
+  { key: "#robber_wages_too_low", text: "Túl alacsony a fizetés? A kezeim majd jobb bért találnak." }
+  { key: "#robber_no_jobs", text: "Nincs tisztességes munka? Rendben. A tisztességtelen munka fizet." }
+  { key: "#robber_no_food_in_city", text: "Üres magtárak? Az arany még mindig megtölti a zsebeket." }
+  { key: "#robber_city_have_no_army", text: "Nincsenek erődök? Könnyű préda ez egy csendes tolvajnak." }
+  { key: "#robber_gods_are_angry", text: "Haragszanak az istenek? Jó ürügy – fogd az égiekre, ne rám." }
+  { key: "#robber_low_entertainment", text: "Nincsenek ünnepségek? A lopás az én szórakozásom." }
+  { key: "#robber_city_is_good", text: "Szép város. Szép erszények, amiket meg lehet könnyíteni." }
+  { key: "#robber_city_is_amazing", text: "A legjobb város a lopáshoz – mindenütt dagadnak az erszények!" }
+  { key: "#slave_break_our_chains", text: "Törjük szét a láncokat! Elég volt az urakból!" }
+  { key: "#slave_tax_too_high", text: "Titeket megadóztatnak – minket megkorbácsolnak. Felkelés!" }
+  { key: "#slave_wages_too_low", text: "A szabad emberek morzsákon éheznek. A rabszolgák elveszik, amire szükségünk van!" }
+  { key: "#slave_no_jobs", text: "Nincs munka a szabadoknak? Akkor a szabadok csatlakozzanak a lázadáshoz!" }
+  { key: "#slave_no_food_in_city", text: "Üres magtárak, miközben mi láncra verve éhezünk. Elég volt!" }
+  { key: "#slave_city_have_no_army", text: "Nincsenek erődök? Semmi sem állít meg minket a palotáig!" }
+  { key: "#slave_gods_are_angry", text: "Még az istenek is gyűlölik ezt a várost. Csatlakozzatok hozzánk!" }
+  { key: "#slave_low_entertainment", text: "Nincsenek ünnepségek a rabszolgáknak – csak a fáklya!" }
+  { key: "#slave_city_is_good", text: "Jó város a szabadoknak. Most kivesszük a részünket!" }
+  { key: "#slave_city_is_amazing", text: "Csodálatos utcák, amelyeket felszabadíthatunk – vagy felégethetünk!" }
+  { key: "#soldier_no_enemies_sighted", text: "Nem látni ellenséget. A őrség nyugodt." }
+  { key: "#soldier_ready_approaching_enemy", text: "Készen állunk! Közeledik az ellenség – tartsátok a formációt!" }
+  { key: "#soldier_no_trouble_defeating_army", text: "Nem okoz majd gondot ennek a seregnek a legyőzése." }
+  { key: "#soldier_enemy_is_fierce", text: "Ez az ellenség kemény. Tartsátok magatokat a fáraóért!" }
+  { key: "#soldier_disease_risk", text: "Láz a soraink között. Nehéz menetelni remegő kézzel." }
+  { key: "#soldier_no_food_in_city", text: "Üres magtárak? Az éhes katona rosszul harcol." }
+  { key: "#soldier_gods_are_angry", text: "Az istenek haragosnak tűnnek. Rossz előjel a csata előtt." }
+  { key: "#soldier_low_entertainment", text: "Már régóta nem volt ünnepség. Még a katonáknak is kell egy szabadnap az őrségből." }
+  { key: "#soldier_city_is_good", text: "Erős város. Érdemes megvédeni." }
+  { key: "#soldier_city_is_amazing", text: "A legjobb város, amit valaha őriztem. A fáraóért!" }
+  { key: "#tower_sentry_no_enemies_sighted", text: "Nem látni ellenséget. A fal csendes." }
+  { key: "#tower_sentry_ready_approaching_enemy", text: "Készen állunk! Ellenség közeledik – nyilakat fel!" }
+  { key: "#tower_sentry_no_trouble_defeating_army", text: "Nem okoz majd gondot ennek a seregnek a legyőzése a toronyból." }
+  { key: "#tower_sentry_enemy_is_fierce", text: "Ez az ellenség kemény. Tartsátok a falat a fáraóért!" }
+  { key: "#tower_sentry_disease_risk", text: "Láz a falakon. Nehéz őrséget állni remegő kézzel." }
+  { key: "#tower_sentry_no_food_in_city", text: "Üres magtárak? Az éhes őrszem rosszul figyel." }
+  { key: "#tower_sentry_gods_are_angry", text: "Az istenek haragosnak tűnnek. Rossz előjel az őrség számára." }
+  { key: "#tower_sentry_low_entertainment", text: "Már régóta nem volt ünnepség. Még az őrszemeknek is kell egy szabadnap a falról." }
+  { key: "#tower_sentry_city_is_good", text: "Erős város. Érdemes őrizni ebből a toronyból." }
+  { key: "#tower_sentry_city_is_amazing", text: "A legjobb város, amelyre valaha vigyáztam. A fáraóért!" }
+  { key: "#stonemason_ready", text: "A kő készen áll. Ideje felépíteni az emlékművet!" }
+  { key: "#stonemason_going_to_work", text: "Irány az építkezés – azok a tömbök nem helyezik el magukat." }
+  { key: "#stonemason_working_ground", text: "Szilárd talajra helyezem a követ. Csak nyugodtan." }
+  { key: "#stonemason_working_wall", text: "Fel a falra egy újabb kősorral!" }
+  { key: "#stonemason_work_complete", text: "A munka egyelőre kész. Vissza a céhbe." }
+  { key: "#stonemason_looking_for_work", text: "Keresem a következő helyet, ahová követ rakhatok." }
+  { key: "#stonemason_disease_risk", text: "Láz az építkezésen. Nehéz követ emelni remegő kézzel." }
+  { key: "#stonemason_no_food_in_city", text: "Üres magtárak? Az éhes kőműves ferdén rakja a kősorokat." }
+  { key: "#stonemason_city_have_no_army", text: "Nincsenek erődök? Egyetlen rajtaütés, és ez az emlékmű romhalmaz lesz." }
+  { key: "#stonemason_gods_are_angry", text: "Az istenek haragosnak tűnnek. Még a jó kő is megreped a tekintetük alatt." }
+  { key: "#stonemason_low_entertainment", text: "Már régóta nem volt ünnepség. Még a kőműveseknek is kell egy szabadnap az állványzatról." }
+  { key: "#stonemason_city_is_good", text: "Ez a város szilárd! Nagyszerű alap a nagy emlékművekhez." }
+  { key: "#stonemason_city_is_amazing", text: "A legjobb város, amelynek építésén dolgoztam. Ezek a kövek örökké állni fognak!" }
+  { key: "#reed_to_the_marsh_i_march", text: "Irány a mocsár!" }
+  { key: "#reed_will_make_some_fine_papyrus", text: "Ezekből a nádakból kiváló papirusz készül." }
+  { key: "#reed_disease_risk", text: "Láz a mocsarakban. Nehéz remegő kézzel nádat vágni." }
+  { key: "#reed_no_food_in_city", text: "Üres magtárak? Az éhes nádvágó görbe kötegeket készít." }
+  { key: "#reed_city_have_no_army", text: "Nincsenek erődök? Egyetlen rajtaütés, és ezek a mocsarak a megszállók kezére kerülnek." }
+  { key: "#reed_gods_are_angry", text: "Az istenek haragosnak tűnnek. Még a jó nád is elhervad a tekintetük alatt." }
+  { key: "#reed_low_entertainment", text: "Már régóta nem volt ünnepség. Még a mocsári munkásoknak is kell egy szabadnap a sárból." }
+  { key: "#reed_city_is_good", text: "Ez a város szilárd! Kiváló nád a finom papiruszhoz." }
+  { key: "#reed_city_is_amazing", text: "A legjobb város, amelynek gyűjtöttem. Ezekből a nádakból örökké tekercsek készülnek!" }
+  { key: "#noble_taking_a_stroll", text: "Kellemes séta. A köznépnek félre kellene állnia." }
+  { key: "#noble_returning_home", text: "Vissza a kúriámba. Ezek a poros utcák kifárasztják az embert, ha valaki rangos." }
+  { key: "#noble_disease_risk", text: "Láz az utcákon? Tartsátok távol a csőcseléket az udvaromtól." }
+  { key: "#noble_no_food_in_city", text: "Üres magtárak? Egy nemesnek soha nem szabad kifogásokkal jóllaknia." }
+  { key: "#noble_city_have_no_army", text: "Nincsenek erődök? Egyetlen rajtaütés, és a birtokom hamuvá lesz. Elfogadhatatlan." }
+  { key: "#noble_gods_are_angry", text: "Az istenek haragosnak tűnnek. Még a lenvászon és az arany sem vesztegetheti meg az eget." }
+  { key: "#noble_low_entertainment", text: "Már régóta nem volt ünnepség. Egy nemesnek zene, bor és látványosság kell." }
+  { key: "#noble_city_is_good", text: "Tisztességes város. A szomszédaim már-már tekintélyesnek tűnnek." }
+  { key: "#noble_city_is_amazing", text: "A legkiválóbb város egy kúriához! Még a fáraó is irigyelné ezeket az utcákat." }
+  {key: "#figure_indigenous_native", group:64, id:41 }
+  {key: "#figure_tower_sentry", group:64, id:42 }
+  {key: "#figure_enemy_egyptian_spear", group:64, id:43 }
+  {key: "#figure_enemy_egyptian_archer", group:64, id:44 }
+  {key: "#figure_enemy_egyptian_fast_sword", group:64, id:45 }
+  {key: "#figure_enemy_egyptian_camel", group:64, id:46 }
+  {key: "#figure_enemy_egyptian_elephant", group:64, id:47 }
+  {key: "#figure_enemy_egyptian_chariot", group:64, id:48 }
+  {key: "#figure_enemy_egyptian_sword", group:64, id:49 }
+  {key: "#figure_enemy_egyptian_heavy_sword", group:64, id:50 }
+  {key: "#figure_enemy_reserved_51", group:64, id:51 }
+  {key: "#figure_enemy_egyptian_mounted_archer", group:64, id:52 }
+  {key: "#figure_enemy_egyptian_axe", group:64, id:53 }
+  {key: "#figure_rioter", group:64, id:54 }
+  {key: "#figure_enemy_kingdome_javelin", group:64, id:55 }
+  {key: "#figure_enemy_kingdome_mounted", group:64, id:56 }
+  {key: "#figure_enemy_kingdome_infantry", group:64, id:57 }
+  {key: "#figure_native_trader", group:64, id:58 }
+  {key: "#figure_arrow", group:64, id:59 }
+  {key: "#figure_javelin", group:64, id:60 }
+  {key: "#figure_bolt", group:64, id:61 }
+  {key: "#figure_ballista", group:64, id:62 }
+  {key: "#figure_creature", group:64, id:63 }
+  {key: "#figure_missionary", group:64, id:64 }
+  {key: "#figure_seagulls", group:64, id:65 }
+  {key: "#figure_fishing_point", group:64, id:95 }
+  {key: "#figure_delivery_boy", group:64, id:66 }
+  {key: "#figure_shipwreck", group:64, id:67 }
+  {key: "#figure_birds", group:64, id:68 }
+  {key: "#figure_ostrich", group:64, id:69 }
+  {key: "#figure_antelope", group:64, id:70 }
+  {key: "#figure_spear", group:64, id:71 }
+  {key: "#figure_charior_racer", group:64, id:72 }
+  {key: "#figure_ostrich_hunter", group:64, id:73 }
+  {key: "#figure_hunter_spear", group:64, id:74 }
+  {key: "#figure_antelope_hunter", text: "Antilopvadász" }
+  {key: "#figure_antelope_hunter_javelin", text: "Vadász gerely" }
+  {key: "#figure_birds_hunter", text: "Madárvadász" }
+  {key: "#figure_lumberjack", group:64, id:75 }
+  {key: "#figure_ferry_boat", group:64, id:76 }
+  {key: "#figure_transport_ship", group:64, id:77 }
+  {key: "#figure_warship", group:64, id:78 }
+  {key: "#figure_carpenter", group:64, id:79 }
+  {key: "#figure_bricklayer", group:64, id:80 }
+  {key: "#figure_stonemason", group:64, id:81 }
+  {key: "#figure_crocodile", group:64, id:82 }
+  {key: "#figure_hyena", group:64, id:83 }
+  {key: "#figure_hippo", group:64, id:84 }
+  {key: "#figure_laborer", group:64, id:85 }
+  {key: "#figure_sled", group:64, id:86 }
+  {key: "#figure_water_carrier", group:64, id:87 }
+  {key: "#figure_constable", group:64, id:88 }
+  {key: "#figure_magistrate", group:64, id:89 }
+  {key: "#figure_reed_gatherer", group:64, id:90 }
+  {key: "#figure_festival_priest", group:64, id:91 }
+  {key: "#figure_enemy_transport", group:64, id:92 }
+  {key: "#figure_enemy_warship", group:64, id:93 }
+  {key: "#figure_funeral_walker", text: "Temetési menet" }
+  {key: "#figure_fishing_spot", group:64, id:95 }
+  {key: "#figure_sled_puller", group:64, id:96 }
+  {key: "#figure_showman", group:64, id:97 }
+  {key: "#figure_plagued_citizen", group:64, id:98 }
+  {key: "#figure_bedouin_infantry", group:64, id:99 }
+  {key: "#figure_egyptian_war_ship", group:64, id:100 }
+  {key: "#figure_egyptian_transport_ship", group:64, id:101 }
+  {key: "#figure_asp", group:64, id:102 }
+  {key: "#figure_lion", group:64, id:103 }
+  {key: "#figure_scorpion", group:64, id:104 }
+  {key: "#figure_zookeeper", group:64, id:105 }
+  {key: "#figure_frog", group:64, id:106 }
+  {key: "#figure_locust", group:64, id:107 }
+  {key: "#figure_tomb_artisan", group:64, id:108 }
+  {key: "#figure_mummy", group:64, id:109 }
+  { key: "#mummy_risen", text: "A pecsét feltört. Újra járok." }
+  { key: "#mummy_walks_streets", text: "Ezek az utcák megismerik majd az átkot." }
+  { key: "#mummy_attacking", text: "A hús puha. A pólyák még emlékeznek, hogyan kell lesújtani." }
+  { key: "#mummy_disease_risk", text: "A városotok már most sírbolt szagát árasztja. Otthon érzem magam." }
+  { key: "#mummy_no_food_in_city", text: "Üres magtárak? Az élők éheznek, a holtak kitartanak." }
+  { key: "#mummy_city_have_no_army", text: "Nincsenek erődök? Akkor semmi sem áll köztem és a házaitok között." }
+  { key: "#mummy_need_workers", text: "Olyan kevés munkás... és még oly sok üres sír." }
+  { key: "#mummy_gods_are_angry", text: "Az istenek elfordulnak. Tökéletes idő egy átokhoz." }
+  { key: "#mummy_city_is_bad", text: "A fáraó kegye halványul. Örömmel szorul szorosabbra a pólyám." }
+  { key: "#mummy_much_unemployment", text: "Tétlen kezek? Tétlen lelkek? Mindkettőt felhasználhatom." }
+  { key: "#mummy_low_entertainment", text: "Nincsenek ünnepségek? Akkor be kell érnetek az én felvonulásommal." }
+  { key: "#mummy_city_is_good", text: "Rendezett város. Kár, hogy porrá kell válnia." }
+  { key: "#mummy_city_is_amazing", text: "Micsoda pompa! Minden ragyogó utcát kísérteni fogok." }
+  {key: "#figure_pharaoh", group:64, id:110 }
+  {key: "#figure_governor", group:64, id:111 }
+  {key: "#figure_drunkard", group:64, id:112 }
+  {key: "#figure_barbarian_archer", text : "Ellenséges barbár íjász" }
+  {key: "#figure_barbarian_sword", text : "Ellenséges barbár kardforgató" }
+  {key: "#figure_barbarian_transport_ship", text : "Ellenséges barbár szállítóhajó" }
+  {key: "#figure_canaanite_archer", text : "Ellenséges kánaáni íjász" }
+  {key: "#figure_canaanite_sword", text : "Ellenséges kánaáni kardforgató" }
+  {key: "#figure_canaanite_transport_ship", text : "Ellenséges kánaáni szállítóhajó" }
+  {key: "#figure_canaanite_war_ship", text : "Ellenséges kánaáni hadihajó" }
+  {key: "#figure_canaanite_chariot", text : "Ellenséges kánaáni harci szekér" }
+  {key: "#figure_kushite_spearman", text : "Ellenséges kusita lándzsás" }
+  {key: "#figure_kushite_axeman", text : "Ellenséges kusita bárdos" }
+  {key: "#figure_kushite_transport_ship", text : "Ellenséges kusita szállítóhajó" }
+  {key: "#figure_kushite_war_ship", text : "Ellenséges kusita hadihajó" }
+  {key: "#figure_kushite_chariot", text : "Ellenséges kusita harci szekér" }
+  {key: "#figure_hittite_archer", text : "Ellenséges hettita íjász" }
+  {key: "#figure_hittite_spearman", text : "Ellenséges hettita lándzsás" }
+  {key: "#figure_hittite_transport_ship", text : "Ellenséges hettita szállítóhajó" }
+  {key: "#figure_hittite_war_ship", text : "Ellenséges hettita hadihajó" }
+  {key: "#figure_hittite_chariot", text : "Ellenséges hettita harci szekér" }
+  {key: "#figure_persian_archer", text : "Ellenséges perzsa íjász" }
+  {key: "#figure_persian_spearman", text : "Ellenséges perzsa lándzsás" }
+  {key: "#figure_persian_transport_ship", text : "Ellenséges perzsa szállítóhajó" }
+  {key: "#figure_persian_war_ship", text : "Ellenséges perzsa hadihajó" }
+  {key: "#figure_persian_chariot", text : "Ellenséges perzsa harci szekér" }
+  {key: "#figure_assyrian_archer", text : "Ellenséges asszír íjász" }
+  {key: "#figure_assyrian_sword", text : "Ellenséges asszír kardforgató" }
+  {key: "#figure_assyrian_transport_ship", text : "Ellenséges asszír szállítóhajó" }
+  {key: "#figure_assyrian_war_ship", text : "Ellenséges asszír hadihajó" }
+  {key: "#figure_assyrian_chariot", text : "Ellenséges asszír harci szekér" }
+  {key: "#figure_egyptian_galera", text : "Ellenséges egyiptomi gálya" }
+  {key: "#figure_libian_archer", text : "Ellenséges líbiai íjász" }
+  {key: "#figure_libian_swordman", text : "Ellenséges líbiai kardforgató" }
+  {key: "#figure_libian_transport_ship", text : "Ellenséges líbiai szállítóhajó" }
+  {key: "#figure_libian_war_ship", text : "Ellenséges líbiai hadihajó" }
+  {key: "#figure_libian_chariot", text : "Ellenséges líbiai harci szekér" }
+  {key: "#figure_nubian_archer", text : "Ellenséges núbiai íjász" }
+  {key: "#figure_nubian_axeman", text : "Ellenséges núbiai bárdos" }
+  {key: "#figure_nubian_transport_ship", text : "Ellenséges núbiai szállítóhajó" }
+  {key: "#figure_nubian_war_ship", text : "Ellenséges núbiai hadihajó" }
+  {key: "#figure_nubian_chariot", text : "Ellenséges núbiai harci szekér" }
+  {key: "#figure_phoenician_spearman", text : "Ellenséges föníciai lándzsás" }
+  {key: "#figure_phoenician_swordman", text : "Ellenséges föníciai kardforgató" }
+  {key: "#figure_phoenician_transport_ship", text : "Ellenséges föníciai szállítóhajó" }
+  {key: "#figure_phoenician_war_ship", text : "Ellenséges föníciai hadihajó" }
+  {key: "#figure_phoenician_chariot", text : "Ellenséges föníciai harci szekér" }
+  {key: "#figure_roman_archer", text : "Ellenséges római íjász" }
+  {key: "#figure_roman_legioner", text : "Ellenséges római légiós" }
+  {key: "#figure_roman_transport_ship", text : "Ellenséges római szállítóhajó" }
+  {key: "#figure_roman_war_ship", text : "Ellenséges római hadihajó" }
+  {key: "#figure_roman_chariot", text : "Ellenséges római harci szekér" }
+  {key: "#figure_seapeople_archer", text : "Ellenséges tengeri népek íjásza" }
+  {key: "#figure_seapeople_swordman", text : "Ellenséges tengeri népek kardforgatója" }
+  {key: "#figure_seapeople_transport_ship", text : "Ellenséges tengeri népek szállítóhajója" }
+  {key: "#figure_seapeople_war_ship", text : "Ellenséges tengeri népek hadihajója" }
+  {key: "#figure_seapeople_chariot", text : "Ellenséges tengeri népek harci szekere" }
+  {key: "#figure_hyksos_archer", text : "Ellenséges hükszosz íjász" }
+  {key: "#figure_hyksos_swordman", text : "Ellenséges hükszosz kardforgató" }
+  {key: "#figure_hyksos_transport_ship", text : "Ellenséges hükszosz szállítóhajó" }
+  {key: "#figure_hyksos_war_ship", text : "Ellenséges hükszosz hadihajó" }
+  {key: "#figure_hyksos_chariot", text : "Ellenséges hükszosz harci szekér" }
+
+  {key: "#house_low_desirabilty", text:"Ez a ház hamarosan visszafejlődik. A környék csökkenő vonzereje lefelé húzza."}
+  {key: "#lacks_access_primitive_water", text:"Ez a ház hamarosan visszafejlődik, mert még a legegyszerűbb vízforráshoz sincs hozzáférése."}
+  {key: "#not_visited_by_water_carrier", text:"Ez a ház hamarosan visszafejlődik, mert nem látogatja vízhordó."}
+  {key: "#no_entertainment_to_be_found", text:"Ez a ház hamarosan visszafejlődik, mert a környéken nincs szórakozási lehetőség."}
+  {key: "#any_entertainment_in_location", text:"Ez a ház hamarosan visszafejlődik, mert a környéken alig található szórakozási lehetőség."}
+  {key: "#too_little_entertainment_in_location", text:"Ez a ház hamarosan visszafejlődik, mert túl kevés a szórakozási lehetőség a környéken."}
+  {key: "#some_entertainment_found_location", text:"Ez a ház hamarosan visszafejlődik. Van némi szórakozási lehetőség a környéken, de nem elegendő."}
+  {key: "#good_entertainment_found_location", text:"Ez a ház hamarosan visszafejlődik. Jó szórakozási lehetőségek vannak a környéken, de nincs elég változatosság."}
+  {key: "#excellent_entertainment_found_location", text:"Ez a ház hamarosan visszafejlődik. Kiváló szórakozási lehetőségek vannak a környéken, de a helyszínek túlzsúfoltak, vagy nincs elég változatosság az igényes írnoki réteg számára."}
+  {key: "#one_food_type_need", text:"Ez a ház hamarosan visszafejlődik, mert nem kapott mostanában élelmiszer-utánpótlást a helyi bazárból."}
+  {key: "#two_food_types_need", text:"Ez a ház hamarosan visszafejlődik, mert jelenleg csak egyféle élelmiszerhez fér hozzá a helyi bazárból. Ez elégedetlenné teszi a gazdagabb polgárokat."}
+  {key: "#three_food_types_need", text:"Ez a ház hamarosan visszafejlődik, mert jelenleg csak kétféle élelmiszert kap a helyi bazárból. Ez elbátortalanítja az írnoki réteget."}
+  {key: "#no_bazaar_access", text:"Ez a ház hamarosan visszafejlődik. Elvesztette a hozzáférést egy bazárhoz."}
+  {key: "#low_bazaar_access", text:"Ez a ház hamarosan visszafejlődik. Bár hozzáfér egy bazárhoz, a bazár nehezen jut elegendő élelmiszerhez."}
+  {key: "#lost_basic_educational_facilities ", text:"Ez a ház hamarosan visszafejlődik, mert elvesztette az írnokiskola vagy a könyvtár által biztosított alapvető oktatási lehetőségeket."}
+  {key: "#lost_access_to_library ", text:"Ez a ház hamarosan visszafejlődik. Oktatási szintje csökkent, mert elvesztette hozzáférését a könyvtárhoz."}
+  {key: "#lost_access_to_scribal_school ", text:"Ez a ház hamarosan visszafejlődik. Oktatási szintje csökkent, mert elvesztette hozzáférését az írnokiskolához."}
+  {key: "#lost_access_to_higher_education ", text:"Ez a ház hamarosan visszafejlődik. Korábban kiváló oktatási lehetőségei csökkentek, amikor elvesztette hozzáférését a magasabb szintű oktatáshoz."}
+  {key: "#no_access_to_magistrates", text:"Ez a ház hamarosan visszafejlődik, mert nincs hozzáférése a bíróságok által biztosított elöljárókhoz."}
+  {key: "#run_out_of_pottery", text:"Ez a ház hamarosan visszafejlődik. Elfogyott a kerámiája, és a helyi bazár legfeljebb rendszertelenül tudja ellátni."}
+  {key: "#lost_all_access_to_local_religious", text:"Ez a ház hamarosan visszafejlődik, mert elvesztette az összes helyi vallási létesítményhez való hozzáférését."}
+  {key: "#access_to_one_local_religious", text:"Ez a ház hamarosan visszafejlődik. A helyi vallási lehetőségekhez való hozzáférése egyetlen isten templomára csökkent."}
+  {key: "#access_to_two_local_religious", text:"Ez a ház hamarosan visszafejlődik. Korábban kiváló vallási lehetőségei már csak két isten templomaira korlátozódnak."}
+  {key: "#lost_dentist_access", text:"Ez a ház hamarosan visszafejlődik, mert elvesztette a fogorvosi ellátást."}
+  {key: "#no_access_to_physician", text:"Ez a ház hamarosan visszafejlődik, mert egészségügyi ellátása siralmas. Nemcsak halottkémhez nincs hozzáférése, de az orvosi ellátás sem megfelelő."}
+  {key: "#no_access_to_mortuary", text:"Ez a ház hamarosan visszafejlődik, mert egészségügyi ellátása csökkent. Az orvosi ellátás megfelelő, de nincs helyi hozzáférése ravatalozóhoz."}
+  {key: "#hard_access_to_physician", text:"Ez a ház hamarosan visszafejlődik, mert egészségügyi ellátása csökkent. Van helyi ravatalozó, de nehéz orvosi rendelőt találni."}
+  {key: "#run_out_of_linen", text:"Ez a ház hamarosan visszafejlődik, mert elfogyott a lenszövete, és a helyi bazár legfeljebb rendszertelenül tudja ellátni."}
+  {key: "#run_out_of_beer", text:"Ez a ház hamarosan visszafejlődik, mert elfogyott a söre, és a helyi bazár legfeljebb rendszertelenül tudja ellátni."}
+  {key: "#cannot_evolve_cause_low_desirability", text:"Ez a lakóhely nem fejlődhet tovább, amíg a környék vonzereje nem javul."}
+  {key: "#cannot_evolve_most_primitive_water_source", text:"Ez a ház nem fejlődhet tovább, mert még a legegyszerűbb vízforráshoz sincs hozzáférése."}
+  {key: "#cannot_evolve_access_to_water_carrier", text:"Ez a ház nem fejlődhet tovább, mert nem fér hozzá a vízhordók szolgáltatásaihoz."}
+  {key: "#cannot_evolve_no_entertainment", text:"Ez a ház nem fejlődhet tovább, mert a környéken nincs szórakozási lehetőség."}
+  {key: "#cannot_evolve_hardly_any_entertainment", text:"Ez a ház nem fejlődhet tovább, mert a környéken alig található szórakozási lehetőség."}
+  {key: "#cannot_evolve_too_little_entertainment", text:"Ez a ház nem fejlődhet tovább, mert túl kevés a szórakozási lehetőség a környéken."}
+  {key: "#cannot_evolve_some_entertainment", text:"Ez a ház nem fejlődhet tovább, mert van némi szórakozási lehetőség a környéken, de nem elegendő."}
+  {key: "#cannot_evolve_good_entertainment", text:"Ez a ház nem fejlődhet tovább, mert a környéken jó szórakozási lehetőség van, de nincs elég változatosság."}
+  {key: "#cannot_evolve_excellent_entertainment", text:"Ez a ház nem fejlődhet tovább, mert a környéken kiváló szórakozási lehetőség van, de a helyszínek túlzsúfoltak, vagy nincs elég változatosság az igényes írnoki réteg számára."}
+  {key: "#cannot_evolve_needs_supply_food", text:"Ez a ház nem fejlődhet tovább, mert élelmiszer-ellátásra van szüksége egy helyi bazárból."}
+  {key: "#cannot_evolve_needs_second_type_food", text:"Ez a ház nem fejlődhet tovább, mert egy második élelmiszerfajtára van szüksége a helyi bazárból, hogy gazdagabb egyiptomiak költözzenek ide."}
+  {key: "#cannot_evolve_needs_third_type_food", text:"Ez a ház nem fejlődhet tovább, mert egy harmadik élelmiszerfajtára van szüksége a helyi bazárból, hogy magasabb társadalmi rétegű egyiptomiak költözzenek ide."}
+  {key: "#cannot_evolve_needs_access_bazaar", text:"Ez a ház nem fejlődhet tovább, mert nincs hozzáférése helyi bazárhoz."}
+  {key: "#cannot_evolve_needs_low_access_bazaar", text:"Ez a ház nem fejlődhet tovább. Bár hozzáfér helyi bazárhoz, maga a bazár nehezen jut élelmiszer-utánpótláshoz."}
+  {key: "#cannot_evolve_needs_basic_education", text:"Ez a ház nem fejlődhet tovább, mert nincs hozzáférése az írnokiskola vagy a könyvtár által biztosított alapvető oktatáshoz."}
+  {key: "#cannot_evolve_needs_library_education", text:"Ez a ház nem fejlődhet tovább, mert oktatási lehetőségeit egy könyvtárhoz való hozzáféréssel kell javítani."}
+  {key: "#cannot_evolve_needs_school_education", text:"Ez a ház nem fejlődhet tovább, mert oktatási lehetőségeit egy írnokiskolához való hozzáféréssel kell javítani."}
+  {key: "#cannot_evolve_needs_academy_education", text:"használaton kívüli sor: a fejlődés az akadémiához való hozzáférés hiánya miatt megállt."}
+  {key: "#cannot_evolve_needs_magistrate", text:"Ez a ház nem fejlődhet tovább, mert nincs hozzáférése a bíróság által biztosított helyi elöljáróhoz."}
+  {key: "#cannot_evolve_needs_pottery", text:"Ez a ház nem fejlődhet tovább. A gazdagabb polgárok beköltözése előtt a helyi bazárnak kerámiával kell ellátnia."}
+  {key: "#cannot_evolve_needs_religious", text:"Ez a ház nem fejlődhet tovább, mert nincs hozzáférése helyi vallási létesítményekhez."}
+  {key: "#cannot_evolve_needs_religious_two_gods", text:"Ez a ház csak egyetlen isten templomaihoz fér hozzá. Nem fejlődik tovább, amíg lakói nem tisztelhetnek más isteneket is."}
+  {key: "#cannot_evolve_needs_religious_three_gods", text:"Ez a ház csak két isten templomaihoz fér hozzá. Nem fejlődik tovább, amíg lakói nem tisztelhetnek más isteneket is."}
+  {key: "#cannot_evolve_needs_dentist", text:"Ez a ház nem fejlődhet tovább, mert nincs helyi hozzáférése fogorvoshoz."}
+  {key: "#cannot_evolve_needs_physician", text:"Ez a ház nem fejlődhet tovább, mert gyakorlatilag nincs egészségügyi ellátása. Nincs hozzáférése orvoshoz vagy ravatalozóhoz."}
+  {key: "#cannot_evolve_needs_mortuary_has_physician", text:"Ez a ház nem fejlődhet tovább, mert jobb egészségügyi ellátást igényel. Az orvosi ellátás megfelelő, de nincs helyi hozzáférése ravatalozóhoz."}
+  {key: "#cannot_evolve_needs_physician_mortuary_has", text:"Ez a ház nem fejlődhet tovább, mert jobb egészségügyi ellátást igényel. Van helyi ravatalozó, de orvosi ellátásra is szüksége van."}
+  {key: "#cannot_evolve_needs_linen", text:"Ez a ház nem fejlődhet tovább. A gazdagabb polgárok beköltözése előtt a helyi bazárnak lenszövettel kell ellátnia."}
+  {key: "#cannot_evolve_needs_beer", text:"Ez a ház nem fejlődhet tovább. A gazdagabb polgárok beköltözése előtt a helyi bazárnak sörrel kell ellátnia."}
+  {key: "#cannot_evolve_needs_jewlery", text:"Ez a ház nem fejlődhet tovább. A gazdagabb polgárok beköltözése előtt a helyi bazárnak luxuscikkekkel, például ékszerekkel kell ellátnia."}
+  {key: "#trader_from", text:"innen"}
+  {key: "#trader_capacity", text:"Kapacitás"}
+  {key: "#trader_buys", text:"Vásárol"}
+  {key: "#trader_sells", text:"Elad"}
+  {key: "#trader_bought", text:"Vásárolt"}
+  {key: "#trader_sold", text:"Eladott"}
+  {key: "#trader_returning_home", text:"Hazatér"}
+  {key: "#trader_trading_goods", text:"Árukereskedés"}
+  {key: "#trader_heading_storage", text:"A város raktáraihoz tart"}
+  {key: "#trader_nothing_to_trage", text:"Nincs itt kereskednivaló, csak áthaladok"}
+  {key: "#trader_ship_waiting_free_dock", text:"Horgonyoz, szabad kikötőhelyre vár"}
+  {key: "#trader_ship_docking_trading", text:"Kikötött, árut vásárol és ad el"}
+  {key: "#trader_ship_returning_home", text:"Hazatér"}
+  {key: "#trader_ship_sailing_dock", text:"A város kikötőihez hajózik"}
+  {key: "#building_employee", text:"Dolgozó"}
+  {key: "#building_employee_needed", text:"szükséges"}
+  {key: "#AD", text:"Kr. u."}
+  {key: "#BC", text:"Kr. e."}
+
+  { key: "#trader_city_not_trades", text: "Hosszú és veszélyes utunk hiábavaló volt! Ez a város nem kereskedik." }
+  { key: "#trader_buy_for_less_sell_for_more", text: "Olcsón venni, drágán eladni. Ez a jelmondatom!" }
+  { key: "#trader_its_my_life", text: "Nekem való a kereskedői élet!" }
+  { key: "#trader_i_ll_be_a_hero", text: "Hős leszek, amikor ezeket az árukat hazaviszem a földemre." }
+  { key: "#trader_you_talk_a_fine_bargain", text: "Jól alkudozol, barátom. Alig fogom visszakapni a költségeimet." }
+  { key: "#donkey_cicero_breathe", text: "Amíg lélegzem, remélek. És amíg cipelek, addig is." }
+  { key: "#donkey_cicero_books", text: "A könyvek nélküli szoba olyan, mint lélek nélküli test. A gabona nélküli karaván még rosszabb." }
+  { key: "#donkey_cicero_garden", text: "Ha van kerted és könyvtárad, mindened megvan, amire szükséged lehet. Nekem nyergem van. Majdnem ugyanaz." }
+  { key: "#donkey_cicero_gratitude", text: "A hála minden erény szülője. Egy sárgarépa is sokat segítene." }
+  { key: "#donkey_cicero_friendship", text: "A barátság növeli a boldogságot és enyhíti a szenvedést. Ugyanezt teszi, ha lassabban megyek, mint a karaván vezetője." }
+  { key: "#donkey_cicero_money", text: "Semmi sincs olyan szilárdan megalapozva, hogy a pénz ne tudná tönkretenni. Kérdezd csak a nyereg okozta sebeimet." }
+  { key: "#donkey_cicero_memory", text: "A holtak élete az élők emlékezetében él tovább. Én még mindig emlékszem arra az oázisra." }
+  { key: "#donkey_cicero_moderation", text: "Soha ne ess túlzásba, hanem hagyd, hogy a mértékletesség vezessen. Különösen a rakomány súlyát illetően." }
+  { key: "#donkey_cicero_mistakes", text: "Bárki hibázhat, de csak egy ostoba ragaszkodik a tévedéséhez. Egyszer rossz irányba fordultam. Egyszer." }
+  { key: "#donkey_cicero_history", text: "Aki nem tudja, mi történt a születése előtt, örökké gyermek marad. Vagy szamár. Várjunk csak." }
+  { key: "#donkey_cicero_laws", text: "Háború idején a törvények hallgatnak. A szamarak nem. I-á." }
+  { key: "#donkey_cicero_not_alone", text: "Nem csupán önmagunkért születünk. Nyilvánvalóan. Én ezért a málháért születtem." }
+  { key: "#donkey_cicero_meta", text: "Teherhordó állatnak neveznek, mégis Cicerót idézek. Na, ki a filozófus most?" }
+  { key: "#donkey_cicero_runaway", text: "Menekülök, tehát vagyok. Cicero megértené. Valószínűleg." }
+  { key: "#flotsam_plato_unexamined", text: "A meg nem vizsgált élet nem érdemes arra, hogy éljük. A meg nem vizsgált áramlat miatt kerültem ide." }
+  { key: "#flotsam_plato_cave", text: "A barlang foglyai csak árnyakat látnak. Én a folyópartot látom – fejjel lefelé." }
+  { key: "#flotsam_plato_wise", text: "A bölcsek azért beszélnek, mert van mondanivalójuk. A uszadékfa csak lebeg." }
+  { key: "#flotsam_plato_courage", text: "A bátorság annak tudása, mitől nem kell félni. A Nílustól nem félek. A Nílushoz tartozom." }
+  { key: "#flotsam_plato_knowledge", text: "A kényszer hatására szerzett tudás nem rögzül. Úgy tűnik, a rakomány sem." }
+  { key: "#flotsam_plato_opinion", text: "A vélemény a tudás és a tudatlanság között helyezkedik el. Én a hajó és a part között helyezkedem el." }
+  { key: "#flotsam_plato_love", text: "A szerelem érintésére mindenki költővé válik. A zátony érintésére mindenki uszadékká válik." }
+  { key: "#flotsam_plato_justice", text: "Az igazságosság először a polgárok szívében lakozik. Egy kis parafa is jól jön." }
+  { key: "#flotsam_plato_music", text: "A zene lelket ad az univerzumnak. A Nílus pedig olyan úti célt ad nekem, amit nem én választottam." }
+  { key: "#flotsam_plato_ignorance", text: "A tudatlanság minden rossz gyökere és törzse. Ahogy a rossz tömítés is." }
+  { key: "#flotsam_plato_excess", text: "A túlzás ellentétes irányú változást idéz elő. Kérdezd csak meg ezt a hordót." }
+  { key: "#flotsam_plato_war", text: "Csak a holtak látták a háború végét. Mi többiek a hajótest végét láttuk." }
+  { key: "#flotsam_plato_meta", text: "Törmeléknek neveznek. Platónt idézek. Na, ki a filozófus most?" }
+  { key: "#frog_joke_ribbit", text: "Brekk. Ennyi. Ja, mégsem – a házad most már az enyém." }
+  { key: "#frog_joke_plague", text: "Járványnak nevezik. Én családi összejövetelnek hívom." }
+  { key: "#frog_joke_pad", text: "Tündérrózsalevelet kértem. Adtak egy vályogtéglát. Majdnem ugyanaz." }
+  { key: "#frog_joke_pharaoh", text: "A fáraó azt mondja, pattanjak neki. Rajta nevetek – én már eleve ugrálok." }
+  { key: "#frog_joke_flies", text: "Mit rendelnek a békák a bazárban? Bármit, ami bosszantja őket." }
+  { key: "#frog_joke_happy", text: "Miért olyan boldogok a békák? Megeszik, ami bosszantja őket. Kétszer." }
+  { key: "#frog_joke_croak", text: "Azért jöttem, hogy brekegjek és legyeket egyek. És elfogyott a légy." }
+  { key: "#frog_joke_swarm", text: "Egy béka aranyos. Tíz már egy gyűlés. Húsz már politika." }
+  { key: "#frog_joke_happiness", text: "A város boldogsága épp most csökkent. Nincs mit." }
+  { key: "#frog_joke_nile", text: "A Nílus árad. Én is. Többnyire a küszöbötökön." }
+  { key: "#frog_joke_amphibious", text: "A kétéltű azt jelenti: szárazföldön és vízben is él. A kamrátok mindkettőnek megfelel." }
+  { key: "#frog_joke_meta", text: "Bibliai előjel vagyok stand-up műsorral. Brekk." }
+
+  {key: "#dwellers_palace_are_pinnacle", group:127, id:100}
+  {key: "#house_upgrade_inprogress", group:127, id:101}
+  {key: "#house_nearby_building", group:127, id:102}
+  {key: "#having_detrimental_effect", group:127, id:103}
+  {key: "#house_upgrade_nospace", group:127, id:104}
+
+  {key: "#TR_CONFIG_HEADER_LANGUAGES", lang:"en", text: "Játék nyelve"}
+
+  { key: "#hunter_ostrich_good_city", lang:"en", text: "Tetszik ez a hely, de mindig van lehetőség a fejlődésre."}
+
+  { key: "#immigrant_im_new_here", text: "Új vagyok itt. Kíváncsi vagyok, mit kínálhat ez a város egy hozzám hasonló embernek." }
+  { key: "#immigrant_heard_there_is_a_job_here", text: "Úgy hallottam, itt mindenki találhat munkát, aki akar." }
+  { key: "#immigrant_city_has_plenty_of_food", text: "Azt mondják, ebben a városban bőségesen jut élelem mindenkinek." }
+  { key: "#immigrant_disease_risk", text: "Betegség az utcákon? Reméltem, hogy ez a város egészségesebb." }
+  { key: "#immigrant_city_have_no_army", text: "Nincsenek erődök? Magam mögött hagytam a veszélyt – legalábbis azt hittem." }
+  { key: "#immigrant_need_workers", text: "Olyan sok üres műhely. Jó – ez azt jelenti, hogy jut nekem is munka." }
+  { key: "#immigrant_gods_are_angry", text: "Még az istenek is nyugtalannak tűnnek. Rossz előjel egy újonnan érkezőnek." }
+  { key: "#immigrant_city_is_bad", text: "A fáraó kegye csekélynek tűnik. Talán rossz városba jöttem?" }
+  { key: "#immigrant_much_unemployment", text: "Tétlen emberek tömegei. Vajon marad itt hely számomra?" }
+  { key: "#immigrant_low_entertainment", text: "Már régóta nem volt ünnepség. Unalmas fogadtatás az újonnan érkezőknek." }
+  { key: "#immigrant_city_is_good", text: "Úgy tűnik, ez remek hely az újrakezdéshez!" }
+  { key: "#immigrant_city_is_amazing", text: "Micsoda város! Örülök, hogy megtettem ezt az utat." }
+
+  { key: "#emigrant_no_job_in_city", text: "Nem találok itt munkát. Máshol fogok próbálkozni." }
+  { key: "#emigrant_no_food_in_city", text: "Nincs elég élelmem. Elköltözöm ebből a sivatagból!" }
+  { key: "#emigrant_tax_too_high", text: "Túl magasak itt az adók. Meglep, hogy a távozásomért nem adóztattak meg." }
+  { key: "#emigrant_salary_too_low", text: "Nem tudok megélni abból, amit itt fizetnek nekem." }
+  { key: "#emigrant_no_house_for_me", text: "A házak, amelyeket láttam, zsúfolásig tele vannak emberekkel. Nem maradhatok itt lakóhely nélkül." }
+  { key: "#emigrant_disease_risk", text: "Ez a hely bűzlik a betegségtől. Nem várom meg, míg kitör a járvány." }
+  { key: "#emigrant_city_have_no_army", text: "Nincsenek erődök? Egyetlen portya, és semmink sem maradna. Én leléptem." }
+  { key: "#emigrant_need_workers", text: "Munkásokért kiáltanak, mégsem akad itt munka nekem. Ideje továbbállni." }
+  { key: "#emigrant_gods_are_angry", text: "Az istenek dühösnek tűnnek. Inkább egy biztonságosabb helyen imádkozom." }
+  { key: "#emigrant_city_is_bad", text: "Ennek a városnak rossz híre van. Nem akarom, hogy a hírnevével együtt temessenek el." }
+  { key: "#emigrant_low_entertainment", text: "Már régóta nincs egyetlen ünnepség sem. Még a városból kivezető út is mozgalmasabbnak tűnik." }
+  { key: "#emigrant_city_is_good", text: "Egész kellemes város – valaki másnak. Az én szekerem már meg van pakolva." }
+  { key: "#emigrant_city_is_amazing", text: "Állítólag lenyűgöző város. Mégsem elég ahhoz, hogy itt maradjak." }
+
+  { key: "#recruiter_disease_in_city", text: "Mindenütt betegeket látok. Járvány törhet ki!" }
+  { key: "#recruiter_no_food_in_city", text: "Éhezem. Inkább élelmet keresnék, mint munkásokat." }
+  { key: "#recruiter_city_not_safety", text: "A város védelme olyan gyenge, hogy hamarosan egyiptomiak helyett külföldiekkel kell feltöltenem a munkahelyeket." }
+  { key: "#recruiter_need_workers", text: "Elérhető munkások nélkül lehetetlen a munkám." }
+  { key: "#recruiter_gods_are_angry", text: "Remélem, az istenek nem zúdítják ránk haragjukat. Többet kellene törődnünk velük." }
+  { key: "#recruiter_enemies_attack", text: "Az ellenség bármikor támadhat. Rossz a hírnevünk, és senki sem tisztel minket." }
+  { key: "#recruiter_i_looking_for_the_workers", text: "Ennyi munkaképes ember munkanélküliként mellett a feladatom könnyű kellene legyen." }
+  { key: "#recruiter_boring", text: "Unalmas itt. Bárcsak több szórakoztatót alkalmazhatnék." }
+  { key: "#recruiter_living_here", text: "Nem bánok itt élni. Bizonyára lehetne sokkal rosszabb is." }
+  { key: "#recruiter_city_is_amazing", text: "Ez a város a legjobb!" }
+  { key: "#recruiter_i_want_to_leave_city", text: "Én vagyok a város legnépszerűbb embere. Sok embernek kell munka." }
+  { key: "#recruiter_much_unemployments", text: "Óriási a betöltetlen állások listája, de nem találok munkásokat." }
+  { key: "#recruiter_no_jobs", text: "Nincs nekik munka, nekem pedig nincs munkásom. Valami nincs rendben itt." }
+  { key: "#recruiter_no_some_workers", text: "Még mindig keresek néhány munkást, hogy betöltsék a helyeket." }
+  { key: "#recruiter_need_more_workers", text: "Sokkal több munkásra van szükségünk. A listám csak egyre nő." }
+
+  { key: "#barge_have_no_place_for_dock", text: "Vajon van ebben a városban valami látnivaló, amit megnézhetek, amíg kirakodják a hajómat?" }
+  { key: "#barge_docked_wait_for_dockpushers", text: "Arra várunk, hogy valaki elszállítsa a hajónkra érkező rakományt." }
+  { key: "#barge_city_not_trades", text: "Nem tudom, miért jöttünk ide. Ez a város sosem kereskedik, a partra szállás pedig unalmas." }
+  { key: "#barge_i_like_to_trage", text: "Imádom az alkudozás művészetét! Alig várom, hogy elcseréljem a készleteimet." }
+  { key: "#barge_amazing_trades", text: "Micsoda bőséges utazás!" }
+
+  { key: "#dancer_i_like_festivals", text: "Sokan megbetegedtek a városban. Remélem, nem kapok el semmit!" }
+  { key: "#dancer_desease_can_start_at_any_moment", text: "Nem tudok rendesen ugrálni és táncolni elegendő élelem nélkül!" }
+  { key: "#dancer_no_food_in_city", text: "A betolakodóknak nem lenne nehéz elfoglalniuk a városunkat. Semmi sem védi." }
+  { key: "#dancer_city_not_safety_workers_leaving", text: "Újabb táncpartner veszett el a munkaerőhiány miatt! Utálok egyedül táncolni." }
+  { key: "#dancer_need_workers", text: "Többet kellene tennünk az istenek kiengeszteléséért – méghozzá gyorsan!" }
+  { key: "#dancer_gods_are_angry", text: "Ennek a városnak rosszabb a híre, mint egy ügyetlen zsonglőrnek! Remélem, nem támadnak meg minket." }
+  { key: "#dancer_city_is_bad", text: "Ha nem lennék ilyen könnyed a lábamon, mindenhol ezekbe a munkanélküliekbe botlanék!" }
+  { key: "#dancer_much_unemployments", text: "(Ásít) Több szórakozásra van szükségem!" }
+  { key: "#dancer_salary_too_low", text: "Ez a város talán éppolyan jó, mint bármelyik másik, azt hiszem." }
+  { key: "#dancer_city_is_good", text: "Ez a város fantasztikus!" }
+  { key: "#dancer_city_is_amazing", text: "Ezek az ünnepi tömegek annyira lelkesek, hogy még magasabbra akarok ugrani." }
+
+  { key: "#homeless_i_was_kicked_out_of_my_home", text: "Elűztek az otthonomból, pedig semmi hibát nem követtem el." }
+  { key: "#homeless_i_cant_find_a_place_to_live", text: "Nem találok magamnak lakhelyet!" }
+  { key: "#homeless_no_job_in_city", text: "Nincs munka és nincs tető a fejem felett. Ennek a városnak nincs rám szüksége." }
+  { key: "#homeless_no_food_in_city", text: "Éhezem és hajléktalan vagyok. Nem maradhatok itt." }
+  { key: "#homeless_tax_too_high", text: "Az adók elvették a házamat. Most már azt akarják, ami a méltóságomból maradt." }
+  { key: "#homeless_salary_too_low", text: "Az itteni bérekből még egy zugot sem tudok venni, ahol alhatnék." }
+  { key: "#homeless_found_new_house", text: "Egy ház, ahol van hely! Talán fordul a szerencsém." }
+  { key: "#homeless_no_house_for_me", text: "Nem maradt számomra hely ebben a városban. Elmegyek." }
+  { key: "#homeless_need_workers", text: "Munkásokra van szükségük, én meg az utcán alszom. Ennek semmi értelme." }
+  { key: "#homeless_city_is_bad", text: "A fáraó kegye hamuvá lett. Nem csoda, hogy elvesztettem az otthonom." }
+  { key: "#homeless_gods_are_angry", text: "Az istenek dühösek. Először a templomok szenvednek – aztán az olyan emberek, mint én." }
+  { key: "#homeless_city_bad_reputation", text: "Ennek a városnak a hírneve éppoly üres, mint a fekhelyem." }
+  { key: "#homeless_city_is_good", text: "A város másoknak megfelelőnek tűnik. Nekem csak egy ajtó kellene, amely megnyílik előttem." }
+  { key: "#buyer_goto_store", text: "Indulok a magtárhoz és a raktárudvarhoz. Kívánjatok erős lábakat!" }
+  { key: "#buyer_back_to_market", text: "Vissza a bazárba a megrakott szekérrel. Ne tétovázzatok, fiúk!" }
+  { key: "#buyer_city_has_low_health", text: "Az emberek betegek – és még mindig friss ételt várnak az asztalukra." }
+  { key: "#buyer_no_food_in_city", text: "Üres magtárak! Hogyan kellene megtöltenem ezeket a kosarakat?" }
+  { key: "#buyer_city_have_no_army", text: "Nincsenek erődök? A portyázók az úton minden kosarat elragadhatnának." }
+  { key: "#buyer_much_unemployments", text: "Annyi tétlen kéz, mégsem segít senki elcipelni az árut." }
+  { key: "#buyer_gods_are_angry", text: "Az istenek dühösnek tűnnek. Még a bazár sem tud velük alkudozni." }
+  { key: "#buyer_city_is_bad_reputation", text: "Ennek a városnak olyan rossz a híre, hogy a kereskedők nem kockáztatják meg, hogy ide hozzák a szekereiket." }
+  { key: "#buyer_too_much_unemployments", text: "Magas a munkanélküliség. Az éhes emberek rossz vásárlók." }
+  { key: "#buyer_low_entertainment", text: "Már régóta nincs ünnepség. Egy kis zene megrövidítené ezeket az utakat." }
+  { key: "#buyer_city_is_good", text: "Ez a város rendben van – rövid utak és teli polcok." }
+  { key: "#buyer_city_is_amazing", text: "A legjobb város egy bazári felvásárlónak! Minden, amire szükségem van, itt van a sarkon túl." }
+
+  { key: "#marketboy_these_baskets_are_too_heavy", text: "Ezek a kosarak túl nehezek egy olyan kisgyereknek, mint én!" }
+  { key: "#marketboy_bossy_lady_makes_me_carry_goods", text: "Az a parancsolgató nő egész nap árut cipeltet velem!" }
+  { key: "#marketboy_one_day_ill_run_the_bazaar", text: "Lehet, hogy most még csak kosarakat cipelek, de egy nap én fogom vezetni a bazárt." }
+  { key: "#marketboy_runaway", text: "A lány faképnél hagyott! Sebaj – ezeket a kosarakat egyedül viszem haza." }
+  { key: "#marketboy_disease_risk", text: "Mindenki köhög. Lerakhatom a kosarakat, hogy kezet mossak?" }
+  { key: "#marketboy_no_food_in_city", text: "Üres magtárak? Akkor miért cipelek élelmet szerte a városban?" }
+  { key: "#marketboy_city_have_no_army", text: "Nincsenek erődök? Ha jönnek a portyázók, először az én kosaraimat kaparintják meg!" }
+  { key: "#marketboy_need_workers", text: "A bazárnak több dolgos kézre van szüksége. Az én kezeim már tele vannak!" }
+  { key: "#marketboy_gods_are_angry", text: "Az istenek dühösnek tűnnek. Talán a zúzódott gyümölcsöt sem szeretik." }
+  { key: "#marketboy_city_is_bad", text: "Ez a város barátságtalannak tűnik. Még a kutyák is ugatnak a kosaraimra." }
+  { key: "#marketboy_much_unemployment", text: "Annyi tétlen ember – és senki sem ajánlja fel, hogy segít cipelni!" }
+  { key: "#marketboy_low_entertainment", text: "Már régóta nincs ünnepség. Legalább egy felvonulás megrövidítené ezt a sétát." }
+  { key: "#marketboy_city_is_good", text: "Egész jó ez a város. Rövid utak és egy vevő, aki ismeri az utat." }
+  { key: "#marketboy_city_is_amazing", text: "A legjobb város kosarakat szaladgálni! Egyszer még az enyém lesz ez a stand." }
+
+  { key: "#engineer_extreme_damage_level", text: "Sok ember sokkal rosszabb állapotban van, mint ezek az épületek. Remélem, nem romlik tovább a helyzet." }
+  { key: "#engineer_i_am_works", text: "Az én őrségem alatt ezek a falak nem fognak leomlani." }
+  { key: "#engineer_no_food_in_city", text: "Az éhínség talán nem gyengíti ezeket az épületeket, de engem annál inkább!" }
+  { key: "#engineer_city_not_safety", text: "Hogyan védhetnénk meg magunkat? A város védelme nevetséges." }
+  { key: "#engineer_high_damage_level", text: "Miért számít, ha ezek az épületek összeomlanak? Úgysem dolgozik bennük senki." }
+  { key: "#engineer_gods_are_angry", text: "Ha az istenek haragszanak, még a legjobb építész sem tudja kijavítani az általuk okozott károkat." }
+  { key: "#engineer_city_has_bad_reputation", text: "Városunk hírneve olyan alacsony, hogy félek, ellenségeink támadni fognak." }
+  { key: "#engineer_need_more_workers", text: "Becslésem szerint sok embernek nincs munkája." }
+  { key: "#engineer_low_entertainment", text: "Hát ez unalmas. Még az építészek is szeretnek néha szórakozni." }
+  { key: "#engineer_city_is_bad", text: "Az élet itt sokkal rosszabb is lehetne." }
+  { key: "#engineer_life_here_could_be_worse", text: "Az élet itt sokkal rosszabb is lehetne." }
+  { key: "#engineer_city_is_good", text: "Ez a város mindenre megfelel, amire egy építész szíve vágyhat!" }
+  { key: "#engineer_so_many_places_in_poor_condition", text: "Annyi hely van rossz állapotban, hogy alig bírom követni." }
+  { key: "#engineer_city_is_amazing", text: "Remélem, engem is elismernek ezért a város nagyszerű állapotáért." }
+  { key: "#brick_bricklaying_time_at_monument", text: "Itt az ideje, hogy téglát rakjunk az emlékműnél!" }
+  { key: "#brick_monument_will_be_strong", text: "Ez az emlékmű erős lesz!" }
+  { key: "#brick_waiting_for_bricks", text: "Még mindig a téglákra várok. Parasztok, siessetek!" }
+  { key: "#brick_looking_for_spot", text: "Keresem a következő falszakaszt, amit felhúzhatok." }
+  { key: "#brick_work_statue", text: "Egy kis habarcs, és ez a szobor újra büszkén fog állni." }
+  { key: "#brick_return_to_guild", text: "Vissza a céhbe. Ráférne egy kis pihenés a karjaimra." }
+  { key: "#brick_leaving_site", text: "Itt nincs több tennivaló – rendbe teszem a munkaterületet." }
+  { key: "#brick_disease_risk", text: "Ennek a helynek betegségtől bűzlik a levegője. Nehéz téglát rakni, amikor remeg a kezed." }
+  { key: "#brick_no_food_in_city", text: "Üres magtárak? Az éhes kőműves görbe falakat rak." }
+  { key: "#brick_city_have_no_army", text: "Nincsenek erődök? Egyetlen portya, és ez az emlékmű romhalmaz lesz, még mielőtt elkészülne." }
+  { key: "#brick_gods_are_angry", text: "Az istenek dühösnek tűnnek. Még a vályogtéglák is megrepednek a tekintetük alatt." }
+  { key: "#brick_low_entertainment", text: "Már régóta nincs ünnepség. Még a kőműveseknek is kell egy szabadnap az állványzaton." }
+  { key: "#brick_city_is_good", text: "Ez a város szilárd! Jó alapok a nagyszerű emlékművekhez." }
+  { key: "#brick_city_is_amazing", text: "A legjobb város, ahol valaha dolgoztam. Ezek a falak örökké állni fognak!" }
+  { key: "#carpenter_work_my_tools_need_for_monument", text: "A szerszámaimra szükség van az emlékműnél!" }
+  { key: "#carpenter_this_monument_will_be_short", text: "Ez az emlékmű hamar elkészül – a faanyag készen áll." }
+  { key: "#carpenter_work_wall", text: "Először az állványzat. Aztán kezdődik az igazi munka odafent." }
+  { key: "#carpenter_looking_for_spot", text: "Keresem a következő gerendát, amit a helyére kell illeszteni." }
+  { key: "#carpenter_return_to_guild", text: "Vissza a céhbe. Megint fűrészpor van a hajamban." }
+  { key: "#carpenter_work_garden", text: "Egy kis ácsmunkával rendbe hozzuk ezt a kertet." }
+  { key: "#carpenter_disease_risk", text: "Ennek a helynek betegségtől bűzlik a levegője. Nehéz vésőt fogni remegő kézzel." }
+  { key: "#carpenter_no_food_in_city", text: "Üres magtárak? Az éhes ács görbe gerendákat vág." }
+  { key: "#carpenter_city_have_no_army", text: "Nincsenek erődök? Egyetlen portya, és ez az állványzat tűzifává válik." }
+  { key: "#carpenter_gods_are_angry", text: "Az istenek dühösnek tűnnek. Még a jó cédrusfa is megvetemedik a tekintetük alatt." }
+  { key: "#carpenter_low_entertainment", text: "Már régóta nincs ünnepség. Még az ácsoknak is kell egy szabadnap az állványzaton." }
+  { key: "#carpenter_city_is_good", text: "Ez a város szilárd! A jó ácsmunkához jó alapok kellenek." }
+  { key: "#carpenter_city_is_amazing", text: "A legjobb város, ahol valaha dolgoztam. Ezek a gerendák örökké tartani fognak!" }
+
+  { key: "#fireman_desease_can_start_at_any_moment", text: "Remélem, nem tör ki járvány. A járványok úgy terjednek, mint a tűz." }
+  { key: "#fireman_no_food_in_city", text: "Még amikor tüzek égnek is, csak arra tudok gondolni, milyen éhes vagyok." }
+  { key: "#fireman_city_not_safety_workers_leaving", text: "Ha ellenségeink betörnek, az egész város lángba borulhat." }
+  { key: "#fireman_need_workers", text: "Attól tartok, ezek a félig üres épületek könnyen kigyulladhatnak. Bárcsak több dolgozó lenne." }
+  { key: "#fireman_gods_are_angry", text: "Az istenek lángoló haragja sújt le ránk, ha nem mutatunk több tiszteletet." }
+  { key: "#fireman_hight_fire_level", text: "Eszem ágában sincs hagyni, hogy a hírnevem ilyen mélyre süllyedjen. Városunk rossz híre támadásra csábít." }
+  { key: "#fireman_need_more_workers", text: "Többen jelentkeztek már önként a tűzoltóságra. Ezeknek az embereknek munkára van szükségük." }
+  { key: "#fireman_low_entertainment", text: "A tűzoltás kemény munka, és szívesen lehűteném magam egy jó előadással. Itt nincs elég ilyen." }
+  { key: "#fireman_gods_are_pleasures", text: "Elégedett vagyok ezzel a várossal." }
+  { key: "#fireman_city_is_amazing", text: "Ez a város nagyszerű." }
+  { key: "#fireman_fighting_fire", text: "Most nem beszélhetek. Épp ezt a tüzet oltom." }
+  { key: "#fireman_going_to_fire", text: "Ez a tűz az egész várost elpusztíthatja, ha nem cselekszem gyorsan!" }
+  { key: "#fireman_fighting_fire_also", text: "Hű, ez forró!" }
+
+  { key: "#cartpusher_have_no_place_for_goods", text: "Nem viszem tovább ezeket a készleteket, amíg nincs valaki, aki lerakodja őket."}
+  { key: "#cartpusher_i_have_time_for_rest", text: "Senki sem tudja átvenni ezeket az árukat! Semmi baj, a maradékot felhasználhatom."}
+  { key: "#cartpusher_road_too_long", text: "Ezekkel az árukkal át kell kelnem az egész városon. Egész nap eltart majd!"}
+  { key: "#cartpusher_i_have_no_destination", text: "Többet dolgozunk a ránk eső résznél. Több segítségre van szükségünk."}
+  { key: "#cartpusher_back_to_home", text: "Itt várok, amíg lesz hely ezeknek a holmiknak."}
+  { key: "#cartpusher_delivering_items", text: "Már ott vagyok? Nem tudom sokkal tovább cipelni ezeket az árukat."}
+  { key: "#cartpusher_disease_risk", text: "Ennek a helynek betegségtől bűzlik a levegője. Nehéz kocsit tolni, amikor lázasnak érzed magad." }
+  { key: "#cartpusher_no_food_in_city", text: "Üres magtárak? Akkor minek cipelem ezt az egészet?" }
+  { key: "#cartpusher_city_have_no_army", text: "Nincsenek erődök? Egyetlen portya, és a kocsim hadi zsákmány lesz." }
+  { key: "#cartpusher_gods_are_angry", text: "Az istenek dühösnek tűnnek. Még a kerekek is úgy nyikorognak, mintha rossz előjel lenne." }
+  { key: "#cartpusher_low_entertainment", text: "Már régóta nincs ünnepség. A kocsitoló hátának is jár egy kis pihenés." }
+  { key: "#cartpusher_city_is_good", text: "Ez a város szilárd! Rövid utak és teli raktárak." }
+  { key: "#cartpusher_city_is_amazing", text: "A legjobb város, ahová valaha szállítottam. Ezek a rakományok szinte maguktól gurulnak!" }
+  { key: "#docker_need_more_help", text: "Többet dolgozunk a ránk eső résznél. Több segítségre van szükségünk." }
+  { key: "#docker_wait_until_space_opens_up", text: "Itt várok, amíg lesz hely ennek az árunak." }
+  { key: "#docker_cant_haul_goods_much_farther", text: "Mikor érünk már oda? Nem bírom sokkal tovább cipelni ezt az árut." }
+  { key: "#docker_disease_risk", text: "Ennek a kikötőnek betegségtől bűzlik a levegője. Nehéz rakományt cipelni, amikor büdös a levegő." }
+  { key: "#docker_no_food_in_city", text: "Üres magtárak? A hajók éhesen érkeznek, és mi is." }
+  { key: "#docker_city_have_no_army", text: "Nincsenek erődök? Egyetlen portya, és ez a kikötő zsákmány lesz." }
+  { key: "#docker_gods_are_angry", text: "Az istenek dühösnek tűnnek. Még a folyó is mintha rossz irányba sodorna." }
+  { key: "#docker_low_entertainment", text: "Már régóta nincs ünnepség. A kikötői munkásoknak is jár egy kis partra szállás." }
+  { key: "#docker_city_is_good", text: "Ez a kikötő remekül működik! Rövid utak és teli raktárak." }
+  { key: "#docker_city_is_amazing", text: "A legjobb kikötő, ahol valaha dolgoztam. Ezek a ládák szinte maguktól partra sétálnak!" }
+  { key: "#enemy_chariot_attacking", text: "Előre! Zúzzátok őket a kerekek alá!" }
+  { key: "#enemy_chariot_marching", text: "A kerekeink pora megfojtja ezt a várost." }
+  { key: "#enemy_chariot_waiting", text: "Tartsátok a vonalat. Hamarosan indul a roham." }
+  { key: "#enemy_chariot_leaving", text: "Vissza! Éljünk, hogy újra harcba szállhassunk." }
+  { key: "#enemy_chariot_city_will_fall", text: "A falaitok nem állíthatják meg a harci szekereket." }
+  { key: "#enemy_chariot_no_match", text: "A gyalogság nem ellenfél számunkra!" }
+  { key: "#enemy_chariot_for_glory", text: "A dicsőségért és a zsákmányért!" }
+  { key: "#enemy_archer_shooting", text: "Tűz! Borítsátok be nyilakkal az eget!" }
+  { key: "#enemy_archer_marching", text: "Előre! A falaik nem állíthatják meg nyílvesszőinket." }
+  { key: "#enemy_archer_waiting", text: "Várjatok. Akkor feszítsétek meg az íjat, amikor jön a jel." }
+  { key: "#enemy_archer_leaving", text: "Vissza! Máskor is halált zúdítunk rájuk." }
+  { key: "#enemy_archer_city_will_fall", text: "Ez a város elbukik nyilaink záporában." }
+  { key: "#enemy_archer_arrows_ready", text: "Íjak készen! Senki sem menekülhet." }
+  { key: "#enemy_archer_for_glory", text: "A dicsőségért és a zsákmányért!" }
+  { key: "#enemy_sword_attacking", text: "Acél és vér! Vágjátok le őket!" }
+  { key: "#enemy_sword_marching", text: "Csak előre. Éjfélre lángokban áll a városuk." }
+  { key: "#enemy_sword_waiting", text: "Tartsátok magatokat. Amikor jön a jel, támadunk." }
+  { key: "#enemy_sword_leaving", text: "Vissza! Több pengével térünk vissza." }
+  { key: "#enemy_sword_no_army", text: "Nincsenek erődök? Ez a város máris a miénk." }
+  { key: "#enemy_sword_no_food", text: "Éheznek. A gyenge prédát könnyű kifosztani." }
+  { key: "#enemy_sword_disease", text: "Betegségtől bűzlenek az utcáik. Így még könnyebb." }
+  { key: "#enemy_sword_need_workers", text: "Még a műhelyeiket sem tudják feltölteni munkásokkal. Szánalmas." }
+  { key: "#enemy_sword_gods_angry", text: "Isteneik elfordultak tőlük. Mi is elfordulunk – miután elvittük az aranyat." }
+  { key: "#enemy_sword_city_is_bad", text: "A fáraó kegye hamuvá lett. Senki sem fog gyászolni ezért a helyért." }
+  { key: "#enemy_sword_low_entertainment", text: "Nincs ünnepség, nincs lelkesedés. Az első rohamnál megtörnek." }
+  { key: "#enemy_sword_city_is_good", text: "Rendezett város. Kár, hogy azért jöttünk, hogy feldúljuk." }
+  { key: "#enemy_sword_city_is_amazing", text: "Micsoda gazdagság! A zsákmány lenyűgöző lesz." }
+  { key: "#enemy_sword_for_glory", text: "A dicsőségért és a kardért!" }
+  { key: "#enemy_spearman_shooting", text: "Hajítsd! Hadd találjanak célba a dárdák!" }
+  { key: "#enemy_spearman_marching", text: "Előre! Dárdáink megritkítják soraikat." }
+  { key: "#enemy_spearman_waiting", text: "Várjatok. Készítsétek elő a következő hajítást." }
+  { key: "#enemy_spearman_leaving", text: "Vissza! Tartogassátok a dárdákat egy másik napra." }
+  { key: "#enemy_spearman_city_will_fall", text: "Ez a város a dárdáink alatt fog elbukni." }
+  { key: "#enemy_spearman_spears_ready", text: "Dárdák készen! Senki sem állhat meg előttünk." }
+  { key: "#enemy_spearman_for_glory", text: "A dicsőségért és a dárdáért!" }
+  { key: "#enemy_archer_shooting", text: "Tűz! Borítsátok be nyilakkal az eget!" }
+  { key: "#enemy_archer_marching", text: "Íjak készen. Utcáik vörösre festik a vér." }
+  { key: "#enemy_archer_waiting", text: "Várjatok. Várjátok meg a megfelelő lőtávolságot." }
+  { key: "#enemy_archer_leaving", text: "Vissza! Tartogassátok a nyílvesszőket egy másik napra." }
+  { key: "#enemy_archer_city_will_fall", text: "A falaitok semmit sem érnek a nyilak záporával szemben." }
+  { key: "#enemy_archer_arrows_ready", text: "Felajzott íjak, célra készen. Ki hal meg először?" }
+  { key: "#enemy_archer_for_glory", text: "A dicsőségért – és egy tiszta lövésért!" }
+  { key: "#enemy_transport_created", text: "Vitorlát bonts! A partjuk a miénk lesz." }
+  { key: "#enemy_transport_sailing", text: "Egyenletesen az evezőkkel. Hamarosan partot érünk." }
+  { key: "#enemy_transport_disembarking", text: "Partra! Ürítsétek ki a rakteret acélból!" }
+  { key: "#enemy_transport_idle", text: "A hajó várakozik. A csapatok készen állnak a partraszállásra." }
+  { key: "#enemy_transport_no_army", text: "Nincsenek hadihajóik? Ezek a vizek a mieink." }
+  { key: "#enemy_transport_no_food", text: "Éhező város. Könnyű lesz a partraszállás." }
+  { key: "#enemy_transport_disease", text: "Betegség a kikötőikben. Könnyű préda vár a parton." }
+  { key: "#enemy_transport_need_workers", text: "Még a hajógyáraikat sem tudják feltölteni munkásokkal. Szánalmas kikötő." }
+  { key: "#enemy_transport_gods_angry", text: "Isteneik elhagyják őket. A dagály nekünk kedvez." }
+  { key: "#enemy_transport_city_is_bad", text: "A fáraó kegye hamuvá lett. Egyetlen flotta sem menti meg őket." }
+  { key: "#enemy_transport_low_entertainment", text: "Nincs ünnepség, nincs lelkesedés. Már a parton megtörnek." }
+  { key: "#enemy_transport_city_is_good", text: "Szép kikötő. Kár, hogy azért jöttünk, hogy elfoglaljuk." }
+  { key: "#enemy_transport_city_is_amazing", text: "Gazdag rakpartok. A zsákmány megtölti majd a raktereinket." }
+  { key: "#enemy_transport_for_glory", text: "A dicsőségért – és egy hídfőért!" }
+  { key: "#enemy_warship_created", text: "Húzzátok fel a vitorlákat! A kikötőjük a miénk." }
+  { key: "#enemy_warship_idle", text: "Tartsátok a helyeteket. Figyeljétek a flottájukat." }
+  { key: "#enemy_warship_pursuing", text: "Üldözzétek őket! Egyetlen hajó sem menekülhet." }
+  { key: "#enemy_warship_attacking", text: "Tűz! Rohanással süllyesszétek el őket!" }
+  { key: "#enemy_warship_no_army", text: "Nincsenek erődök a parton? A kikötőik védtelenek." }
+  { key: "#enemy_warship_no_food", text: "Éheznek. Könnyű zsákmány vár ránk." }
+  { key: "#enemy_warship_disease", text: "Járvány a városukban. Könnyű préda." }
+  { key: "#enemy_warship_need_workers", text: "Munkáshiány. A falaik össze fognak omlani." }
+  { key: "#enemy_warship_gods_angry", text: "Még az isteneik is elfordultak tőlük." }
+  { key: "#enemy_warship_city_is_bad", text: "Gyenge város. Tökéletes egy portyához." }
+  { key: "#enemy_warship_low_entertainment", text: "Nincs ünnepség. A harci kedvük máris megtört." }
+  { key: "#enemy_warship_city_is_good", text: "Gazdag dokkok. Gazdag rakomány vár ránk." }
+  { key: "#enemy_warship_city_is_amazing", text: "Micsoda gazdagság! A zsákmány lenyűgöző lesz." }
+  { key: "#enemy_warship_for_glory", text: "A dicsőségért és a tengerért!" }
+  { key: "#ferry_boat_ready", text: "Készen állok a kikötőben. Ki akar átkelni?" }
+  { key: "#ferry_boat_going", text: "Indulás! A következő part már előttünk van." }
+  { key: "#ferry_boat_at_destination", text: "Megérkeztünk. Óvatosan lépjetek a kikötőre." }
+  { key: "#ferry_boat_returning", text: "Indulunk vissza. Vigyázzatok az áramlással." }
+  { key: "#ferry_boat_waiting", text: "Várom, hogy a komp átvigyen a túlpartra." }
+  { key: "#ferry_boat_disease_risk", text: "Ennek az átkelőnek betegségtől bűzlik a levegője. Nehéz evezni, amikor büdös a levegő." }
+  { key: "#ferry_boat_no_food_in_city", text: "Üres magtárak? Az éhes utasok akkor is át akarnak kelni." }
+  { key: "#ferry_boat_city_have_no_army", text: "Nincsenek erődök? Egyetlen portya, és ez a komp zsákmány lesz." }
+  { key: "#ferry_boat_gods_are_angry", text: "Az istenek dühösnek tűnnek. Még az áramlás is rossz irányba sodor." }
+  { key: "#ferry_boat_low_entertainment", text: "Már régóta nincs ünnepség. A révészeknek is jár egy kis partra szállás." }
+  { key: "#ferry_boat_city_is_good", text: "Ez az átkelő remekül működik! Rövid utak és teli kikötők." }
+  { key: "#ferry_boat_city_is_amazing", text: "A legjobb komp, ahol valaha dolgoztam. Ezek a kikötők szinte maguktól üdvözölnek!" }
+  { key: "#governor_city_left_much_nobles", text: "Túl sok nemes hagyja el ezt a várost!" }
+  { key: "#governor_festival_was_near", text: "Ah, az az ünnepség pompás volt! Még mindig érződik az utcákon." }
+  { key: "#governor_disease_risk", text: "Betegség az utcákon. Egy kormányzó városának nem szabad láztól bűzlenie." }
+  { key: "#governor_no_food_in_city", text: "Üres magtárak? A nemesek nem maradnak ott, ahol fogytán a kenyér." }
+  { key: "#governor_city_have_no_army", text: "Nincsenek erődök? Egyetlen portya, és ez a palota zsákmány lesz." }
+  { key: "#governor_gods_are_angry", text: "Az istenek dühösnek tűnnek. Még az udvar is rossz előjelekről suttog." }
+  { key: "#governor_low_entertainment", text: "Már régóta nincs ünnepség. Még a kormányzóknak is kell egy kis szórakozás." }
+  { key: "#governor_city_is_good", text: "Szilárd város! Rend az utcákon és pénz a kincstárban." }
+  { key: "#governor_city_is_amazing", text: "A legszebb város, amit valaha kormányoztam. Maga a fáraó is büszke lenne rá!" }
+  { key: "#fishing_boat_ready", text: "A hajó készen áll a rakpartnál. A legénység a dagályra vár." }
+  { key: "#fishing_boat_going_to_fish", text: "Kihajózunk a halászterületre." }
+  { key: "#fishing_boat_fishing", text: "Húzzuk be a halakat. Tartsátok feszesen a hálókat!" }
+  { key: "#fishing_boat_going_to_wharf", text: "Visszatérünk a rakparthoz üres raktérrel." }
+  { key: "#fishing_boat_at_wharf", text: "Kikötve a rakpartnál. Újra feltöltjük a készleteket." }
+  { key: "#fishing_boat_returning_with_fish", text: "Teli fogással hajózunk vissza!" }
+  { key: "#fishing_boat_looking_for_spot", text: "Halászhelyet keresek. Ezek a vizek nem egyszerűek." }
+  { key: "#fishing_boat_disease_risk", text: "A kikötő betegségtől bűzlik. Nehéz halászni, amikor gyenge a legénység." }
+  { key: "#fishing_boat_no_food_in_city", text: "Üresek a város magtárai? Jó – szükségük lesz a fogásunkra." }
+  { key: "#fishing_boat_city_have_no_army", text: "Nincsenek erődök? A portyázók minden hajót elfoglalhatnak ezen a parton." }
+  { key: "#fishing_boat_need_workers", text: "A rakpartokra dolgos kezek kellenek. Egy hajó önmagában nem tudja ellátni a várost." }
+  { key: "#fishing_boat_gods_are_angry", text: "Az istenek dühösek. Még a halak is elkerülik a hálóinkat." }
+  { key: "#fishing_boat_city_is_bad", text: "A fáraó kegye hamuvá lett. Egyetlen flotta sem fogja gyászolni ezt a helyet." }
+  { key: "#fishing_boat_much_unemployment", text: "Tétlen emberek a parton, még sincs elég legénység a hajókra." }
+  { key: "#fishing_boat_low_entertainment", text: "Már régóta nincs ünnepség. A halászoknak is jár egy kis partra szállás." }
+  { key: "#fishing_boat_city_is_good", text: "Jó vizek és nyüzsgő rakpart. Nem rossz kikötő." }
+  { key: "#fishing_boat_city_is_amazing", text: "A legjobb halászhely, amit ismerek. Dél előtt megtelnek a hálók!" }
+  { key: "#funeral_walker_ready", text: "A menet készen áll. Elindulunk a tiszteletre méltó halottért." }
+  { key: "#funeral_walker_going_to_tomb", text: "A sírhoz. Tartsátok szabadon az utat és stabilan a lámpásokat." }
+  { key: "#funeral_walker_arrived", text: "Megérkeztünk. Nyugodjon békében a sírban." }
+  { key: "#funeral_walker_lost_path", text: "Az út cserbenhagyott minket. Újra meg kell próbálnunk megtalálni az utat." }
+  { key: "#funeral_walker_disease_risk", text: "Betegség járja az utcákat. Még egy temetésen is tömeg van." }
+  { key: "#funeral_walker_no_food_in_city", text: "Üres magtárak, és mi mégis temetünk. Az élők egyre soványabbak." }
+  { key: "#funeral_walker_city_have_no_army", text: "Nincsenek erődök? A portyázók minden általunk gondozott sírt meggyalázhatnak." }
+  { key: "#funeral_walker_need_workers", text: "Túl kevés a dolgos kéz. A menetek várakoznak, miközben az emlékművek befejezetlenül állnak." }
+  { key: "#funeral_walker_gods_are_angry", text: "Az istenek dühösek. Milyen temetés csillapíthatná most őket?" }
+  { key: "#funeral_walker_city_is_bad", text: "A fáraó kegye hamuvá lett. Még a sírok is elhagyatottnak tűnnek." }
+  { key: "#funeral_walker_much_unemployment", text: "Tétlen emberek a parton, mégis kevesen járják végig a temetési utat." }
+  { key: "#funeral_walker_low_entertainment", text: "Már régóta nincs ünnepség. Gyász tölti be minden teret." }
+  { key: "#funeral_walker_city_is_good", text: "Jó város az élőknek – és méltó nyughely a holtaknak." }
+  { key: "#funeral_walker_city_is_amazing", text: "Micsoda pompa! Még a sírok is a tisztelet fényében ragyognak." }
+
+  { key: "#malaria_problem", text: "(Nincs használatban)" }
+  { key: "#malaria_not_a_problem", text: "Úgy tűnik, itt nem jelent problémát a malária." }
+  { key: "#malaria_outbreak_could_strike", text: "Maláriajárvány törhet ki, ha nem teszünk valamit." }
+  { key: "#herbalist_no_food_in_city", text: "Üres magtárak? Nehéz gyógyítani, amikor a város éhezik." }
+  { key: "#herbalist_city_have_no_army", text: "Nincsenek erődök? Egyetlen portya, és a gyógynövényeim hamuvá lesznek." }
+  { key: "#herbalist_gods_are_angry", text: "Az istenek dühösnek tűnnek. Még a jó gyógymódok is kudarcot vallanak a tekintetük alatt." }
+  { key: "#herbalist_low_entertainment", text: "Már régóta nincs ünnepség. Még a füvesembereknek is kell egy szabadnap a körjáratokból." }
+  { key: "#herbalist_city_is_good", text: "Ez a város elég egészséges! Rövid séták és erős házak." }
+  { key: "#herbalist_city_is_amazing", text: "A legjobb város, amit valaha gondoztam. Ezek az utcák szinte magukat gyógyítják!" }
+
+  { key: "#policeman_desease_can_start_at_any_moment", text: "Ennyi gyenge és beteg ember láttán aggódom a jövő miatt." }
+  { key: "#policeman_no_food_in_city", text: "Olyan régóta nem ettem, hogy még én is azon gondolkodom, hogy ételt lopok!" }
+  { key: "#policeman_city_not_safety", text: "Ha az ellenség valóban megtámad minket, úgy tűnik, nekem kell megvédenem a várost." }
+  { key: "#policeman_need_workers", text: "Ha nem élvezném a rendőri munka veszélyeit, gyorsan elvállalnék egyet a sok szabad állás közül." }
+  { key: "#policeman_gods_are_angry", text: "Ha én irányítanám a dolgokat, jobban odafigyelnék az istenekre." }
+  { key: "#policeman_no_army", text: "Azt hallottam, városunk könnyű prédája a betolakodóknak. Rossz a hírnevünk." }
+  { key: "#policeman_much_unemployments", text: "Nem szeretem látni ezt a sok munkanélküli lézengőt. Már járőrözni sem tudok anélkül, hogy beléjük botlanék!" }
+  { key: "#policeman_low_entertainment", text: "Ez a város unalmas. Nem találok egyetlen jó előadást sem." }
+  { key: "#policeman_city_is_good", text: "Ez a város nem tökéletes, de hát melyik az?" }
+  { key: "#policeman_city_is_amazing", text: "Még sosem éreztem magam ilyen biztonságban járőrözés közben. Ez a város lenyűgöző!" }
+  { key: "#policeman_very_low_crime_level", text: "Ha a bazárban fánkot is árulnának, ez a város tökéletes lenne." }
+  { key: "#policeman_low_crime_level", text: "Mindenki barátságos errefelé. Senki sem jelent bűncselekményt." }
+  { key: "#policeman_usual_crime_level", text: "Néhány bűntény itt, néhány ott, de semmi szokatlan." }
+  { key: "#policeman_need_more_workers", text: "Még én sem szeretek ennek a városrésznek ezen a részén járőrözni!" }
+  { key: "#policeman_iam_too_busy_that_talk", text: "Most tényleg túl elfoglalt vagyok a beszélgetéshez – kérdezz később." }
+  { key: "#policeman_i_hope_my_work_is_need", text: "Megteszem a részem, hogy ez a város biztonságos legyen!" }
+  { key: "#policeman_no_army_2", text: "A betolakodók elleni harc nem szerepelt a munkaköri leírásomban!" }
+  { key: "#policeman_enemies_are_coming_2", text: "Ezek a gazfickók nem foglalják el a várost, amíg én itt vagyok!" }
+  { key: "#policeman_enemies_are_coming", text: "Az ellenség hamarosan győzhet, ha nem kapok segítséget!" }
+
+  { key: "#hunter_ostrich_investigate", text: "Nyomok a homokban... nemrég strucc járt itt." }
+  { key: "#hunter_ostrich_chase", text: "Ott megy! Gyorsak a lábai, de a nyilaím gyorsabbak." }
+  { key: "#hunter_ostrich_hunting", text: "A struccok szinte láthatatlanok, amikor a homokba dugják a fejüket." }
+  { key: "#hunter_ostrich_back", text: "Na, ezek aztán hatalmas combok!" }
+  { key: "#hunter_ostrich_reroute_packed", text: "Nehéz a teher, rossz az út. Találok másik visszautat." }
+  { key: "#hunter_ostrich_look_packed", text: "Szabad ösvény kell a kunyhóhoz ezzel a madárral a hátamon." }
+  { key: "#hunter_ostrich_unloading", text: "Friss vad a kunyhónak. Már jobb szaga van, mint az árpának." }
+  { key: "#hunter_ostrich_disease_risk", text: "Betegség szaga van itt. Rossz idő a vadászathoz." }
+  { key: "#hunter_ostrich_no_food_in_city", text: "Üresek a magtárak? Akkor jobb, ha nagy madarat hozok." }
+  { key: "#hunter_ostrich_city_have_no_army", text: "Nincsenek erődök? Egy krokodilrajtaütés, és ez a város vacsora lesz." }
+  { key: "#hunter_ostrich_need_workers", text: "Több kéz kell. Egyedül nem töltök meg minden fazekat." }
+  { key: "#hunter_ostrich_gods_are_angry", text: "Az istenek haragosnak tűnnek. Még a struccok is érzik." }
+  { key: "#hunter_ostrich_city_is_bad", text: "A fáraó nincs megelégedve velünk. Ez sosem végződik jól." }
+  { key: "#hunter_ostrich_much_unemployment", text: "Túl sok a tétlen ember. Legalább a vadászat még valakit etet." }
+  { key: "#hunter_ostrich_low_entertainment", text: "Régen nem volt ünnep. Egy struccos lakoma felvidítana mindenkit." }
+  { key: "#hunter_ostrich_city_is_good", text: "Ez a város fantasztikus!" }
+  { key: "#hunter_ostrich_city_is_amazing", text: "A legjobb város, amelynek vadásztam. Remélem, így marad!" }
+  { key: "#hunter_antelope_investigate", text: "Patanyomok a porban... egy antilop járt erre." }
+  { key: "#hunter_antelope_chase", text: "Ott vágtat! Gyors, mint a szél, de a dárdám még gyorsabb." }
+  { key: "#hunter_antelope_hunting", text: "Az antilopok nem ellenfelek nekünk! Azok a szarvak sem mentik meg őket." }
+  { key: "#hunter_antelope_back", text: "Ma este mindenkinek jut majd pecsenye." }
+  { key: "#hunter_antelope_reroute_packed", text: "Nehéz tetem, rossz ösvény. Másik utat keresek a vadászházig." }
+  { key: "#hunter_antelope_look_packed", text: "Szabad utat kell találnom hazafelé, ezzel az antiloppal a vállamon." }
+  { key: "#hunter_antelope_unloading", text: "Friss antilophús a vadászháznak. A szakácsok örülni fognak." }
+  { key: "#hunter_antelope_disease_risk", text: "Betegségtől bűzlik ez a hely. Még a csordák is elkerülik." }
+  { key: "#hunter_antelope_no_food_in_city", text: "Üres magtárak? Akkor jobb, ha egy kövér antiloppal térek vissza." }
+  { key: "#hunter_antelope_city_have_no_army", text: "Nincsenek erődök? Egyetlen portya, és ennek a városnak annyi, akárcsak egy sarokba szorított gazellának." }
+  { key: "#hunter_antelope_need_workers", text: "Több dolgos kézre van szükségünk. Egyedül nem tölthetek meg minden fazekat vadhússal." }
+  { key: "#hunter_antelope_gods_are_angry", text: "Az istenek dühösnek tűnnek. A csordák is nyugtalanok." }
+  { key: "#hunter_antelope_city_is_bad", text: "A fáraó nincs megelégedve velünk. Ennek sosem lesz jó vége." }
+  { key: "#hunter_antelope_much_unemployment", text: "Túl sok a tétlen ember. Legalább a vadászat még ellát valakit élelemmel." }
+  { key: "#hunter_antelope_low_entertainment", text: "Már régóta nincs ünnepség. Egy antiloplakoma mindenkinek felvidítaná a kedvét." }
+  { key: "#hunter_antelope_city_is_good", text: "Jó város ez! Kiváló vadászterületek vannak a közelben." }
+  { key: "#hunter_antelope_city_is_amazing", text: "A legjobb város, ahol valaha vadásztam. Az antilopok szinte maguktól ugranak a fazékba!" }
+  { key: "#hunter_birds_investigate", text: "Tollak a nádasban... egy madárraj itt táplálkozott." }
+  { key: "#hunter_birds_chase", text: "Felröppennek! A nyilaim néhányat leterítenek közülük." }
+  { key: "#hunter_birds_hunting", text: "Ezek a madarak ravaszak!" }
+  { key: "#hunter_birds_back", text: "Ezek a madarak már készen állnak a sütésre!" }
+  { key: "#hunter_birds_reroute_packed", text: "Nehéz madarakkal teli háló, rossz út. Másik ösvényt keresek visszafelé." }
+  { key: "#hunter_birds_look_packed", text: "Szabad ösvény kell a vadászházig ezzel a zsákmánnyal." }
+  { key: "#hunter_birds_unloading", text: "Friss szárnyas a vadászháznak. A szakácsoknak lesz dolguk." }
+  { key: "#hunter_birds_disease_risk", text: "Betegségtől bűzlik ez a hely. Még a madarak is elkerülik." }
+  { key: "#hunter_birds_no_food_in_city", text: "Üres magtárak? Akkor jobb, ha egy teli zsák madárral térek vissza." }
+  { key: "#hunter_birds_city_have_no_army", text: "Nincsenek erődök? Egyetlen portya, és ennek a városnak annyi, akár egy földre szállt madárnak." }
+  { key: "#hunter_birds_gods_are_angry", text: "Az istenek dühösnek tűnnek. A madárrajok is nyugtalanok." }
+  { key: "#hunter_birds_low_entertainment", text: "Már régóta nincs ünnepség. Egy sültmadár-lakoma mindenkinek felvidítaná a kedvét." }
+  { key: "#hunter_birds_city_is_good", text: "Jó város ez! Kiváló mocsarak vannak a közelben madárvadászatra." }
+  { key: "#hunter_birds_city_is_amazing", text: "A legjobb város, ahol valaha vadásztam. A madarak szinte berepülnek a fazékba!" }
+
+  { key: "#lumberjack_hunting", text: "Indulok egy kemény fakitermelő napra." }
+  { key: "#lumberjack_back", text: "Biztos vagyok benne, hogy ennek a fának jó hasznát vesszük." }
+  { key: "#lumberjack_disease_risk", text: "Láz a városban. Nehéz fejszét forgatni remegő kézzel." }
+  { key: "#lumberjack_no_food_in_city", text: "Üres magtárak? Az éhes favágó görbe fát vág." }
+  { key: "#lumberjack_city_have_no_army", text: "Nincsenek erődök? Egyetlen portya, és ezek a fák a betolakodók tűzifájává válnak." }
+  { key: "#lumberjack_gods_are_angry", text: "Az istenek dühösnek tűnnek. Még a jó cédrusfa is megvetemedik a tekintetük alatt." }
+  { key: "#lumberjack_low_entertainment", text: "Már régóta nincs ünnepség. Még a favágóknak is kell egy szabadnap a fák közül." }
+  { key: "#lumberjack_city_is_good", text: "Ez a város szilárd! A jó faanyaghoz jó alapok kellenek." }
+  { key: "#lumberjack_city_is_amazing", text: "A legjobb város, amelynek valaha termeltem. Ezek a gerendák örökké tartani fognak!" }
+  { key: "#musician_i_like_festivals", text: "Csodásak ezek az ünnepi tömegek! Mindenki együtt énekel." }
+
+  { key: "#musician_city_heath_too_low", text: "Ha a város egészsége nem javul, már csak gyászdalokat fogok játszani." }
+  { key: "#musician_no_food_in_city", text: "Énekelnék a vacsorámért, de ebben a városban nincs elég élelem." }
+  { key: "#musician_city_not_safety_workers_leaving", text: "Talán fejbe verhetném a betolakodókat a szisztrumommal. A város védelme nem megfelelő." }
+  { key: "#musician_need_workers", text: "Minden fellépésem szóló. Ebben a városban nincs elég dolgozó." }
+  { key: "#musician_gods_are_angry", text: "Remélem, a zeném megnyugtatja az isteneket. Haragjuk hamarosan ránk zúdulhat." }
+  { key: "#musician_city_is_bad_reputation", text: "Szörnyű hírnevünk támadást válthat ki!" }
+  { key: "#musician_much_unemployments", text: "Utoljára mondom, nem veszek fel több segédet! Olyan sok ember keres munkát." }
+  { key: "#musician_no_entertainment", text: "Még egy szórakoztatónak is szüksége van szórakozásra! Itt nincs elég tennivaló." }
+  { key: "#musician_no_entertainment_need", text: "Még a szórakoztató is szeretne szórakozni! Itt nincs mivel elütni az időt." }
+  { key: "#musician_city_not_bad", text: "Ez a város sokkal rosszabb is lehetne, azt hiszem." }
+  { key: "#musician_city_is_good", text: "Remélem, még sokáig játszhatunk gyönyörű zenét ebben a városban." }
+  { key: "#juggler_disease_in_city", group:226, id:0 }
+  { key: "#juggler_city_low_sentiment", group:226, id:1 }
+  { key: "#juggler_city_not_safety_workers_leaving", group:226, id:2 }
+  { key: "#juggler_salary_too_low", group:226, id:3 }
+  { key: "#juggler_gods_are_angry", group:226, id:4 }
+  { key: "#juggler_city_verylow_sentiment", group:226, id:5 }
+  { key: "#juggler_much_unemployments", group:226, id:6 }
+  { key: "#juggler_low_entertainment", group:226, id:7 }
+  { key: "#juggler_city_is_good", group:226, id:8 }
+  { key: "#juggler_city_is_amazing", group:226, id:9 }
+  { key: "#juggler_i_like_festivals", group:226, id:10 }
+  { key: "#senet_disease_in_city", group:229, id:0 }
+  { key: "#senet_city_low_sentiment", group:229, id:1 }
+  { key: "#senet_city_not_safety_workers_leaving", group:229, id:2 }
+  { key: "#senet_salary_too_low", group:229, id:3 }
+  { key: "#senet_gods_are_angry", group:229, id:4 }
+  { key: "#senet_city_verylow_sentiment", group:229, id:5 }
+  { key: "#senet_much_unemployments", group:229, id:6 }
+  { key: "#senet_low_entertainment", group:229, id:7 }
+  { key: "#senet_city_is_good", group:229, id:8 }
+  { key: "#senet_city_is_amazing", group:229, id:9 }
+  { key: "#senet_i_like_festivals", text: "Az ünnepi játékok a legjobbak. Mindenki szeretne egy partit játszani." }
+
+  { key: "#taxman_desease_can_start_at_any_moment", text: "Úgy tűnik, egy betegség megterheli az emberek egészségét. Imádkozom, hogy ne törjön ki járvány." }
+  { key: "#taxman_no_food_in_city", text: "Bárcsak az emberek élelemmel is fizethetnék az adójukat. Annyira éhes vagyok!" }
+  { key: "#taxman_city_have_no_army", text: "Úgy tűnik, városunk képtelen megvédeni magát!" }
+  { key: "#taxman_need_more_tax_collectors", text: "Semennyi adópénz nem fogja gördülékennyé tenni a város működését. Több dolgozóra van szükségünk!" }
+  { key: "#taxman_gods_are_angry", text: "Nagy tartozással tartozunk az isteneknek, és nem akarok itt lenni, amikor behajtják rajtunk!" }
+  { key: "#taxman_city_is_bad", text: "Úgy hallottam, Egyiptomban elfoglalt helyzetünk miatt küszöbön áll az invázió." }
+  { key: "#taxman_much_unemployments", text: "Sok házban munkanélküli dolgozók élnek! Hogyan várhatnánk tőlük, hogy adót fizessenek?" }
+  { key: "#taxman_low_entertainment", text: "Bármennyire is szeretem beszedni az adókat, azért szívesen látnék néhány hivatásos előadást is." }
+  { key: "#taxman_city_is_good", text: "Nem olyan rossz itt az élet." }
+  { key: "#taxman_city_is_amazing", text: "Inkább élnék itt, mint bárhol máshol!" }
+  { key: "#taxman_need_workers", text: "Ez a város sokkal több bevételt szerezhetne, ha több adószedőt alkalmaznának." }
+  { key: "#taxman_high_taxes", text: "Úgy tűnik, minél szebb a házuk, annál többen panaszkodnak a rájuk eső rész kifizetésére." }
+  { key: "#taxman_much_pooh_houses", text: "Utálok ilyen lerobbant házaktól adót beszedni. Alig éri meg az időmet." }
+
+  { key: "#worker_desease_can_start_at_any_moment", text: "Olyan sokan betegek. Remélem, nem romlik tovább a helyzet." }
+  { key: "#worker_no_food_in_city", text: "Éhen halok. Nehéz üres gyomorral dolgozni." }
+  { key: "#worker_enemies_in_city", text: "Remélem, ellenségeink nem tudják, milyen könnyű lenne megszállni minket." }
+  { key: "#worker_need_workers", text: "Mindenhol állások várnak betöltésre! Talán tűzfelügyelőként is kaphatok munkát!" }
+  { key: "#worker_gods_are_angry", text: "Remélem, az istenek nem zúdítják ránk haragjukat." }
+  { key: "#worker_city_is_bad", text: "Azt hallom, városunknak nincs jó híre. Támadás érhet minket!" }
+  { key: "#worker_much_unemployments", text: "A lehető legjobban ragaszkodom ehhez a munkához. Sok munkanélküli embert ismerek." }
+  { key: "#worker_low_entertainment", text: "Csak dolgozom egész idő alatt. Ebben a városban nincs más tennivaló." }
+  { key: "#worker_city_is_good", text: "Szeretek itt élni, de mindig van lehetőség a fejlődésre." }
+  { key: "#worker_city_is_amazing", text: "Remélem, örökre itt élhetek!" }
+  { key: "#worker_unused", text: "(nincs használatban)" }
+  { key: "#worker_going_to_workplace", text: "Készen állok a munkára!" }
+  { key: "#worker_farm_is_flooded", text: "Mivel a földeket elöntötte a víz, most az örök dicsőségért dolgozom." }
+
+  { key: "#doctor_concerned_about_plague", text: "Ilyen siralmas városi egészség mellett sok a dolgom. A járvány azonban továbbra is fenyeget." }
+  { key: "#doctor_no_food_in_city", text: "Az, hogy állandóan éhes vagyok, nem tesz jót nekem." }
+  { key: "#doctor_defenses_are_weak", text: "Azt tanácsolnám a városnak, erősítse meg a védelmét, hogy ellenségeink ne okozhassanak kárt." }
+  { key: "#doctor_need_more_workers", text: "Sok dolgozót láttam már a végsőkig hajszolva. Ennek a városnak több munkásra lenne szüksége." }
+  { key: "#doctor_gods_are_angry", text: "Nem hiszem, hogy elég tiszteletet mutatunk az isteneknek. Ez rendkívül kockázatos." }
+  { key: "#doctor_reputation_is_low", text: "Rossz hírnevünk támadásra csábít másokat." }
+  { key: "#doctor_unemployment_is_high", text: "A tétlen várakozás munkára az emberek egészségének sem tesz jót!" }
+  { key: "#doctor_low_entertainment", text: "Voltak, akik csak azért jöttek hozzám vizsgálatra, mert nem volt jobb dolguk!" }
+  { key: "#doctor_city_is_ok", text: "Ez a város elég jó, azt hiszem." }
+  { key: "#doctor_city_is_the_best", text: "El sem tudok képzelni egészségesebb helyet az életre." }
+  { key: "#doctor_plague_could_strike_us_dead", text: "A járvány bármelyik pillanatban végezhet velünk!" }
+
+  { key: "#water_desease_can_start_at_any_moment", text: "Félek bemenni néhány városrészbe. Az emberek betegek, és nem akarok elkapni semmit." }
+  { key: "#water_no_food_in_city", text: "Éhségtől gyenge vagyok. Már majdnem összeroppanok ennyi víz súlya alatt." }
+  { key: "#water_city_have_no_army", text: "Úgy tűnik, a polgárokra hárul majd a város védelme, ha támadás éri." }
+  { key: "#water_need_workers", text: "Munka, munka mindenhol, de nincs dolgozó, aki betöltené őket." }
+  { key: "#water_gods_are_angry", text: "Ha isten lennék, engem sem töltene el örömmel a város figyelmetlensége irántam." }
+  { key: "#water_city_is_bad", text: "Azt hallom, más városok kinevetnek minket, és támadást terveznek." }
+  { key: "#water_much_unemployments", text: "Sok munkanélküli embert látok, miközben a szállításokat végzem." }
+  { key: "#water_low_entertainment", text: "A vízhordás nem szórakozás. Bárcsak lenne itt valami igazi kikapcsolódás." }
+  { key: "#water_city_is_good", text: "Szeretek itt élni, de ha én vezetném a várost, néhány dolgot másképp csinálnék." }
+  { key: "#water_city_is_amazing", text: "Nincs jobb hely ezen a világon." }
+
+  { key: "#osiris_city_low_health", text: "A várost ellepték a betegek. Remélem, nem tör ki járvány." }
+  { key: "#osiris_no_food_in_city", text: "Ozirisz egyetlen papjának sem szabadna éheznie!" }
+  { key: "#osiris_city_not_safety", text: "Városunk szinte teljesen védtelen. Remélem, senki sem támad meg minket." }
+  { key: "#osiris_need_workers", text: "Dolgozók nélkül talán nem tudjuk megadni Ozirisznek a neki járó tiszteletet." }
+  { key: "#osiris_gods_are_angry", text: "Nem Ozirisz az egyetlen isten, akit feldühít az elhanyagoltság." }
+  { key: "#osiris_low_sentiment", text: "Városunk Egyiptom nevetségének tárgya. Könnyű célpont vagyunk egy támadáshoz." }
+  { key: "#osiris_much_unemployments", text: "A munkanélküliség komoly probléma ebben a városban. Remélem, hamarosan több munkahely nyílik." }
+  { key: "#osiris_low_entertainment", text: "Még egy papnak is többre van szüksége az imáknál, hogy szórakozzon." }
+  { key: "#osiris_city_is_good", text: "Ez a város megfelelő." }
+  { key: "#osiris_city_is_amazing", text: "Ozirisz büszke rá, hogy egy ilyen nagyszerű városban imádják." }
+  { key: "#osiris_god_love_festival", text: "Az ünnepségek megmelengetik Ozirisz szívét." }
+  { key: "#osiris_city_low_mood", text: "Ozirisz alacsony áradással büntetheti a várost az elhanyagoltság miatt." }
+  { key: "#osiris_disease_in_city", text: "Betegség járja az utcákat. Ozirisz az élőket és a holtakat egyaránt figyeli." }
+  { key: "#osiris_need_entertainment", text: "Egy kis zene a fohászokat és a lelkeket is felemelné." }
+
+  { key: "#ra_city_low_health", text: "A templomba érkező emberek nem tűnnek egészségesnek. Remélem, a betegség nem súlyosbodik." }
+  { key: "#ra_no_food_in_city", text: "Nincs elég ételem sem Rá, sem saját magam táplálására!" }
+  { key: "#ra_city_not_safety", text: "Bárcsak Rá feladata lenne a város védelme. Nem hiszem, hogy ez a város jól végzi a dolgát." }
+  { key: "#ra_need_workers", text: "Remélem, a város hamarosan több dolgozót talál. A szolgáltatások hamarosan megsínylődhetnek." }
+  { key: "#ra_gods_are_angry", text: "Jót tenne ennek a városnak, ha nagyobb tiszteletet mutatna az istenek iránt." }
+  { key: "#ra_low_sentiment", text: "A hírnév fontos. Nélküle a város könnyen ellenséges hatalomátvétel áldozata lehet." }
+  { key: "#ra_much_unemployments", text: "Még sosem hallottam ennyi embert azt kérdezni Rától, hogy vajon mikor kapnak végre munkát." }
+  { key: "#ra_low_entertainment", text: "Több szórakozásra van szükségem. Rá egész napos szolgálata nem könnyű, és nekem is pihennem kell." }
+  { key: "#ra_city_is_good", text: "Nincs komoly panaszom erre a városra." }
+  { key: "#ra_city_is_amazing", text: "Az egyetlen hely, ami jobb ennél a városnál, az Iarumező." }
+  { key: "#ra_god_love_festival", text: "Rá örömmel látja népét az ünnepségen." }
+  { key: "#ra_city_low_mood", text: "Városunk szégyent hoz az egész Királyságra." }
+  { key: "#ra_disease_in_city", text: "Betegség terjed Ré napja alatt. A templomoknak segíteniük kell." }
+  { key: "#ra_need_entertainment", text: "Még Ré papjainak is szükségük van egy kis kikapcsolódásra a hosszú rituálék után." }
+
+  { key: "#ptah_city_low_health", text: "A rossz egészségügyi helyzet járványhoz vezethet, ha nem javítunk a város állapotán." }
+  { key: "#ptah_no_food_in_city", text: "Üres gyomrom korgása elvonja a figyelmemet Ptah szolgálatától." }
+  { key: "#ptah_city_not_safety", text: "Lyukas védelmünk semmit sem érne, ha valaki megtámadna minket." }
+  { key: "#ptah_need_workers", text: "Elszomorítja Ptahot, hogy a munkaerőhiány miatt iparágak állnak tétlenül." }
+  { key: "#ptah_gods_are_angry", text: "Az istenek jogos megtorlást mérhetnek ránk, ha a város továbbra is semmibe veszi őket." }
+  { key: "#ptah_low_sentiment", text: "Rossz hírünk bátoríthatja a betolakodókat." }
+  { key: "#seth_low_sentiment", text: "Rossz hírnevünk támadásra ösztönözheti a betolakodókat." }
+  { key: "#ptah_much_unemployments", text: "Ptah azt kívánja, bárcsak a város minden munkanélküli lakója hasznos munkát találna." }
+  { key: "#ptah_low_entertainment", text: "Én is szeretek jól szórakozni, mint bárki más. Bárcsak több szórakoztató lenne ebben a városban." }
+  { key: "#ptah_city_is_good", text: "Ennek a városnak vannak problémái, de jó hely az életre." }
+  { key: "#ptah_city_is_amazing", text: "Ez Egyiptom legkiválóbb városa!" }
+  { key: "#ptah_god_love_festival", text: "Ptah tudja, hogy az ünnepek boldogabbá teszik a dolgozókat." }
+  { key: "#ptah_city_low_mood", text: "Ptah segítő keze csak ennyit tehet. Ennek a városnak több dolgozóra van szüksége az iparágakhoz!" }
+  { key: "#ptah_disease_in_city", text: "Járvány fenyegeti a műhelyeket. Ptah elhanyagolásból nem tud egészséget kovácsolni." }
+  { key: "#ptah_need_entertainment", text: "A kézműveseknek és a papoknak egyaránt többre van szükségük munkánál és imánál." }
+
+  { key: "#seth_city_low_health", text: "Járvány pusztíthat a városban, ha az egészségügyi helyzet nem javul." }
+  { key: "#seth_no_food_in_city", text: "Egész nap az éhségemmel küzdök. Több élelemre van szükségem." }
+  { key: "#seth_city_not_safety", text: "A csatában Szethre kell hagyatkoznunk, hogy megvédjen minket. A város nincs felkészülve a védelemre." }
+  { key: "#seth_need_workers", text: "A szolgáltatások szenvednek, mert nem találunk elég dolgozót!" }
+  { key: "#seth_gods_are_angry", text: "A városnak fel kellene hagynia az istenek haragjának kiváltásával a tétlenségével." }
+  { key: "#seth_low_sentiment", text: "Hamarosan megtudhatjuk, milyen keveset gondolnak mások a városunkról, amikor betörnek és elpusztítják." }
+  { key: "#seth_much_unemployments", text: "A munkanélküliek seregei eltorlaszolják az utcákat." }
+  { key: "#seth_low_entertainment", text: "Nehéz elhinni, milyen unalmas itt!" }
+  { key: "#seth_city_is_good", text: "Ez a város megfelelő számomra." }
+  { key: "#seth_city_is_amazing", text: "Egész Egyiptomban nincs párja ennek a városnak!" }
+  { key: "#seth_god_love_festival", text: "Még Szeth harcosainak is szükségük van néha egy ünnepségre." }
+  { key: "#seth_city_low_mood", text: "A dicsőség a láthatáron! Az ellenség gyorsan közeledik a városhoz." }
+  { key: "#seth_disease_in_city", text: "A betegség meggyengíti a harcosokat. Seth egyedül nem tud megvédeni egy beteg várost." }
+  { key: "#seth_need_entertainment", text: "Még Seth papjainak is szükségük van többre a gyakorlatozásnál és a jóslatoknál." }
+
+  { key: "#bast_city_low_health", text: "Bast sírva látja ezt a sok beteg embert. Remélem, nem tör ki járvány." }
+  { key: "#bast_no_food_in_city", text: "Nehéz elég élelmet szerezni ebben a városban. Az éhség mindenkit sújt." }
+  { key: "#bast_city_not_safety", text: "Városunk siralmas védelme támadásra csábítja ellenségeinket." }
+  { key: "#bast_need_workers", text: "A város nem működhet megfelelően ennyi betöltetlen állással." }
+  { key: "#bast_gods_are_angry", text: "Az istenek hátat fordítanak ennek a városnak. Több tiszteletet kellene mutatnunk irántuk." }
+  { key: "#bast_low_sentiment", text: "A város híre rettenetes. Egy invázió bármikor bekövetkezhet." }
+  { key: "#bast_much_unemployments", text: "Még Bast sem tudja felvidítani ennyi munkanélküli ember szívét." }
+  { key: "#bast_low_entertainment", text: "Bastot elborzasztja, hogy ebben a városban ilyen kevés a szórakozás." }
+  { key: "#bast_need_entertainment", text: "Mit tehetne egy papnő? Oly kevés itt a szórakozási lehetőség." }
+  { key: "#bast_city_is_good", text: "Ez a város nem rossz hely az élethez." }
+  { key: "#bast_city_is_amazing", text: "Ez a város a legnagyszerűbb!" }
+  { key: "#bast_god_love_festival", text: "Bast imádja a jó ünnepségeket." }
+  { key: "#bast_city_low_mood", text: "A város lakói mélységesen boldogtalanok. Hamarosan akár a bűnözés felé fordulhatnak." }
+  { key: "#bast_disease_in_city", text: "Bast erőt ad, hogy meggyógyítsam a betegeket, mielőtt továbbterjesztenék a kórt." }
+  { key: "#seth_low_sentiment", text: "A város hírneve borzalmas. Bármikor támadás érhet minket." }
+  { key: "#seth_much_unemployments", text: "Még Bast sem tudja felvidítani ennyi munkanélküli szívét." }
+  { key: "#seth_low_entertainment", text: "Bast elborzad a város szórakozási lehetőségeinek hiányától." }
+  { key: "#seth_city_is_good", text: "Ez a város nem rossz hely az életre." }
+  { key: "#seth_city_is_amazing", text: "Ez a város a legnagyszerűbb!" }
+  { key: "#seth_god_love_festival", text: "Bast szereti a jó ünnepségeket." }
+
+  { key: "#hunt_bird_birds_are_wily", text: "Ezek a madarak ravaszak!" }
+  { key: "#hunt_bird_birds_ready_for_roasting", text: "Ezek a madarak készen állnak a sütésre!" }
+
+  { key: "#mission2_pottery_step1", text: "Tölts meg egy raktárudvart kerámiával" }
+  { key: "#mission2_pottery_step2", text: "Szépítsd a várost, majd tekintsd át a küldetés ismertetőjét" }
+
+  { key: "#mission3_brew_beer", text: "Főzz sört, hogy a bazárok kioszthassák" }
+  { key: "#reach_modest_houses_number", text: "Fejlessz 10 házat szerény tanyává" }
+  { key: "#build_tax_collector", text: "Építs adószedőt" }
+
+  { key: "#market_buyer_returning_to", text: "Visszatérés ide:" }
+  { key: "#market_buyer_collecting", text: "Begyűjtés" }
+
+  { key: "#tutorial_goal_education", text: "Fejlessz egy házat „tágas lakássá”" }
+  { key: "#tutorial_goal_scribal_school", text: "Készíts papiruszt és építs írnokiskolát" }
+  { key: "#tutorial_goal_import_bricks", text: "Importálj téglát, hogy masztabát építhess" }
+
+  { key: "#mission4_goal_spacious_apartment", text: "1/4 Fejlessz egy házat tágas lakássá (élelem, víz, fazekaság, szórakozás)" }
+  { key: "#mission4_goal_reed_gatherer", text: "2/4 Építs nádgyűjtőt a mocsár mellé" }
+  { key: "#mission4_goal_papyrus_maker", text: "2/4 Építs papiruszkészítőt, és lássd el náddal" }
+  { key: "#mission4_goal_scribal_school", text: "2/4 Építs írnokiskolát, majd tárolj 100 papiruszt" }
+  { key: "#mission4_goal_store_papyrus", text: "2/4 Tárolj 100 papiruszt a raktárban a kereskedelemhez" }
+  { key: "#mission4_goal_import_bricks", text: "3/4 Perwadjyt (300 db) csak téglát ad — importálj 100-at. Nekhen (550) papiruszt vesz" }
+  { key: "#mission4_goal_build_mastaba", text: "4/4 Építs kőművescéhet és helyezz el egy kis masztabát" }
+  { key: "#mission4_goal_export_papyrus", text: "Nyisd meg Nekhent (550 db), exportálj papiruszt, majd a célok (1500 / 15 / 20 / 9 / 40)" }
+
+  { key: "#mission5_goal_food", text: "1/6 Építs vadászházat, magtárat és bazárt — étel vadászatból és importból" }
+  { key: "#mission5_goal_water", text: "1/6 Adj vízellátást, tűzoltóságot, építészeti irodát és rendőrséget" }
+  { key: "#mission5_goal_mines", text: "2/6 Építs réz- és drágakőbányát és raktárudvart" }
+  { key: "#mission5_goal_stock_copper", text: "2/6 Tárolj 5 rezet a raktárban — a fáraó a 0. év 8. hónapjáig kéri" }
+  { key: "#mission5_goal_military_industry", text: "3/6 Építs fegyvermívet és toborzót — a líbiai rajtaütések előtt, 2. évben" }
+  { key: "#mission5_goal_fort", text: "3/6 Építs gyalogos vagy íjász erődöt — rajtaütések a 2. év 7. hónapjától (9, majd 16, majd 24)" }
+  { key: "#mission5_goal_gems_trade", text: "4/6 Nyisd meg Nubtot (850 db) vagy Thinist (800 db) ételért; 15 drágakő a 2. év 4. hónapjáig" }
+  { key: "#mission5_goal_deben", text: "5/6 Tarts 885 debent a kincstárban — a fáraó a 2. év 8. hónapjáig kéri" }
+  { key: "#mission5_goal_weapons", text: "5/6 Gyárts fegyvert — a fáraó 11-et kér a 7. év 3. hónapjáig" }
+  { key: "#mission5_goal_win", text: "6/6 Érd el a célokat: 2000 lakos, 15 jólét, 70 királyság; fejleszd a házakat szórakoztatással" }
+
+  { key: "#none", text: "Semmi" }
+  { key: "#grain", text: "Gabona" }
+  { key: "#meat", text: "Hús" }
+  { key: "#lettuce", text: "Saláta" }
+  { key: "#chickpeas", text: "Csicseriborsó" }
+  { key: "#pomegranates", text: "Gránátalma" }
+  { key: "#figs", text: "Füge" }
+  { key: "#fish", text: "Hal" }
+  { key: "#gamemeat", text: "Vadhús" }
+  { key: "#straw", text: "Szalma" }
+  { key: "#weapons", text: "Fegyverek" }
+  { key: "#clay", text: "Agyag" }
+  { key: "#bricks", text: "Tégla" }
+  { key: "#pottery", text: "Kerámia" }
+  { key: "#barley", text: "Árpa" }
+  { key: "#beer", text: "Sör" }
+  { key: "#flax", text: "Len" }
+  { key: "#linen", text: "Vászon" }
+  { key: "#gems", text: "Drágakövek" }
+  { key: "#luxury_goods", text: "Luxuscikkek" }
+  { key: "#timber", text: "Fa" }
+  { key: "#gold", text: "Arany" }
+  { key: "#reeds", text: "Nád" }
+  { key: "#papyrus", text: "Papirusz" }
+  { key: "#stone", text: "Egyszerű kő" }
+  { key: "#limestone", text: "Mészkő" }
+  { key: "#granite", text: "Gránit" }
+  { key: "#chariots", text: "Harci szekér" }
+  { key: "#copper", text: "Réz" }
+  { key: "#sandstone", text: "Homokkő" }
+  { key: "#oil", text: "Olaj" }
+  { key: "#henna", text: "Henna" }
+  { key: "#paint", text: "Festék" }
+  { key: "#lamps", text: "Lámpák" }
+  { key: "#marble", text: "Márvány" }
+  { key: "#deben", text: "Deben" }
+  { key: "#troops", text: "Csapatok" }
+  { key: "#jewelry_luxury", text: "Ékszerek (luxuscikkek)" }
+  { key: "#jewelry", text: "Ékszerek" }
+  { key: "#wine_luxury", text: "Bor (luxuscikk)" }
+  { key: "#wine", text: "Bor" }
+  { key: "#ivory_luxury", text: "Elefántcsont (luxuscikk)" }
+  { key: "#ivory", text: "Elefántcsont" }
+  { key: "#ebony_luxury", text: "Ébenfa (luxuscikk)" }
+  { key: "#ebony", text: "Ébenfa" }
+  { key: "#incense_luxury", text: "Tömjén (luxuscikk)" }
+  { key: "#incense", text: "Tömjén" }
+  { key: "#olive_oil_luxury", text: "Olívaolaj (luxuscikk)" }
+  { key: "#olive_oil", text: "Olívaolaj" }
+  { key: "#leopard_skins_luxury", text: "Leopárdbőr (luxuscikk)" }
+  { key: "#leopard_skins", text: "Leopárdbőr" }
+  { key: "#perfume_luxury", text: "Parfüm (luxuscikk)" }
+  { key: "#perfume", text: "Parfüm" }
+
+  { key: "#bandstand_none", text: "Ennek a háznak nincs hozzáférése zenészszínpadhoz" }
+  { key: "#bandstand_medium", text: "Ezt a házat nemrég meglátogatta egy zenész. Sokáig lesz zenész-hozzáférése" }
+  { key: "#bandstand_high", text: "Ennek a háznak van hozzáférése zenészhez" }
+  { key: "#bandstand_low", text: "Ezt a házat egy ideje nem látogatta zenész. Hamarosan elveszíti a zenész-hozzáférést" }
+  { key: "#goods_are_finished", text: "Az áruim úgy fogytak, mint a meleg sütemény! Visszamegyek a bazárba többért." }
+  { key: "#we_are_selling_goods", text: "Mindent megteszek, hogy az emberek megkapják, amit szeretnének." }
+  { key: "#seller_city_has_low_health", text: "Betegek az emberek – nehéz eladni, amikor senki sem akarja elhagyni a házát." }
+  { key: "#seller_no_food_in_city", text: "Üres polcok és üres gyomrok. Mit kellene így eladnom?" }
+  { key: "#seller_city_have_no_army", text: "Nincsenek erődök? A portyázók kifosztják ezt a bazárt, mire végzek a körutammal." }
+  { key: "#seller_much_unemployments", text: "Tétlen emberek lézengenek, de üres a pénzes erszényük." }
+  { key: "#seller_gods_are_angry", text: "Az istenek dühösnek tűnnek. Még a legjobb alkuk sem engesztelik ki őket." }
+  { key: "#seller_city_is_bad_reputation", text: "Oly rossz a város híre, hogy a vásárlók még az árakban sem bíznak." }
+  { key: "#seller_too_much_unemployments", text: "Túl sok az állástalan. Az éhes emberek rossz vásárlók." }
+  { key: "#seller_low_entertainment", text: "Már régóta nincs ünnepség. Egy felvonulás vevőket csalogatna a kosaraimhoz." }
+  { key: "#seller_city_is_good", text: "Jó kis város ez – rövid utcák és biztos vevők." }
+  { key: "#seller_city_is_amazing", text: "A legjobb város, ahol árulni lehet! A kosaraim szinte maguktól kiürülnek." }
+
+  { key: "#scriber_dicease_can_start", text: "Az emberek betegek. Orvosi papiruszaim szerint a betegség hamarosan járvánnyá súlyosbodhat!" }
+  { key: "#scriber_these_festivals", text: "Ezek az ünnepségek! Olvastam már pompásabbakról is – elkelne itt még egy ilyen." }
+  { key: "#scriber_plague_could_break_out", text: "Betegek az emberek. Az orvosi papiruszaim szerint a betegség hamarosan járvánnyá fajulhat!" }
+  { key: "#scriber_no_food_in_city", text: "Éhezem. Nehéz üres gyomorral felemelni a tekercseimet." }
+  { key: "#scriber_defenses_are_weak", text: "Még a legegyszerűbb ellenség is átjuthatna a védelmünkön!" }
+  { key: "#scriber_need_more_workers", text: "Ha hamarosan nem érkezik több dolgozó, a város biztosan megsínyli." }
+  { key: "#scriber_gods_are_angry", text: "Az irodalom tele van a haragos istenekről és bosszújukról szóló történetekkel." }
+  { key: "#scriber_reputation_is_low", text: "A történelem azt mutatja, hogy egy hozzánk hasonló város súlyos következményeket szenved rossz hírneve miatt." }
+  { key: "#scriber_much_unemployments", text: "Sok munkanélküli van a városban. Legalább sok idejük van olvasni." }
+  { key: "#scriber_high_unemployment", text: "Sok a munkanélküli a városban. Legalább rengeteg idejük van olvasni." }
+  { key: "#scriber_low_entertainment", text: "Néha a szemem szeretne mást is látni a hieroglifákon kívül. El akarok menni egy előadásra!" }
+  { key: "#scriber_city_is_ok", text: "Ez a város hasonló azokhoz, amelyekről olvastam." }
+  { key: "#scriber_city_is_amazing", text: "Ez a város a legnagyszerűbb, amit a történelem valaha ismert!" }
+  { key: "#teacher_festival_info", text: "Az ünnepségek éppúgy tanítanak, mint a papiruszok – elkelne még egy a városban." }
+  { key: "#teacher_low_entertainment", text: "Már régóta nincs előadás. Még a tanítványok is megunják a hieroglifákat." }
+  { key: "#teacher_desease_can_start_at_any_moment", text: "Betegség az utcákon. Nehéz tanítani, amikor a fiatalok láztól szenvednek." }
+  { key: "#teacher_no_food_in_city", text: "Üres magtárak? Az éhes diákok rosszul tanulnak." }
+  { key: "#teacher_city_not_safety", text: "Nincsenek erődök? Az iskolák kevés védelmet nyújtanak a betolakodókkal szemben." }
+  { key: "#teacher_need_workers", text: "Több munkásra van szükségünk – az oktatás önmagában nem tölt be minden állást." }
+  { key: "#teacher_gods_are_angry", text: "Az istenek dühösnek tűnnek. Még a legbölcsebb szövegek is haragjukra figyelmeztetnek." }
+  { key: "#teacher_low_rating", text: "Rosszul állunk a fáraó szemében. A történelem sem lesz kegyes hozzánk." }
+  { key: "#teacher_much_unemployments", text: "Olyan sok a munkanélküli. Legalább van idejük tanulni." }
+  { key: "#teacher_city_is_good", text: "Ez a város megfelelő hely a tanuláshoz és a tanításhoz." }
+  { key: "#teacher_city_much_better", text: "Itt sokkal jobbak a körülmények, mint azokban a városokban, amelyekről olvastam." }
+  { key: "#teacher_city_is_amazing", text: "A legjobb város, ahol valaha tanítottam. Ezek a tanítványok történelmet fognak írni!" }
+  { key: "#tomb_artisan_ready", text: "Agyag és festék készen áll. Ideje díszbe öltöztetni a sírt!" }
+  { key: "#tomb_artisan_going_to_work", text: "Irány a sír – a falak színre várnak." }
+  { key: "#tomb_artisan_decorating", text: "Biztos kézzel az ecsettel. Ezek a falak örökké mesélni fognak." }
+  { key: "#tomb_artisan_return_home", text: "A díszítés egyelőre kész. Vissza a céhbe." }
+  { key: "#tomb_artisan_disease_risk", text: "Láz a tárnákban. Nehéz festeni remegő kézzel." }
+  { key: "#tomb_artisan_no_food_in_city", text: "Üres magtárak? Az éhes kézműves görbe vonalakat fest." }
+  { key: "#tomb_artisan_city_have_no_army", text: "Nincsenek erődök? Egyetlen portya, és ezeket a sírokat kifosztják." }
+  { key: "#tomb_artisan_gods_are_angry", text: "Az istenek dühösnek tűnnek. Még a szent festék is megrepedezhet." }
+  { key: "#tomb_artisan_low_entertainment", text: "Már régóta nincs ünnepség. Még a sírfestőknek is szükségük van egy kis napfényre." }
+  { key: "#tomb_artisan_city_is_good", text: "Ez a város szilárd! Nagyszerű sírok nagyszerű uralkodóknak." }
+  { key: "#tomb_artisan_city_is_amazing", text: "A legjobb város, amelynek valaha festettem. Ezek a falak örökké fennmaradnak!" }
+  { key: "#tomb_robber_gold_should_be_for_living", text: "Arany a sírokban? Az élőket kellene gazdagítania!" }
+  { key: "#tomb_robber_just_think_of_the_fortune", text: "Csak gondolj bele, mekkora vagyon vár abban a sírban!" }
+  { key: "#tomb_robber_tax_too_high", text: "Az adók tőled vesznek el – én pedig a halottaktól veszek el!" }
+  { key: "#tomb_robber_wages_too_low", text: "Túl alacsony a bér? A sírok jobban fizetnek, mint a tisztességes munka." }
+  { key: "#tomb_robber_no_jobs", text: "Nincs tisztességes munka? Rendben. A sírrablás fizet." }
+  { key: "#tomb_robber_no_food_in_city", text: "Üres magtárak? Az arany akkor is megtölti a zsebeket." }
+  { key: "#tomb_robber_city_have_no_army", text: "Nincsenek erődök? Könnyű éjszakák várnak a sírok között." }
+  { key: "#tomb_robber_gods_are_angry", text: "Dühösek az istenek? Jó ürügy – az égiekre foghatom, nem rám." }
+  { key: "#tomb_robber_low_entertainment", text: "Nincs ünnepség? A sírok kifosztása az én szórakozásom." }
+  { key: "#tomb_robber_city_is_good", text: "Szép város. Szép sírok, amiket könnyű megdézsmálni." }
+  { key: "#tomb_robber_city_is_amazing", text: "A legjobb város a rabláshoz – mindenütt kövér sírok!" }
+
+  { key: "#dentist_concerned_about_plague", text: "Az emberek annyira félnek elkapni a járványt, hogy elhanyagolják a fogaikat." }
+  { key: "#dentist_no_food_in_city", text: "Mostanában olyan keveset ettem... micsoda szomorú pazarlása a tökéletes fogaknak." }
+  { key: "#dentist_defenses_are_weak", text: "A város védelme tele van résekkel. Ellenségeink azt tehetnek velünk, amit akarnak." }
+  { key: "#dentist_need_more_workers", text: "A város munkaereje olyan, mint egy öregember szája. Annyi lyukat kell betölteni!" }
+  { key: "#dentist_gods_are_angry", text: "Aggódom a város őrlőfogai – úgy értem, erkölcsei miatt! Több tiszteletet kellene mutatnunk az istenek iránt." }
+  { key: "#dentist_reputation_is_low", text: "Hírnevünk romlott. Megtámadhatnak minket." }
+  { key: "#dentist_much_unemployments", text: "Még soha nem láttam ennyi munkanélküli embert!" }
+  { key: "#dentist_low_entertainment", text: "Unatkozom! Azt hiszem, megint fogat mosok." }
+  { key: "#dentist_city_is_ok", text: "Ez a város rendben van. Csak néhány lyukas fog!" }
+  { key: "#dentist_city_is_amazing", text: "Ennek a városnak van egész Egyiptom legragyogóbb mosolya." }
+  { key: "#zookeeper_danger_of_plague", text: "Járvány az utcákon? Nem kockáztatom, hogy betegséget hozzak vissza az állatokhoz." }
+  { key: "#zookeeper_no_food_in_city", text: "Üresek az emberek magtárai – és a ketrecek lakóit is etetni kell. Ez nem tarthat sokáig." }
+  { key: "#zookeeper_defenses_are_weak", text: "Ellenség a kapuknál? Zárjátok a ketreceket, a látogatók pedig maradjanak odabent." }
+  { key: "#zookeeper_need_more_workers", text: "Mindenütt akad munka – még az állatkertbe is elkélne néhány gondozó." }
+  { key: "#zookeeper_gods_are_angry", text: "A dühös istenek nyugtalanná teszik a vadakat. Több tiszteletet kellene mutatnunk irántuk." }
+  { key: "#zookeeper_reputation_is_low", text: "Városunk híre olyan vad, mint egy éhes oroszlán. Megtámadhatnak minket." }
+  { key: "#zookeeper_high_unemployment", text: "Olyan sok a tétlen kéz. Legalább az állatok sosem panaszkodnak a túlórára." }
+  { key: "#zookeeper_low_entertainment", text: "Már régóta nincs ünnepség. Az állatkert az egyetlen látványosság, ami maradt a városban." }
+  { key: "#zookeeper_city_is_ok", text: "Ez a város éppen megfelel – az állatok elégedettnek tűnnek, és én is az vagyok." }
+  { key: "#zookeeper_city_is_amazing", text: "A legjobb város, amit egy állatgondozó kívánhat. Még az oroszlánok is dorombolnak a fáraónak!" }
+  { key: "#warship_well_fight_to_the_death", text: "A végsőkig harcolunk! A fáraóért és a folyóért!" }
+  { key: "#warship_enemy_is_too_much_for_us", text: "Túl nagy falat ez az ellenség. Vissza a rakparthoz!" }
+  { key: "#warship_enemies_coming_this_way", text: "Ellenség közeleg! Készítsétek elő az íjászokat!" }
+  { key: "#warship_ready_to_attack_invaders", text: "Készen állunk a betolakodók megtámadására. A Nílus a miénk." }
+  { key: "#warship_ready_if_foes_come", text: "Készen állunk, ha ellenség érkezik. Erős a hajótestünk." }
+  { key: "#transport_must_protect_our_ship", text: "Meg kell védenünk a hajónkat és a fedélzetén lévő csapatokat." }
+  { key: "#transport_enemy_is_here", text: "Itt az ellenség! Őrizzétek a szállítóhajót!" }
+  { key: "#transport_were_prepared", text: "Felkészültünk. A csapatok parancsra hajóra szállhatnak." }
+  { key: "#transport_ready_if_need_arises", text: "Készen állunk, ha szükség lesz ránk. A fáraó katonái várnak." }
+  { key: "#embalmer_concerned_about_plague", text: "A városban lévő betegek számából ítélve hamarosan rengeteg munkám akadhat!" }
+  { key: "#embalmer_no_food_in_city", text: "Éhen halok. Hamarosan soványabb leszek egy múmiánál!" }
+  { key: "#embalmer_defenses_weak", text: "A város védelme nincs biztonságosan körültekercselve. Egy ellenség könnyedén legyőzhet minket." }
+  { key: "#embalmer_need_more_workers", text: "Ha valaha is fel akartam hagyni a balzsamozással, most itt a lehetőség. Annyi állás vár betöltésre!" }
+  { key: "#embalmer_gods_are_angry", text: "Az istenek hamarosan szétszaggathatják a városunkat, ha nem mutatunk több tiszteletet irántuk." }
+  { key: "#embalmer_reputation_is_low", text: "A város rossz híre mindannyiunk vesztét okozhatja. Bármelyik pillanatban megtámadhatnak minket." }
+  { key: "#embalmer_unemployment_is_high", text: "Amikor ennyi munkanélküli embert látok, örülök, hogy nekem van állásom." }
+  { key: "#embalmer_low_entertainment", text: "Ez a város ugyanolyan halott, mint a testek, amelyekkel egész nap dolgozom. Bárcsak élettel töltené meg a szórakozás." }
+  { key: "#embalmer_city_is_ok", text: "Akár itt is élhetnék. Körülbelül olyan jó, mint bárhol máshol." }
+  { key: "#embalmer_city_is_the_best", text: "Őszintén sajnálom a klienseimet. Nincsenek már itt, hogy élvezzék ezt a lenyűgöző várost!" }
+  { key: "#embalmer_health_worsening", text: "Úgy tűnik, a városban mindenütt romlik az egészségi állapot." }
+  { key: "#drunkard_need_drink", text: "Olyan száraz vagyok, mint a sivatag. Ideje inni!" }
+  { key: "#drunkard_going_to_tavern", text: "Senet-ház, jövök! Ne kezdjétek nélkülem." }
+  { key: "#drunkard_time_for_beer", text: "Ah, sör! Az egyetlen folyó, amelyben nem bánok megfulladni." }
+  { key: "#drunkard_feeling_dizzy", text: "Folyton mozog az utca. Vagy csak én?" }
+  { key: "#drunkard_oh_my_stomach", text: "Uhh... a gyomrom. Túl sok sör, túl kevés józan ész." }
+  { key: "#drunkard_going_home", text: "Haza... ha emlékszem még, melyik ajtó az enyém." }
+  { key: "#drunkard_disease_risk", text: "Mindenki beteg. A sör az egyetlen gyógyszer, amiben megbízom." }
+  { key: "#drunkard_no_food_in_city", text: "Nincs élelem a városban? Sebaj – a sör is étel, ha hunyorítasz." }
+  { key: "#drunkard_city_have_no_army", text: "Nincsenek erődök? Ha jönnek a betolakodók, bújtassatok el egy korsó sör mögé." }
+  { key: "#drunkard_need_workers", text: "Nincs elég munkás? Vegyetek fel engem – majd én hozom a sört." }
+  { key: "#drunkard_gods_are_angry", text: "Az istenek dühösek. Tölts nekik egy kört, talán megnyugszanak." }
+  { key: "#drunkard_city_is_bad", text: "Ennek a városnak rosszabb a híre, mint az én másnaposságom." }
+  { key: "#drunkard_much_unemployment", text: "Olyan sok a tétlen ember. Tökéletes ivócimborák!" }
+  { key: "#drunkard_low_entertainment", text: "Nincs ünnepség? Akkor a Senet-ház az egyetlen látványosság a városban." }
+  { key: "#drunkard_city_is_good", text: "Nem rossz ez a város. Rövid út a sörig, hosszú út hazáig." }
+  { key: "#drunkard_city_is_amazing", text: "A legjobb város egy iszákosnak! Bárcsak soha ne fogynának ki a korsók." }
+
+  { key: "#magistrate_i_hope_we_are_ready", text: "A város egészségügyi állapota bűnös. A járvány megfelelő büntetés erre a vétségre." }
+  { key: "#magistrate_no_criminals_in_city", text: "Csend honol a bíróságon. Itt nincs bűnözés." }
+  { key: "#magistrate_all_good_in_city", text: "Csak kisebb ügyekkel foglalkozom. Semmi komoly!" }
+  { key: "#magistrate_streets_still_arent_safety", text: "Alig győzöm a rengeteg ügyet, mégis továbbra sem biztonságosak az utcák." }
+  { key: "#magistrate_disease_in_city", text: "A város egészségügyi állapota bűnös módon rossz. A járvány méltó büntetés erre a bűnre." }
+  { key: "#magistrate_no_food_in_city", text: "Annyira éhes vagyok, hogy egy jó ételért bármilyen ítéletet meghoznék." }
+  { key: "#magistrate_city_not_safety", text: "Micsoda siralmas védelem! Ellenségeink egyszerűen besétálhatnak a városba és átvehetik az uralmat." }
+  { key: "#magistrate_need_workers", text: "Még soha nem láttam ennyi betöltetlen állást!" }
+  { key: "#magistrate_gods_are_angry", text: "Az istenek bűnösnek találnak minket az elhanyagolás miatt, ha nem kezdünk jobban figyelni rájuk." }
+  { key: "#magistrate_city_bad_reputation", text: "Városunkat a Királyság egyik legrosszabbjaként ítélik meg. Rettegek a büntetés végrehajtásától." }
+  { key: "#magistrate_much_unemployments", text: "A munkanélkülieknek túl sok szabadidejük van, és ez veszélyes." }
+  { key: "#magistrate_no_entertainment_need", text: "Ez a város bűnös a gyenge szórakozási lehetőségek miatt!" }
+  { key: "#magistrate_city_not_bad", text: "Ez a város kiegyensúlyozott: sem túl jó, sem túl rossz." }
+  { key: "#magistrate_city_is_amazing", text: "Úgy ítélem, ez a város a legjobb." }
+  { key: "#magistrate_not_used", text: "(nincs használatban)" }
+  { key: "#magistrate_need_embalmers", text: "Remélem, amikor eljön az idő, kiérdemlek egy temetési menetet." }
+  { key: "#magistrate_courthouse_in_peace", text: "Minden csendes a bíróságon. Itt nincs bűnözés." }
+  { key: "#magistrate_i_have_only_minor_cases", text: "Csak kisebb ügyekkel foglalkoztam. Semmi komoly!" }
+  { key: "#magistrate_i_am_overwhelmed", text: "Alig bírom kezelni az ügyeimet, mégis veszélyesek az utcák." }
+
+  { key: "#goto_site_of_event", text: "Ugrás az esemény helyszínére" }
+  { key: "#hold_festival_to", text: "Ünnepség rendezése:" }
+  { key: "#god_osiris", text: "Ozirisz" }
+  { key: "#god_ra", text: "Rá" }
+  { key: "#god_ptah", text: "Ptah" }
+  { key: "#god_seth", text: "Szeth" }
+  { key: "#god_bast", text: "Bast" }
+
+  { key: "#god_to_osiris", text: "Ozirisz" }
+  { key: "#god_to_ra", text: "Rá" }
+  { key: "#god_to_ptah", text: "Ptah" }
+  { key: "#god_to_seth", text: "Szeth" }
+  { key: "#god_to_bast", text: "Bast" }
+
+// group 153
+  { key: "#difficulty_settings", text: "Nehézségi beállítások" }
+  { key: "#difficulty_row_difficulty", text: "Nehézség" }
+  { key: "#difficulty_row_gods", text: "Istenek hatásai" }
+  { key: "#difficulty_right_click_to_continue", text: "Jobb klikk a folytatáshoz" }
+
+  { key: "#difficulty_very_easy", text: "Nagyon könnyű" }
+  { key: "#difficulty_easy", text: "Könnyű" }
+  { key: "#difficulty_normal", text: "Normál" }
+  { key: "#difficulty_hard", text: "Nehéz" }
+  { key: "#difficulty_very_hard", text: "Nagyon nehéz" }
+
+  { key: "#difficulty_gods_effects_off", text: "Istenek hatásai KI" }
+  { key: "#difficulty_gods_effects_on", text: "Istenek hatásai BE" }
+
+// overlays. tooltips for buildings. group 66
+// bazaar access (food stocks)
+  { key: "#food_stocks_not_provided", text: "Ez a kunyhó maga keres élelmet..." }
+  { key: "#food_stocks_none", text: "Ennek a háznak nincs élelmiszerkészlete" }
+  { key: "#food_stocks_low", text: "Ez a ház hamarosan feléli korlátozott élelmiszerkészletét" }
+  { key: "#food_stocks_medium", text: "Ennek a háznak legalább a következő hónapra elegendő élelmiszerkészlete van" }
+  { key: "#food_stocks_high", text: "Ennek a háznak nincs gondja a túléléshez szükséges élelem beszerzésével" }
+
+// brewery overlay (beer stocks)
+  { key: "#beer_stocks_none", text: "Ennek a háznak nincs sörkészlete" }
+  { key: "#beer_stocks_low", text: "Ez a ház hamarosan feléli korlátozott sörkészletét" }
+  { key: "#beer_stocks_medium", text: "Ennek a háznak legalább a következő hónapra elegendő sörkészlete van" }
+  { key: "#beer_stocks_high", text: "Ennek a háznak nincs gondja a szükséges sör beszerzésével" }
+
+// apothecary access
+  { key: "#apothecary_access_none", text: "Ennek a háznak nincs hozzáférése patikához" }
+  { key: "#apothecary_access_high", text: "Ezt a házat nemrég meglátogatta egy füvesember. Sokáig lesz hozzáférése patikához" }
+  { key: "#apothecary_access_medium", text: "Ennek a háznak van hozzáférése patikához" }
+  { key: "#apothecary_access_low", text: "Ha hamarosan nem jár erre egy füvesember, ez a ház elveszíti a patikai hozzáférést" }
+
+// magistrate access
+  { key: "#magistrate_access_none", text: "Ennek a háznak nincs hozzáférése bírósághoz" }
+  { key: "#magistrate_access_high", text: "Ezt a házat nemrég meglátogatta egy bíró. Sokáig lesz hozzáférése bírósághoz" }
+  { key: "#magistrate_access_medium", text: "Ennek a háznak van hozzáférése bírósághoz" }
+  { key: "#magistrate_access_low", text: "Ezt a házat egy ideje nem látogatta meg bíró. Hamarosan elveszíti a bírósági hozzáférést" }
+
+// booth access
+  { key: "#booth_access_none", text: "Ennek a háznak nincs hozzáférése zsonglőrhöz" }
+  { key: "#booth_access_high", text: "Ezt a házat nemrég meglátogatta egy zsonglőr. Sokáig lesz hozzáférése zsonglőrhöz" }
+  { key: "#booth_access_medium", text: "Ennek a háznak van hozzáférése zsonglőrhöz" }
+  { key: "#booth_access_low", text: "Ezt a házat egy ideje nem látogatta meg zsonglőr. Hamarosan elveszíti a zsonglőr-hozzáférést" }
+
+// health overlay
+  { key: "#health_risk_none", text: "Ennek az épületnek nincs esélye a megbetegedésre." }
+  { key: "#health_risk_negligible", text: "Ennek az épületnek elhanyagolható a betegségkockázata." }
+  { key: "#health_risk_some", text: "Ennek az épületnek van némi betegségkockázata." }
+  { key: "#health_risk_high", text: "Ennek az épületnek betegségkockázata van." }
+  { key: "#health_diseased", text: "Ez az épület fertőzött." }
+
+// malaria risk overlay
+  { key: "#malaria_risk_negligible", text: "Ennek az épületnek elhanyagolható a maláriakockázata." }
+  { key: "#malaria_risk_some", text: "Ennek az épületnek van némi maláriakockázata." }
+  { key: "#malaria_risk_present", text: "Ennek az épületnek maláriakockázata van." }
+  { key: "#malaria_risk_imminent", text: "Ebben az épületben hamarosan malária ütheti fel a fejét." }
+  { key: "#malaria_risk_critical", text: "Maláriaveszély" }
+
+// damage overlay
+  { key: "#damage_risk_perfect", text: "Ennek az épületnek tökéletes a szerkezeti állapota" }
+  { key: "#damage_risk_negligible", text: "Ennek az épületnek elhanyagolható az összeomlási kockázata" }
+  { key: "#damage_risk_low", text: "Ennek az épületnek alacsony az összeomlási kockázata" }
+  { key: "#damage_risk_some", text: "Ennek az épületnek vannak szerkezeti hibái" }
+  { key: "#damage_risk_many", text: "Ennek az épületnek sok szerkezeti hibája és repedése van" }
+  { key: "#damage_risk_critical", text: "Ez az épület instabil, és hamarosan összeomolhat" }
+
+// fire overlay
+  { key: "#fire_risk_none", text: "Ennek az épületnek nincs esélye a kigyulladásra" }
+  { key: "#fire_risk_negligible", text: "Ennek az épületnek elhanyagolható a tűzveszélye" }
+  { key: "#fire_risk_low", text: "Ennek az épületnek van némi tűzkockázata" }
+  { key: "#fire_risk_some", text: "Ennek az épületnek tűzkockázata van" }
+  { key: "#fire_risk_high", text: "Ez az épület valóságos tűzcsapda" }
+  { key: "#fire_risk_critical", text: "Ez az épület bármelyik pillanatban kigyulladhat!" }
+
+  // crime overlay
+  { key: "#crime_level_low", group:66, id:58 }
+  { key: "#crime_level_normal", group:66, id:59 }
+  { key: "#crime_level_high", group:66, id:60 }
+
+  // criminal overlay
+  { key: "#criminal_level_secure", group:66, id:61 }
+  { key: "#criminal_level_high", group:66, id:62 }
+  { key: "#criminal_level_worst", group:66, id:63 }
+
+  // desirability overlay
+  { key: "#desirability_level_low", group:66, id:91 }
+  { key: "#desirability_level_normal", group:66, id:92 }
+  { key: "#desirability_level_high", group:66, id:93 }
+
+  // labor access overlay
+  { key: "#labor_access_tooltip", group:66, id:57 }
+
+  // tax income overlay
+  { key: "#tax_income_not_registered", text: "Ez a ház nincs adózva nyilvántartva, ezért nem fizet adót" }
+  { key: "#tax_income_none_yet", text: "Ebből a házból idén még nem szedtek be adót." }
+  { key: "#tax_income_collected", text: " debent szedtek be idén eddig." }
+
+// entertainment overlay
+  { key: "#entertainment_access_none", text: "Ennek a lakóhelynek egyáltalán nincs hozzáférése szórakozási lehetőséghez" }
+  { key: "#entertainment_access_barely", text: "Ennek a lakóhelynek alig van hozzáférése szórakozási lehetőséghez" }
+  { key: "#entertainment_access_very_limited", text: "Ennek a lakóhelynek nagyon korlátozott a hozzáférése szórakozóhelyekhez" }
+  { key: "#entertainment_access_limited", text: "Ennek a lakóhelynek korlátozott a hozzáférése szórakozóhelyekhez" }
+  { key: "#entertainment_access_some", text: "Ennek a lakóhelynek van némi hozzáférése szórakozóhelyekhez" }
+  { key: "#entertainment_access_several", text: "Ennek a lakóhelynek több szórakozóhelyhez is van hozzáférése" }
+  { key: "#entertainment_access_reasonable", text: "Ennek a lakóhelynek megfelelő a hozzáférése szórakozóhelyekhez" }
+  { key: "#entertainment_access_good", text: "Ennek a lakóhelynek jó a hozzáférése szórakozóhelyekhez" }
+  { key: "#entertainment_access_very_good", text: "Ennek a lakóhelynek nagyon jó a hozzáférése szórakozóhelyekhez" }
+  { key: "#entertainment_access_excellent", text: "Ennek a lakóhelynek kiváló a hozzáférése szórakozóhelyekhez" }
+  { key: "#entertainment_access_max", text: "Ennek a lakóhelynek minden szórakozási lehetőséghez hozzáférése van, amire csak vágyhat" }
+
+// senet house overlay
+  { key: "#senet_access_none", text: "Ennek a háznak nincs hozzáférése Szenet-házhoz" }
+  { key: "#senet_access_high", text: "Ezt a házat nemrég meglátogatta egy szenetmester. Sokáig lesz hozzáférése Szenet-házhoz" }
+  { key: "#senet_access_medium", text: "Ennek a háznak van hozzáférése Szenet-házhoz" }
+  { key: "#senet_access_low", text: "Ezt a házat egy ideje nem látogatta szenetmester. Hamarosan elveszíti a Szenet-házhoz való hozzáférést" }
+  // zoo overlay (group 66 ids 168–171)
+  { key: "#zoo_access_none", group:66, id:168 }
+  { key: "#zoo_access_high", group:66, id:169 }
+  { key: "#zoo_access_medium", group:66, id:170 }
+  { key: "#zoo_access_low", group:66, id:171 }
+  { key: "#overlay_zoo", text: "Állatkert" }
+  // zoo info window (group 308)
+  { key: "#zoo_info_ok", group:308, id:1 }
+  { key: "#zoo_info_needs_meat", group:308, id:2 }
+  { key: "#zoo_info_needs_straw", group:308, id:3 }
+  { key: "#zoo_info_no_workers", group:308, id:4 }
+  { key: "#zoo_info_empty_cages", group:308, id:5 }
+  { key: "#zoo_info_game_meat", group:308, id:6 }
+  { key: "#zoo_info_straw", group:308, id:7 }
+// pavilion overlay
+  { key: "#pavilion_access_none", text: "Ennek a háznak nincs hozzáférése táncszínpadhoz" }
+  { key: "#pavilion_access_high", text: "Ezt a házat nemrég meglátogatta egy táncos. Sokáig lesz hozzáférése táncszínpadhoz" }
+  { key: "#pavilion_access_medium", text: "Ennek a háznak van hozzáférése táncszínpadhoz" }
+  { key: "#pavilion_access_low", text: "Ezt a házat egy ideje nem látogatta táncos. Hamarosan elveszíti a tánchoz való hozzáférést" }
+
+// mortuary overlay
+  { key: "#mortuary_access_none", text: "Ennek a háznak nincs hozzáférése halottasházhoz" }
+  { key: "#mortuary_access_high", text: "Ezt a házat nemrég meglátogatta egy balzsamozó. Sokáig lesz hozzáférése halottasházhoz" }
+  { key: "#mortuary_access_medium", text: "Ennek a háznak van hozzáférése halottasházhoz" }
+  { key: "#mortuary_access_low", text: "Ha hamarosan nem jár erre egy balzsamozó, ez a ház elveszíti a halottasházhoz való hozzáférést" }
+
+// dentist overlay
+  { key: "#dentist_access_none", text: "Ennek a háznak nincs hozzáférése fogorvosi rendelőhöz" }
+  { key: "#dentist_access_high", text: "Ezt a házat nemrég meglátogatta egy fogorvos. Sokáig lesz hozzáférése fogorvoshoz" }
+  { key: "#dentist_access_medium", text: "Ennek a háznak van hozzáférése fogorvoshoz" }
+  { key: "#dentist_access_low", text: "Ha hamarosan nem jár erre egy fogorvos, ez a ház elveszíti a fogorvosi rendelőhöz való hozzáférést" }
+
+// physician overlay
+  { key: "#physician_access_none", text: "Nincs hozzáférés orvoshoz." }
+  { key: "#physician_access_low", text: "Ezt a házat egy ideje nem látogatta orvos." }
+  { key: "#physician_access_medium", text: "Ezt a házat meglátogatta egy orvos." }
+  { key: "#physician_access_high", text: "Ezt a házat nemrég meglátogatta egy orvos." }
+
+// education overlay
+  { key: "#education_access_none", text: "Ennek a háznak nincs hozzáférése írnokiskolához vagy könyvtárhoz" }
+  { key: "#education_access_school_or_library", text: "Ennek a háznak van hozzáférése írnokiskolához vagy könyvtárhoz" }
+  { key: "#education_access_school_and_library", text: "Ennek a háznak van hozzáférése írnokiskolához és könyvtárhoz is" }
+  { key: "#education_access_academy_district", text: "Ennek a háznak van hozzáférése írnokiskolához és könyvtárhoz. Gyermekei emellett akadémiai körzetben élnek" }
+
+// religion overlay
+  { key: "#religion_access_none", text: "Ennek a háznak nincs hozzáférése templomhoz vagy szentélyhez" }
+  { key: "#religion_access_one", text: "Ennek a háznak csak egyetlen isten templomához van hozzáférése" }
+  { key: "#religion_access_two", text: "Ennek a háznak két különböző isten templomához van hozzáférése" }
+  { key: "#religion_access_three", text: "Ennek a háznak három különböző isten templomához van hozzáférése" }
+  { key: "#religion_access_four", text: "Ennek a háznak négy különböző isten templomához van hozzáférése" }
+  { key: "#religion_access_all", text: "Ennek a háznak minden isten templomához van hozzáférése" }
+  { key: "#religion_access_shrine_and_all", text: "Ennek a háznak van hozzáférése egy szentélyhez és minden isten templomához" }
+
+// scribal school overlay
+  { key: "#school_access_none", text: "Ennek a háznak nincs hozzáférése írnokiskolához" }
+  { key: "#school_access_high", text: "Ezt a házat nemrég meglátogatta egy tudós. Sokáig lesz hozzáférése írnokiskolához" }
+  { key: "#school_access_medium", text: "Ennek a háznak van hozzáférése írnokiskolához" }
+  { key: "#school_access_low", text: "Ha hamarosan nem jár erre egy tudós, ez a ház elveszíti az írnokiskolához való hozzáférést" }
+
+// library overlay
+  { key: "#library_access_none", text: "Ennek a háznak nincs hozzáférése könyvtárhoz" }
+  { key: "#library_access_high", text: "Ezt a házat nemrég meglátogatta egy könyvtáros. Sokáig lesz hozzáférése könyvtárhoz" }
+  { key: "#library_access_medium", text: "Ennek a háznak van hozzáférése könyvtárhoz" }
+  { key: "#library_access_low", text: "Ha hamarosan nem jár erre egy könyvtáros, ez a ház elveszíti a könyvtárhoz való hozzáférést" }
+  { key: "#library_read_about_festivals", text: "Olvastam a távoli városok ünnepségeiről. Elkelne itt is egy." }
+  { key: "#library_people_are_sick", text: "Betegek az emberek. Még az orvosi papiruszok is aggódni látszanak." }
+  { key: "#library_no_food_in_city", text: "Nehéz a tekercsekre figyelni, amikor a város éhezik." }
+  { key: "#library_defenses_are_weak", text: "A védelmünk olyan vékony, mint a papirusz. Egyetlen portya, és a könyvtár lángokban áll." }
+  { key: "#library_need_more_workers", text: "Több munkás nélkül még a polcokon lévő tekercseket sem fogják elolvasni." }
+  { key: "#library_gods_are_angry", text: "A szövegek dühös istenekre figyelmeztetnek. Hallgatnunk kell rájuk." }
+  { key: "#library_reputation_is_low", text: "Egy rossz hírű város ritkán őrzi meg sokáig a könyvtárait." }
+  { key: "#library_high_unemployment", text: "Olyan sok a tétlen kéz. Legalább van idejük kölcsönözni egy tekercset." }
+  { key: "#library_low_entertainment", text: "Néha a szemnek is pihennie kell a hieroglifáktól. Látni akarok egy előadást!" }
+  { key: "#library_city_is_ok", text: "Ez a város rendben van – hasonló azokhoz, amelyeket már katalogizáltam." }
+  { key: "#library_city_is_amazing", text: "Ennek a városnak a legnagyszerűbb történetekben a helye!" }
+  { key: "#library_info", group:87, id:1 }
+  { key: "#library_info_idle", group:87, id:2 }
+  { key: "#library_info_ok", group:87, id:3 }
+  { key: "#sheets_of_papyrus", group:23, id:77 }
+
+// academy overlay
+  { key: "#academy_access_none", text: "Ennek a háznak nincs hozzáférése akadémiához" }
+  { key: "#academy_access_high", text: "Ezt a házat nemrég meglátogatta egy tanár. Sokáig lesz hozzáférése akadémiához" }
+  { key: "#academy_access_medium", text: "Ennek a háznak van hozzáférése akadémiához" }
+  { key: "#academy_access_low", text: "Ha hamarosan nem jár erre egy tanár, ez a ház elveszíti az akadémiai hozzáférést" }
+
+  { key: "#top_menu_file", text: "Fájl" }
+  { key: "#top_menu_file_tooltip", text: "Betöltés, mentés, új játék és kilépés" }
+  { key: "#top_menu_options", text: "Beállítások" }
+  { key: "#top_menu_options_tooltip", text: "Képernyő, hang, sebesség és nehézségi beállítások" }
+  { key: "#top_menu_help", text: "Segítség" }
+  { key: "#top_menu_help_tooltip", text: "Segítség, tippek és információk a játékról" }
+  { key: "#top_menu_overseers", text: "Tanácsadók" }
+  { key: "#top_menu_overseers_tooltip", text: "Kérdezd tanácsadóidat a város állapotáról" }
+  { key: "#top_menu_funds", text: "Db" }
+  { key: "#top_menu_population", text: "Lakosság" }
+  { key: "#top_menu_new_game", text: "Új játék" }
+  { key: "#top_menu_load_game", text: "Játék betöltése" }
+  { key: "#top_menu_save_game", text: "Játék mentése" }
+  { key: "#top_menu_exit_game", text: "Kilépés" }
+  { key: "#top_menu_delete_game", text: "Mentés törlése" }
+  { key: "#top_menu_display_settings", text: "Képernyőbeállítások" }
+  { key: "#top_menu_sound_settings", text: "Hangbeállítások" }
+  { key: "#top_menu_speed_settings", text: "Játéksebesség" }
+  { key: "#top_menu_pyramid_speedup_off", text: "Piramisépítés gyorsítása – Kikapcsolva" }
+  { key: "#top_menu_pyramid_speedup_on", text: "Piramisépítés gyorsítása – Bekapcsolva" }
+  { key: "#top_menu_difficulty", text: "Nehézségi szint" }
+  { key: "#top_menu_cities_egyptian", text: "Városnevek – egyiptomi" }
+  { key: "#top_menu_cities_classical", text: "Városnevek – klasszikus" }
+  { key: "#top_menu_popup_messages", text: "Felugró üzenetek" }
+  { key: "#top_menu_help_item", text: "Súgó" }
+  { key: "#top_menu_mouse_help_off", text: "Egérsúgó – Kikapcsolva" }
+  { key: "#top_menu_mouse_help_some", text: "Egérsúgó – Részleges" }
+  { key: "#top_menu_mouse_help_full", text: "Egérsúgó – Teljes" }
+  { key: "#top_menu_warnings_off", text: "Figyelmeztetések – Kikapcsolva" }
+  { key: "#top_menu_warnings_on", text: "Figyelmeztetések – Bekapcsolva" }
+  { key: "#top_menu_about", text: "Névjegy" }
+  { key: "#top_menu_advisor_labor", text: "Munkaügyi felügyelő" }
+  { key: "#top_menu_advisor_military", text: "Katonai felügyelő" }
+  { key: "#top_menu_advisor_imperial", text: "Politikai felügyelő" }
+  { key: "#top_menu_advisor_ratings", text: "Értékelési felügyelő" }
+  { key: "#top_menu_advisor_trade", text: "Kereskedelmi felügyelő" }
+  { key: "#top_menu_advisor_population", text: "Magtárak felügyelője" }
+  { key: "#top_menu_advisor_health", text: "Közegészségügyi felügyelő" }
+  { key: "#top_menu_advisor_education", text: "Oktatási felügyelő" }
+  { key: "#top_menu_advisor_entertainment", text: "Szórakoztatási felügyelő" }
+  { key: "#top_menu_advisor_religion", text: "Templomok felügyelője" }
+  { key: "#top_menu_advisor_financial", text: "Kincstári felügyelő" }
+  { key: "#top_menu_advisor_chief", text: "Főfelügyelő" }
+  { key: "#monthly_autosave_on", text: "Havi automatikus mentés: BE" }
+  { key: "#monthly_autosave_off", text: "Havi automatikus mentés: KI" }
+  { key: "#top_menu_funds_tooltip", text: "A város jelenlegi pénzkészlete" }
+  { key: "#top_menu_population_tooltip", text: "A város jelenlegi lakossága" }
+  { key: "#top_menu_date_tooltip", text: "Az aktuális dátum!" }
+  { key: "#month_jan", text: "jan." }
+  { key: "#month_feb", text: "febr." }
+  { key: "#month_mar", text: "márc." }
+  { key: "#month_apr", text: "ápr." }
+  { key: "#month_may", text: "máj." }
+  { key: "#month_jun", text: "jún." }
+  { key: "#month_jul", text: "júl." }
+  { key: "#month_aug", text: "aug." }
+  { key: "#month_sep", text: "szept." }
+  { key: "#month_oct", text: "okt." }
+  { key: "#month_nov", text: "nov." }
+  { key: "#month_dec", text: "dec." }
+  { key: "#top_menu_debug", text: "Debug" }
+  { key: "#top_menu_debug_render", text: "Render" }
+  { key: "#top_menu_cheat_console", text: "Csalókonzol" }
+  { key: "#top_menu_properties_on", text: "Tulajdonságok BE" }
+  { key: "#top_menu_properties_off", text: "Tulajdonságok KI" }
+  { key: "#top_menu_terrain_paint_on", text: "Terepfestés BE" }
+  { key: "#top_menu_terrain_paint_off", text: "Terepfestés KI" }
+  { key: "#top_menu_write_video_on", text: "Videóírás BE" }
+  { key: "#top_menu_write_video_off", text: "Videóírás KI" }
+  { key: "#top_menu_buildings_on", text: "Épületek BE" }
+  { key: "#top_menu_buildings_off", text: "Épületek KI" }
+  { key: "#top_menu_js_debugger_on", text: "JS debugger BE" }
+  { key: "#top_menu_js_debugger_off", text: "JS debugger KI" }
+  { key: "#top_menu_editor_new_map", text: "Új térkép" }
+  { key: "#top_menu_editor_load_map", text: "Térkép betöltése" }
+  { key: "#top_menu_editor_save_map", text: "Térkép mentése" }
+  { key: "#top_menu_editor_exit", text: "Kilépés a szerkesztőből" }
+  { key: "#top_menu_editor_resets", text: "Visszaállítások" }
+  { key: "#top_menu_editor_clear_herds", text: "Gyilkospontok törlése" }
+  { key: "#top_menu_editor_clear_fish", text: "Halak törlése" }
+  { key: "#top_menu_editor_clear_invasions", text: "Inváziók törlése" }
+  { key: "#top_menu_editor_empire", text: "Királyság" }
+  { key: "#top_menu_editor_empire_choose", text: "Királyság szerkesztése" }
+
+  { key: "#sidebar_speed_header", text: "Sebesség" }
+  { key: "#no_requests", text: "Jelenleg nincs teljesítendő kérés." }
+
+// overlay menu categories
+  { key: "#overlay_menu_normal", text: "Normál" }
+  { key: "#overlay_menu_risks", text: "Kockázatok" }
+  { key: "#overlay_menu_water", text: "Víz" }
+  { key: "#overlay_menu_entertainment", text: "Szórakozás" }
+  { key: "#overlay_menu_religion", text: "Vallás" }
+  { key: "#overlay_menu_education", text: "Oktatás" }
+  { key: "#overlay_menu_health", text: "Egészség" }
+  { key: "#overlay_menu_administration", text: "Közigazgatás" }
+  { key: "#overlay_menu_food", text: "Élelem" }
+  { key: "#overlay_menu_other", text: "Egyéb" }
+
+  { key: "#overlay_fire", text: "Tűz" }
+  { key: "#overlay_damage", text: "Károk" }
+  { key: "#overlay_architect_reach", text: "Építész hatótávolsága" }
+  { key: "#overlay_architect_reach_hint", text: "Kattints egy építész állomására" }
+  { key: "#overlay_architect_reach_tile", text: "Az építész járőrözési körzetén belül" }
+  { key: "#overlay_crime", text: "Bűnözés" }
+  { key: "#overlay_entertainment", text: "Szórakozás" }
+  { key: "#overlay_booth", text: "Bódé" }
+  { key: "#overlay_bandstand", text: "Zenepavilon" }
+  { key: "#overlay_pavilion", text: "Táncpavilon" }
+  { key: "#overlay_senet_house", text: "Szenet-ház" }
+  { key: "#overlay_education", text: "Oktatás" }
+  { key: "#overlay_scribal_school", text: "Írnokiskola" }
+  { key: "#overlay_library", text: "Könyvtár" }
+  { key: "#overlay_academy", text: "Akadémia" }
+  { key: "#overlay_apothecary", text: "Patika" }
+  { key: "#overlay_dentist", text: "Fogorvos" }
+  { key: "#overlay_physician", text: "Orvos" }
+  { key: "#overlay_mortuary", text: "Halottasház" }
+  { key: "#overlay_tax_income", text: "Adóbevétel" }
+  { key: "#overlay_bazaar_access", text: "Bazárhozzáférés" }
+  { key: "#overlay_desirability", text: "Vonzóság" }
+  { key: "#overlay_fertility", text: "Termékenység" }
+  { key: "#overlay_magistrate", text: "Bíró" }
+  { key: "#overlay_food_stocks", text: "Élelmiszerkészlet" }
+  { key: "#overlay_labor", text: "Munkaerő" }
+  { key: "#overlay_labor_access", text: "Munkaerő-hozzáférés" }
+  { key: "#overlay_native", text: "Őslakos" }
+  { key: "#overlay_problems", text: "Problémák" }
+  { key: "#overlay_routing", text: "Útvonalak" }
+  { key: "#overlay_malaria_risk", text: "Maláriakockázat" }
+  { key: "#overlay_health", text: "Egészség" }
+  { key: "#overlay_criminal", text: "Bűnözés" }
+  { key: "#overlay_osiris", text: "Ozirisz" }
+  { key: "#overlay_ra", text: "Rá" }
+  { key: "#overlay_ptah", text: "Ptah" }
+  { key: "#overlay_seth", text: "Szeth" }
+  { key: "#overlay_bast", text: "Bast" }
+  { key: "#TR_PALACE_TOOLTIP_UNEMPLOYMENT", text: "Munkanélküliség" }
+  { key: "#TR_PALACE_TOOLTIP_CULTURE_RATING", text: "Kultúraérték" }
+  { key: "#TR_PALACE_TOOLTIP_PROSPERITY_RATING", text: "Jólétérték" }
+  { key: "#TR_PALACE_TOOLTIP_MONUMENT_RATING", text: "Emlékműérték" }
+  { key: "#TR_PALACE_TOOLTIP_KINGDOM_RATING", text: "Királyságérték" }
+  { key: "#crete", text: "KRÉTA" }
+  { key: "#cyprus", text: "CIPRUS" }
+  { key: "#eastern_africa", text: "KELET-AFRIKA" }
+  { key: "#eastern_desert", text: "KELETI-SIVATAG" }
+  { key: "#greece", text: "GÖRÖGORSZÁG" }
+  { key: "#libya", text: "LÍBIA" }
+  { key: "#lower_egypt", text: "ALSÓ-EGYIPTOM" }
+  { key: "#delta", text: "DELTA" }
+  { key: "#fayuum", text: "FÁJÚM" }
+  { key: "#nubia", text: "NÚBIA" }
+  { key: "#palestine", text: "PALESZTINA" }
+  { key: "#sinai", text: "SÍNAI-félsziget" }
+  { key: "#syria", text: "SZÍRIA" }
+  { key: "#upper_egypt", text: "FELSŐ-EGYIPTOM" }
+  { key: "#western_desert", text: "NYUGATI-SIVATAG" }
+  { key: "#lebanon", text: "LIBANON" }
+  { key: "#canaan", text: "KÁNAÁN" }
+]

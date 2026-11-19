@@ -1,0 +1,205 @@
+#ifndef js_value_h
+#define js_value_h
+
+#include "jsstring.h"
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include <type_traits>
+
+typedef struct js_Property js_Property;
+typedef struct js_Iterator js_Iterator;
+typedef struct js_FunctionModifier js_FunctionModifier;
+
+/* Hint to ToPrimitive() */
+enum {
+    JS_HNONE,
+    JS_HNUMBER,
+    JS_HSTRING
+};
+
+enum js_Type {
+    JS_TSHRSTR, /* type tag doubles as string zero-terminator */
+    JS_TUNDEFINED,
+    JS_TNULL,
+    JS_TBOOLEAN,
+    JS_TNUMBER,
+    JS_TOBJECT,
+};
+
+enum js_Class {
+    JS_COBJECT,
+    JS_CARRAY,
+    JS_CFUNCTION,
+    JS_CSCRIPT, /* function created from global/eval code */
+    JS_CCFUNCTION, /* built-in function */
+    JS_CERROR,
+    JS_CBOOLEAN,
+    JS_CNUMBER,
+    JS_CVEC2I, /* integer 2D point in u.vec2; virtual x/y like RegExp slots */
+    JS_CSTRING,
+    JS_CREGEXP,
+    JS_CDATE,
+    JS_CMATH,
+    JS_CJSON,
+    JS_CITERATOR,
+    JS_CUSERDATA,
+    JS_CPTR, /* bound C pointer (int/int8/bool/float), get/set via *ptr */
+    JS_CPTROFF, /* (char*)receiver->cobj_ptr + off; read yields undefined if cobj_ptr null; write no-op */
+};
+
+/*
+    Short strings abuse the js_Value struct. By putting the type tag in the
+    last byte, and using 0 as the tag for short strings, we can use the
+    entire js_Value as string storage by letting the type tag serve double
+    purpose as the string zero terminator.
+*/
+
+struct js_Value {
+    union {
+        int boolean;
+        double number;
+        js_StringNode shrstr;
+        js_Object *object;
+    } u;
+    char pad[7]; /* extra storage for shrstr */
+    char type; /* type tag and zero terminator for shrstr */
+};
+
+struct js_Regexp {
+    void *prog;
+    const char *source;
+    unsigned short flags;
+    unsigned short last;
+};
+
+struct js_Object {
+    enum js_Class type;
+    int extensible;
+    js_Property *properties;
+    js_Property *head, **tailp; /* for enumeration */
+    int count; /* number of properties, for array sparseness check */
+    js_Object *prototype;
+    void *cobj_ptr; /* native base for JS_CPTROFF on this object; nullptr if unused */
+    union {
+        int boolean;
+        double number;
+        struct {
+            js_StringNode string;
+            int length;
+        } s;
+        struct {
+            int length;
+        } a;
+        struct {
+            js_Function *function;
+            js_Environment *scope;
+        } f;
+        struct {
+            js_StringNode name;
+            js_CFunction function;
+            js_CFunction constructor;
+            int length;
+        } c;
+        js_Regexp r;
+        struct {
+            js_Object *target;
+            js_Iterator *head;
+        } iter;
+        struct {
+            const char *tag;
+            void *data;
+            js_HasProperty has;
+            js_Put put;
+            js_Delete rdelete;
+            js_Finalize finalize;
+        } user;
+        struct {
+            void *ptr;
+            js_CPtrType ptype;
+        } p;
+        struct {
+            size_t off;
+            js_CPtrType ptype;
+        } poff;
+        struct {
+            int x, y;
+        } vec2;
+    } u;
+    js_Object *gcnext;
+    js_FunctionModifier *modifiers; /* object modifiers/attributes */
+    volatile uint32_t gcmark;
+    uint8_t ephemeral; /* 1 = frame-zone arena; not on gcobj */
+
+    js_Property* vgetproperty(const js_StringNode name);
+};
+
+/* Ephemeral objects come from the frame-zone arena (jsV_newobject), and the arena is
+ * released wholesale without running destructors — only the GC path calls ~js_Object
+ * explicitly (jsgc.cpp). Adding a member with a non-trivial destructor would leak
+ * silently for every ephemeral object, so fail the build instead. */
+static_assert(std::is_trivially_destructible<js_Object>::value,
+              "js_Object must stay trivially destructible: frame-arena objects are never destroyed");
+
+struct js_Property {
+    js_StringNode name;
+    js_Property *left, *right;
+    js_Property *next, **prevp; /* for enumeration */
+    int level;
+    int atts;
+    js_Value value;
+    js_Object *getter;
+    js_Object *setter;
+
+    js_Property *lookup(js_StringNode name);
+};
+
+struct js_Iterator {
+    js_StringNode name;
+    js_Iterator *next;
+};
+
+/* jsrun.c */
+js_StringNode jsV_newstring(js_State *J, const char *s, int n);
+js_Value *js_tovalue(js_State *J, int idx);
+void js_toprimitive(js_State *J, int idx, int hint);
+void js_pushvalue(js_State *J, js_Value v);
+void js_pushobject(js_State *J, js_Object *v);
+
+/* jsvalue.c */
+int jsV_toboolean(js_State *J, js_Value *v);
+double jsV_tonumber(js_State *J, js_Value *v);
+double jsV_tointeger(js_State *J, js_Value *v);
+const js_StringNode jsV_tostring(js_State* J, js_Value* v);
+void jsV_toprimitive(js_State *J, js_Value *v, int preferred);
+
+const char *js_itoa(char buf[32], int a);
+double js_stringtofloat(const char *s, char **ep);
+int jsV_numbertointeger(double n);
+int jsV_numbertoint32(double n);
+unsigned int jsV_numbertouint32(double n);
+short jsV_numbertoint16(double n);
+unsigned short jsV_numbertouint16(double n);
+const char *jsV_numbertostring(js_State *J, char buf[32], double number);
+double jsV_stringtonumber(js_State *J, const char *string);
+
+/* jsproperty.c */
+js_Object *jsV_newobject(js_State *J, enum js_Class type, js_Object *prototype);
+js_Object *jsV_newvec2i(js_State *J, int x, int y);
+js_Property* jsV_getpropertyx(js_State* J, js_Object* obj, const js_StringNode name, int* own);
+js_Property* jsV_setproperty(js_State* J, js_Object* obj, const js_StringNode name);
+void jsV_delproperty(js_State* J, js_Object* obj, const js_StringNode name);
+
+js_Object *jsV_newiterator(js_State *J, js_Object *obj, int own);
+const js_StringNode jsV_nextiterator(js_State* J, js_Object* iter);
+
+void jsV_resizearray(js_State *J, js_Object *obj, int newlen);
+
+void *jsV_get_cobj_ptr(js_Object *receiver);
+
+/* jsdump.c */
+void js_dumpobject(js_State *J, js_Object *obj);
+void js_dumpvalue(js_State *J, js_Value v);
+
+#endif

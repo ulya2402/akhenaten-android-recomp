@@ -1,0 +1,39 @@
+#ifndef WIDGET_INPUT_BOX_H
+#define WIDGET_INPUT_BOX_H
+
+#include "graphics/font.h"
+#include "input/mouse.h"
+
+namespace ui {
+    struct einput;
+}
+
+constexpr int INPUT_BOX_BLOCK_SIZE = 16;
+
+struct input_box {
+    int x;
+    int y;
+    int width_blocks;
+    int height_blocks;
+    e_font font;
+    int max_length;
+    int multiline;
+    int allow_punctuation;
+    /** Owning ui::einput* while focused (for keyboard routing). */
+    ui::einput* host_input;
+    // private vars
+    uint8_t* text;
+};
+
+void input_box_start(input_box* box, uint8_t* text, int length, int allow_punctuation);
+void input_box_pause(input_box* box);
+void input_box_resume(input_box* box);
+void input_box_stop(input_box* box);
+
+void input_box_refresh_text(input_box* box);
+int input_box_is_accepted(input_box* box);
+
+int input_box_handle_mouse(const mouse* m, const input_box* box);
+void input_box_draw(const input_box* box);
+
+#endif // WIDGET_INPUT_BOX_H

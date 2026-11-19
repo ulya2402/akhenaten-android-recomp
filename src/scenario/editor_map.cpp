@@ -1,0 +1,149 @@
+#include "editor_map.h"
+
+#include "grid/routing/routing_terrain.h"
+#include "scenario/scenario.h"
+
+// TODO !!!!!!
+
+void scenario_editor_set_entry_point(int x, int y) {
+    g_scenario.entry_point = tile2i{ x, y };
+    g_scenario.is_saved = 0;
+}
+
+void scenario_editor_set_exit_point(int x, int y) {
+    g_scenario.exit_point = tile2i{ x, y };
+    g_scenario.is_saved = 0;
+}
+
+static void update_river() {
+    map_routing_update_water();
+}
+
+void scenario_editor_set_river_entry_point(int x, int y) {
+    g_scenario.river_entry_point = tile2i{ x, y };
+    g_scenario.is_saved = 0;
+    update_river();
+}
+
+void scenario_editor_set_river_exit_point(int x, int y) {
+    g_scenario.river_exit_point = tile2i{ x, y };
+    g_scenario.is_saved = 0;
+    update_river();
+}
+
+void scenario_editor_clear_predator_herd_points(void) {
+    g_scenario.herd_points_predator.assign(MAX_PREDATOR_HERD_POINTS, herd_point_t{});
+    g_scenario.is_saved = 0;
+}
+
+tile2i scenario_editor_predator_herd_point(int id) {
+    if (id < 0 || (size_t)id >= g_scenario.herd_points_predator.size()) {
+        return tile2i::invalid;
+    }
+    return g_scenario.herd_points_predator[id].tile;
+}
+
+void scenario_editor_set_predator_herd_point(int id, int x, int y) {
+    if (id < 0 || id >= MAX_PREDATOR_HERD_POINTS) {
+        return;
+    }
+    if (g_scenario.herd_points_predator.size() < MAX_PREDATOR_HERD_POINTS) {
+        g_scenario.herd_points_predator.resize(MAX_PREDATOR_HERD_POINTS);
+    }
+    g_scenario.herd_points_predator[id].tile = tile2i{ x, y };
+    g_scenario.is_saved = 0;
+}
+
+void scenario_editor_clear_fishing_points(void) {
+    g_scenario.fishing_points.assign(MAX_FISH_POINTS, tile2i::invalid);
+    g_scenario.is_saved = 0;
+}
+
+tile2i scenario_editor_fishing_point(int id) {
+    if (id < 0 || (size_t)id >= g_scenario.fishing_points.size()) {
+        return tile2i::invalid;
+    }
+    return g_scenario.fishing_points[id];
+}
+
+void scenario_editor_set_fishing_point(int id, int x, int y) {
+    if (id < 0 || id >= MAX_FISH_POINTS) {
+        return;
+    }
+    if (g_scenario.fishing_points.size() < MAX_FISH_POINTS) {
+        g_scenario.fishing_points.resize(MAX_FISH_POINTS, tile2i::invalid);
+    }
+    g_scenario.fishing_points[id] = tile2i{ x, y };
+    g_scenario.is_saved = 0;
+}
+
+int scenario_editor_count_invasion_points(void) {
+    int points = 0;
+    for (const tile2i &t : g_scenario.invasion_points_land) {
+        if (t.valid())
+            points++;
+    }
+    for (const tile2i &t : g_scenario.invasion_points_sea) {
+        if (t.valid())
+            points++;
+    }
+    return points;
+}
+
+void scenario_editor_clear_invasion_points(void) {
+    g_scenario.invasion_points_land.assign(MAX_INVASION_POINTS_LAND, tile2i::invalid);
+    g_scenario.invasion_points_sea.assign(MAX_INVASION_POINTS_SEA, tile2i::invalid);
+    g_scenario.is_saved = 0;
+}
+
+tile2i scenario_editor_land_invasion_point(int id) {
+    if (id < 0 || (size_t)id >= g_scenario.invasion_points_land.size()) {
+        return tile2i::invalid;
+    }
+    return g_scenario.invasion_points_land[id];
+}
+
+void scenario_editor_set_land_invasion_point(int id, int x, int y) {
+    if (id < 0 || id >= MAX_INVASION_POINTS_LAND) {
+        return;
+    }
+    if (g_scenario.invasion_points_land.size() < MAX_INVASION_POINTS_LAND) {
+        g_scenario.invasion_points_land.resize(MAX_INVASION_POINTS_LAND, tile2i::invalid);
+    }
+    g_scenario.invasion_points_land[id] = tile2i{ x, y };
+    g_scenario.is_saved = 0;
+}
+
+tile2i scenario_editor_sea_invasion_point(int id) {
+    if (id < 0 || (size_t)id >= g_scenario.invasion_points_sea.size()) {
+        return tile2i::invalid;
+    }
+    return g_scenario.invasion_points_sea[id];
+}
+
+tile2i scenario_editor_prey_herd_point(int id) {
+    if (id < 0 || (size_t)id >= g_scenario.herd_points_prey.size()) {
+        return tile2i::invalid;
+    }
+    return g_scenario.herd_points_prey[id].tile;
+}
+
+tile2i scenario_editor_disembark_point(int id) {
+    if (id < 0 || (size_t)id >= g_scenario.disembark_points.size()) {
+        return tile2i::invalid;
+    }
+    return g_scenario.disembark_points[id];
+}
+
+tile2i scenario_editor_earthquake_point(void) {
+    return g_scenario.earthquake_point;
+}
+
+void scenario_editor_set_earthquake_point(int x, int y) {
+    g_scenario.earthquake_point = tile2i{ x, y };
+    g_scenario.is_saved = 0;
+}
+
+void scenario_editor_updated_terrain(void) {
+    g_scenario.is_saved = 0;
+}

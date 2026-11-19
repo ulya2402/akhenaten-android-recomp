@@ -1,0 +1,555 @@
+﻿#include "game.h"
+
+#include "building/construction/build_planner.h"
+#include "building/building_barracks.h"
+#include "building/building_granary.h"
+#include "building/building_burning_ruin.h"
+#include "core/random.h"
+#include "core/profiler.h"
+#include "core/log.h"
+#include "city/city_buildings.h"
+#include "grid/vegetation.h"
+#include "grid/trees.h"
+#include "grid/canals.h"
+#include "grid/natives.h"
+#include "editor/editor.h"
+#include "game/file_editor.h"
+#include "graphics/font.h"
+#include "graphics/image.h"
+#include "graphics/video.h"
+#include "graphics/window.h"
+#include "input/scroll.h"
+#include "game/game_config.h"
+#include "config/hotkeys.h"
+#include "io/gamefiles/lang.h"
+#include "content/content.h"
+#include "content/vfs.h"
+#include "platform/arguments.h"
+#include "platform/platform.h"
+#include "mission.h"
+#include "figure/formation.h"
+#include "scenario/scenario_event_manager.h"
+#include "scenario/scenario.h"
+#include "scenario/invasion_auto_resolve.h"
+#include "scenario/scenario_invasion.h"
+#include "sound/sound_city.h"
+#include "sound/sound.h"
+#include "window/intro_video.h"
+#include "window/window_city.h"
+#include "window/editor/window_editor.h"
+#include "window/autoconfig_window.h"
+#include "input/hotkey.h"
+#include "graphics/view/view.h"
+#include "platform/renderer.h"
+#include "game/video_capture_module.h"
+#include "graphics/screen.h"
+#include "widget/widget_minimap.h"
+#include "city/city.h"
+#include "city/city_floods.h"
+#include "city/city_population.h"
+#include "city/city_desirability.h"
+#include "city/city_message.h"
+#include "city/city_industry.h"
+#include "figuretype/figure_locust.h"
+#include "scenario/distant_battle.h"
+#include "scenario/empire.h"
+#include "empire/empire.h"
+#include "grid/ring.h"
+#include "grid/routing/routing_terrain.h"
+#include "grid/tiles.h"
+#include "content/mods.h"
+#include "undo.h"
+
+#include "dev/debug.h"
+
+game_t game;
+events::typed_queue g_permanent_events;
+
+declare_console_ref_int16(gameyear, g_simulation.simtime.year);
+declare_console_ref_uint8(gamemonth, g_simulation.simtime.month);
+
+declare_console_command_p(nextyear) {
+    g_simulation.simtime.advance_year();
+    game.advance_year();
+}
+const e_sound_type_tokens_t ANK_CONFIG_ENUM(e_sound_type_tokens);
+
+namespace {
+    static time_millis last_update;
+}
+
+void game_t::animation_timers_init() {
+    for (auto &timer: animation_timers) {
+        timer.last_update = 0;
+        timer.should_update = false;
+    }
+}
+
+void game_t::animation_timers_update() {
+    time_millis now_millis = time_get_millis();
+    for (auto &timer : animation_timers) {
+        timer.should_update = false;
+    }
+
+    unsigned int delay_millis = 0;
+    for (auto &timer: animation_timers) {
+        if (now_millis - timer.last_update >= delay_millis) {
+            timer.should_update = true;
+            timer.last_update = now_millis;
+        }
+        delay_millis += 20;
+    }
+}
+
+bool game_t::animation_should_advance(uint32_t speed) {
+    if (!animation || paused || redraw_read_only) {
+        return false;
+    }
+
+    if (speed >= MAX_ANIM_TIMERS) {
+        return false;
+    }
+
+    return animation_timers[speed].should_update;
+}
+
+void game_t::update_tick(int simtick) {
+    OZZY_PROFILER_FUNCTION();
+    if (editor_is_active()) {
+        random_generate_next(); // update random to randomize native huts
+        g_city.figures.update(); // just update the flag figures
+        return;
+    }
+
+    static const bool guard_stub_records = g_args.is_integral_tests();
+    if (guard_stub_records) {
+        stub_records_guard_check("between ticks");
+    }
+
+    g_city.population.housing_type_counts_update();
+    random_generate_next();
+    game_undo_reduce_time_available();
+
+    g_floods.tick_update(false);
+
+    g_city.buildings.update_tick(game.paused);
+
+    g_city.update_tick(simtick);
+
+    if (g_simulation.simtime.advance_tick()) {
+        advance_day();
+    }
+
+    g_city.figures.update();
+
+    g_scenario.update();
+
+    if (guard_stub_records) {
+        stub_records_guard_check("during tick");
+    }
+}
+
+void game_t::advance_year() {
+    scenario_empire_process_expansion();
+    game_undo_disable();
+    g_simulation.simtime.advance_year();
+    city_population_request_yearly_update();
+    g_city.finance.advance_year();
+    g_city.migration.advance_year();
+    g_city.monuments.advance_year();
+    g_empire.reset_yearly_trade_amounts();
+    g_city.ratings_update(/*yearly_update*/ true);
+    g_city.ra_temple_complex_yearly_favour();
+    g_city.buildings.update_year();
+    //    city_gods_reset_yearly_blessings();
+}
+
+void game_t::advance_week() {
+    g_city.update_week(g_simulation.simtime);
+
+    events::emit(event_advance_week::from_simtime(g_simulation.simtime));
+}
+
+void game_t::advance_month() {
+    g_city.update_month(g_simulation.simtime);
+    g_distant_battle.update_month();
+
+    random_generate_next();                  // TODO: find out the source / reason for this
+    g_empire.update_month();
+    g_scenario.events.process_random_events();
+    // OG tick.c advance_month: invasions are processed before the other events.
+    g_scenario.events.process_invasions();
+    g_scenario.events.process_events();
+    g_invasions.process_bind_resolutions();
+    // Julius: monthly — warning months_to_go tick + timed map invasions (KNGDOME/enemy/uprising).
+    scenario_invasion_process();
+
+    formation_update_monthly_morale_at_rest();
+    city_message_decrease_delays();
+
+    map_tiles_update_all_roads();
+    //    map_tiles_river_refresh_entire();
+    map_routing_update_land_citizen();
+    //    city_message_sort_and_compact();
+
+    figure_locust::update_month(g_simulation.simtime.month + 1);
+
+    // OG advance_month: the yearly update recomputes the ratings, so December does not also run the monthly one.
+    if (g_simulation.simtime.advance_month()) {
+        advance_year();
+    } else {
+        g_city.ratings_update(/*yearly_update*/false);
+    }
+
+    g_city.finance.update_estimate_taxes();
+
+    events::emit(event_advance_month::from_simtime(g_simulation.simtime));
+}
+
+void game_t::advance_day() {
+    OZZY_PROFILER_FUNCTION();
+    //    map_advance_floodplain_growth();
+
+    day_result dr = g_simulation.simtime.advance_day();
+    if (dr.month_advanced) {
+        advance_month();
+    }
+
+    if (dr.week_advanced) {
+        advance_week();
+    }
+
+    g_distant_battle.update_day();
+    g_invasion_auto_resolve.update_day();
+
+    g_city.update_day(g_simulation.simtime);
+    g_city.victory.victory_check();
+    g_city.avg_coverage.update();
+
+    widget_minimap_invalidate();
+
+    events::emit(event_advance_day::from_simtime(g_simulation.simtime));
+}
+
+void game_t::shutdown() {
+    events::emit(event_video_capture_stop{});
+    events::process();
+}
+
+void game_t::reload_objects() {
+    g_city.reload_objects();
+
+    events::emit(event_game_scripts_was_reloaded{});
+}
+
+::painter game_t::painter() {
+    ::painter ctx;
+    ctx.view = &g_camera;
+    ctx.renderer = g_render.renderer();
+    ctx.global_render_scale = g_render.scale();
+
+    return ctx;
+}
+
+void game_t::reload_language() {
+    locale_determine_language();
+}
+
+void game_t::add_frame_end_event(serial_event_t ev) {
+    std::lock_guard<std::mutex> lock(frame_end_events_mutex);
+    frame_end_events.push_back(std::move(ev));
+}
+
+void game_t::execute_frame_end_events() {
+    // A callback may queue the next frame. This mutex is not recursive, and clearing
+    // after the loop would drop that event.
+    hvector<serial_event_t, 16> batch;
+    {
+        std::lock_guard<std::mutex> lock(frame_end_events_mutex);
+        for (auto &ev : frame_end_events) {
+            batch.push_back(std::move(ev));
+        }
+        frame_end_events.clear();
+    }
+    for (auto &ev : batch) {
+        ev();
+    }
+}
+
+void game_t::add_frame_pre_present_handler(serial_event_t handler) {
+    std::lock_guard<std::mutex> lock(frame_pre_present_handlers_mutex);
+    frame_pre_present_handlers.push_back(std::move(handler));
+}
+
+void game_t::frame_pre_present() {
+    std::lock_guard<std::mutex> lock(frame_pre_present_handlers_mutex);
+    for (auto &handler : frame_pre_present_handlers) {
+        handler();
+    }
+}
+
+void game_t::add_frame_serial_part_handler(serial_event_t handler) {
+    std::lock_guard<std::mutex> lock(frame_serial_part_handlers_mutex);
+    frame_serial_part_handlers.push_back(std::move(handler));
+}
+
+void game_t::frame_serial_part() {
+    std::lock_guard<std::mutex> lock(frame_serial_part_handlers_mutex);
+    for (auto& handler : frame_serial_part_handlers) {
+        handler();
+    }
+}
+
+void game_t::add_frame_phase_ms_handler(frame_phase_ms_handler_t handler) {
+    std::lock_guard<std::mutex> lock(frame_phase_ms_handlers_mutex);
+    frame_phase_ms_handlers.push_back(std::move(handler));
+}
+
+void game_t::frame_phase_ms(double game_update_ms, double draw_ms) {
+    std::lock_guard<std::mutex> lock(frame_phase_ms_handlers_mutex);
+    for (auto &handler : frame_phase_ms_handlers) {
+        handler(game_update_ms, draw_ms);
+    }
+}
+
+void game_t::add_debug_ui_draw_handler(serial_event_t handler) {
+    std::lock_guard<std::mutex> lock(debug_ui_draw_handlers_mutex);
+    debug_ui_draw_handlers.push_back(std::move(handler));
+}
+
+void game_t::debug_ui_draw() {
+    std::lock_guard<std::mutex> lock(debug_ui_draw_handlers_mutex);
+    for (auto &handler : debug_ui_draw_handlers) {
+        handler();
+    }
+}
+
+static int get_elapsed_ticks() {
+    if (game.paused || !city_has_loaded) {
+        return 0;
+    }
+
+    int game_speed_index = 0;
+    int ticks_per_frame = 1;
+    if (g_simulation.time_runs || game.pause_allow) {
+        game_speed_index = (100 - game_features::gameopt_game_speed.to_int()) / 10;
+        if (game_speed_index >= 10) {
+            return 0;
+        } else if (game_speed_index < 0) {
+            ticks_per_frame = game_features::gameopt_game_speed.to_int() / 100;
+            game_speed_index = 0;
+        }
+    } else {
+        return 0;
+    }
+
+    if (g_city_planner.in_progress && game_features::gameplay_pause_sim_while_building.to_bool()) {
+        return 0;
+    }
+
+    if (g_scroll.in_progress() && !g_scroll.is_smooth()) {
+        return 0;
+    }
+
+    time_millis now = time_get_millis();
+    time_millis diff = now - last_update;
+    if (diff < game.tick_timer_ms) {
+        return 0;
+    }
+
+    last_update = now;
+    return ticks_per_frame;
+}
+
+bool game_t::check_valid() {
+    vfs::content_cache_paths();
+
+    vfs::path log_directory = vfs::platform_file_manager_get_base_path();
+    if (g_args.is_integral_tests()) {
+        log_directory = platform.user_directory();
+    }
+    logs::switch_output(log_directory.c_str());
+    locale_determine_language();
+    anti_scum_set_clock_reseed(!g_args.is_integral_tests());
+
+    game_features::load(g_args.features_profile(), g_args.get_game_config_cli_overrides());
+
+    const auto game_speed = (int)calc_bound(game_features::gameopt_game_speed.to_int(), 10, 1000);
+    game_features::gameopt_game_speed.set( game_speed );
+    game_hotkeys::load();    // hotkeys.conf
+    g_scenario.init();
+    random_init();
+
+    paused = false;
+    pause_allow = false;
+    unsigned int n = g_args.get_thread_count();
+    if (n == 0) {
+        n = std::thread::hardware_concurrency();
+    }
+    mt.reset(n);
+    mtrpc.reset(n);
+
+    return true;
+}
+
+bool game_init(game_opts opts) {
+    // In the data dir, where saves and maps are read from, not in the working directory.
+    auto data_folder = [](pcstr folder) {
+        pcstr base = vfs::platform_file_manager_get_base_path();
+        return (base && *base) ? vfs::path(base, "/", folder) : vfs::path(folder);
+    };
+    vfs::create_folders(vfs::content_path(vfs::save_folder().c_str()));
+    vfs::create_folders(data_folder(vfs::MAPS_FOLDER));
+
+    if (!image_load_paks()) {
+        logs::error("unable to load main graphics");
+        return false;
+    }
+
+    if (!g_args.no_resource() && !game_load_campaign_file()) {
+        logs::error("unable to load campaign data");
+        return false;
+    }
+
+    mods_init({g_args.get_mods_directory().c_str(), g_args.is_integral_tests()});
+    mods_load();
+    mods_remount();
+
+    if (!!(opts & game_opt_sound)) {
+        g_sound.init();
+    }
+
+    game.init_state();
+
+    if (g_args.is_editor()) {
+        return game_init_editor();
+    }
+
+    if (g_args.no_logo()) {
+        events::emit(event_show_main_menu{ true });
+    } else {
+        game.logo_show_patch_message = 0;
+        if (!!game_features::gameui_show_intro_video && !g_args.no_intro()) {
+            window_intro_video_show();
+        } else {
+            g_sound.play_intro();
+            autoconfig_window::show("window_logo");
+        }
+    }
+
+    return true;
+}
+
+bool game_init_editor() {
+    locale_determine_language();
+
+    game_file_editor_clear_data();
+    game_file_editor_create_scenario(2);
+
+    if (g_camera.sidebar_collapsed) {
+        g_camera.toggle_sidebar();
+    }
+
+    editor_set_active(1);
+    window_editor_map_show();
+    return true;
+}
+
+void game_exit_editor() {
+    locale_determine_language();
+
+    editor_set_active(0);
+    events::emit(event_show_main_menu{ true });
+}
+
+void game_t::update() {
+    OZZY_PROFILER_FUNCTION();
+    animation_timers_update();
+
+    int num_ticks = get_elapsed_ticks();
+    for (int i = 0; i < num_ticks; i++) {
+        update_tick(g_simulation.simtime.tick);
+        // Above 100% speed one frame runs several ticks; handlers must see the tick that emitted the event.
+        events::process();
+    }
+
+    if (g_window_manager.window_is("window_city")) {
+        anti_scum_random_15bit();
+    }
+
+    events::emit(event_update_game_tick_timer{});
+    events::process();
+}
+
+void game_t::frame_begin() {
+    OZZY_PROFILER_FUNCTION();
+    frame++;
+    g_camera.frame_begin();
+    window_draw(false);
+}
+
+void game_t::frame_end() {
+    animation = true;
+
+    execute_frame_end_events();
+}
+
+void game_t::init_state() {
+    g_city.victory.reset();
+    g_city.migration.reset();
+    map_ring_init();
+
+    g_camera.reset_orientation();
+    //    city_view_go_to_screen_tile_corner(screen_tile(76, 152), true);
+
+    random_generate_pool();
+}
+
+void game_t::city_sounds_frame_begin() {
+    OZZY_PROFILER_FUNCTION();
+    if (g_window_manager.current_window && g_window_manager.current_window->city_sounds) {
+        sound_city_play();
+    }
+}
+
+void game_t::before_start_simulation() {
+    events::emit(event_advance_day::from_simtime(g_simulation.simtime));
+}
+
+void game_t::handle_input_frame() {
+    OZZY_PROFILER_FUNCTION();
+    const mouse& m = mouse::get();
+    const hotkeys* h = &g_hotkeys;
+
+    g_window_manager.handle_input(&m ,h);
+
+    g_window_manager.update_input_after();
+}
+
+void game_t::exit() {
+    events::emit(event_game_exit_requested{});
+    events::process();
+    video_shutdown();
+    game_features::save();
+    g_sound.shutdown();
+}
+
+bool game_t::is_fullscreen(bool check_cli) const {
+    return game_features::gameopt_fullscreen.to_bool() && (check_cli ? cli_fullscreen : true);
+}
+
+void game_t::set_fullscreen(bool v) {
+    game_features::gameopt_fullscreen.set(v);
+}
+
+uint8_t game_difficulty() {
+    return game.difficulty.get();
+}
+
+void game_t::difficulty_t::set(e_difficulty v) {
+    game_features::gameopt_difficulty.set( std::clamp<e_difficulty>(v, DIFFICULTY_VERY_EASY, DIFFICULTY_VERY_HARD) );
+}
+
+e_difficulty game_t::difficulty_t::get() const {
+    return (e_difficulty)game_features::gameopt_difficulty.to_int();
+}

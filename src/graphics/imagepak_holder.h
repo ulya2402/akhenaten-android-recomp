@@ -1,0 +1,70 @@
+#pragma once 
+
+#include "content/imagepak.h"
+#include "core/xstring.h"
+#include "core/archive.h"
+#include "core/hvector.h"
+
+#include <mutex>
+#include <thread>
+
+enum e_imagepak_load_status : uint8_t {
+    IMAGEPAK_LOAD_IDLE = 0,
+    IMAGEPAK_LOAD_QUEUED,
+    IMAGEPAK_LOAD_LOADING,
+    IMAGEPAK_LOAD_LOADED,
+    IMAGEPAK_LOAD_FAILED,
+};
+
+struct imagepak_handle {
+    xstring name;
+    int16_t id = -1;
+    int index = -1;
+    uint32_t entries_num = 0;
+    bool system = false;
+    bool custom = false;
+    bool delayed = true;
+    // Drop SYSTEM.BMP index slots when system:false. Only for dense packs (sphinx/obelisk).
+    // Classic Pharaoh packs must keep the 201-slot layout — map absolute image IDs depend on it.
+    bool compact = false;
+    imagepak *handle = nullptr;
+    e_imagepak_load_status load_status = IMAGEPAK_LOAD_IDLE;
+};
+ANK_CONFIG_STRUCT(imagepak_handle, name, id, index, entries_num, system, custom, delayed, compact)
+
+template<>
+struct stable_array_max_elements<imagepak_handle> {
+    enum { max_elements = 192 };
+};
+
+template<>
+struct std::hash<imagepak_handle> {
+    [[nodiscard]] size_t operator()(const imagepak_handle &h) const noexcept {
+        return h.id;
+    }
+};
+
+struct imagepak_holder_t {
+    bool fonts_loaded = false;
+    bool allow_updata_on_load = false;
+    bool common_inited = false;
+    int font_base_offset;
+
+    color *tmp_image_data = nullptr;
+    int last_active_index = -1;
+
+    stable_array<imagepak_handle> pak_list;
+    std::vector<const image_t *> image_cache;
+    hvector<int, 32> load_queue;
+
+    // Packs load only on the main thread (SDL textures, unsynchronized pak_list); render workers
+    // that hit an unloaded pack leave the id here and draw without it until the main thread loads it.
+    std::thread::id main_thread;
+    std::mutex worker_requests_mutex;
+    hvector<int, 32> worker_requests;
+};
+
+void image_data_init();
+void image_data_touch(const imagepak_handle& h);
+
+extern imagepak_holder_t *g_image_data;

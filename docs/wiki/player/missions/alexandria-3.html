@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alexandria₃ — The Legacy of a Queen — Akhenaten Wiki</title>
+  <link rel="stylesheet" href="../../../style.css" />
+  <style>
+    .mission-infobox { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0.9rem 1.1rem; }
+    .mission-infobox dl { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; margin: 0; }
+    .mission-infobox dt { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; }
+    .mission-infobox dd { margin: 0; font-size: 0.85rem; }
+    .mission-infobox .funds-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .mission-infobox .funds-row span { font-size: 0.75rem; color: var(--text-muted); }
+    .mission-infobox .funds-row span strong { color: var(--text); }
+    .dev-section { margin-top: 2.5rem; }
+    .dev-section h2 { color: var(--text-muted); font-size: 1rem; letter-spacing: 0.04em; text-transform: uppercase; }
+    details { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.75rem; }
+    summary { padding: 0.7rem 1rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; list-style: none; }
+    summary::-webkit-details-marker { display: none; }
+    .details-body { padding: 1rem 1.1rem; font-size: 0.85rem; line-height: 1.6; }
+    .file-ref { font-family: Consolas, monospace; font-size: 0.78rem; color: var(--gold); }
+    .msg-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+    .msg-table th, .msg-table td { padding: 0.3rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
+    .objectives-list { list-style: none; padding: 0; }
+    .objectives-list li { display: flex; gap: 0.6rem; padding: 0.3rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .obj-label { font-weight: 600; min-width: 8rem; }
+    .deviation-note { background: rgba(201,120,76,0.08); border: 1px solid rgba(201,120,76,0.3); border-radius: 4px; padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--text-muted); margin: 0.75rem 0; }
+    .mission-nav { display: flex; justify-content: space-between; margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; }
+    .mission-nav a { color: var(--gold); }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="../../../index.html" class="nav-logo">Akhenaten</a>
+      <ul>
+        <li><a href="../../index.html" class="active">Wiki</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main class="wiki-layout">
+    <aside class="wiki-sidebar">
+      <div class="wiki-sidebar-section">
+        <div class="wiki-sidebar-title"><a href="index.html">← All Missions</a></div>
+      </div>
+      <div class="wiki-sidebar-section">
+        <div class="wiki-sidebar-title">Cleopatra's Capital</div>
+        <ul>
+          <li><a href="alexandria-1.html">48 · Alexandria₁</a></li>
+          <li><a href="alexandria-2.html">49 · Alexandria₂</a></li>
+          <li><a href="maritis.html">50 · Maritis</a></li>
+          <li><a href="alexandria-3.html" class="active">51 · Alexandria₃</a></li>
+          <li><a href="actium.html">52 · Actium</a></li>
+        </ul>
+      </div>
+    </aside>
+    <div class="wiki-content">
+      <div class="wiki-breadcrumb"><a href="index.html">Missions</a> / Alexandria₃</div>
+      <h1>Cleopatra's Alexandria <span style="color:var(--text-muted);font-weight:normal;font-size:0.65em">— The Legacy of a Queen</span></h1>
+      <div class="mission-infobox">
+        <dl>
+          <dt>Mission</dt><dd>51 — Cleopatra's Capital (campaign 8)</dd>
+          <dt>Era</dt><dd>~40 BC (pak start year)</dd>
+          <dt>Starting funds</dt>
+          <dd><div class="funds-row">
+            <span><strong>Normal</strong> 56 000 Db (pak)</span>
+            <span><strong>loan</strong> 4 000</span>
+            <span><strong>debt</strong> 7%</span>
+          </div></dd>
+          <dt>Deities</dt><dd>Ra (2) · Ptah · Bast</dd>
+          <dt>Trade</dt><dd>Rome (weapons) · Athens · Enkomi (marble) · Knossos · Tyre · Gaza · Pwenet · Iunet · Men-nefer · Bahariya · Serabit Khadim</dd>
+          <dt>Previous</dt><dd><a href="maritis.html">Maritis (50)</a></dd>
+          <dt>Next</dt><dd><a href="actium.html">Actium (52)</a></dd>
+          <dt>Status</dt><dd><span class="mission-badge badge-impl">Full empire redefine</span></dd>
+        </dl>
+      </div>
+
+      <div class="deviation-note">
+        <strong>Briefing:</strong> As Cleopatra VII after Caesar's death — expand Alexandria; build <strong>Caesareum</strong> + <strong>Mausoleum</strong>. Briefing assumes Library/Pharos already present (carry from <strong>49</strong> if CO0; Mausoleum from <strong>48</strong>; not from Maritis).
+        <br /><strong>Messages:</strong> start <code>message_mission_cleopatra_alexandria</code> (445); alt <code>…_2</code> (460).
+        <br /><strong>Pak subtitle:</strong> map chunk «The Legacy of Cleopatra»; MM / start_message subtitle is *The Legacy of a Queen* (used in UI).
+        <br /><strong>Monuments:</strong> <code>first=30</code> Caesareum · <code>second=27</code> Mausoleum (gr198 skin 2); goal <strong>24</strong>.
+        Caesareum <strong>10</strong> + Mausoleum <strong>5</strong> → <code>trunc(6.32·√15+0.5)=24</code> = goal (Notes §13.9 / C9).
+        <br /><strong>JS:</strong> full empire redefine — <code>events[]</code> ×43 (the chain invasion i=39 is a JS raid), cities ×19, routes ×13, ornaments ×8, texts ×16. Burial ×5. No local inv points → the warships sail from the map exit (OG <code>invasion_start_sea</code> fallback).
+        <br /><strong>≠</strong> custom <code>m_128_alexandria.js</code>.
+      </div>
+
+      <h2 id="objectives">Objectives</h2>
+      <ul class="objectives-list">
+        <li><span class="obj-label">Population</span><span class="obj-value">10 000</span></li>
+        <li><span class="obj-label">Culture</span><span class="obj-value">80</span></li>
+        <li><span class="obj-label">Prosperity</span><span class="obj-value">70</span></li>
+        <li><span class="obj-label">Monuments</span><span class="obj-value">24 (Caesareum 10 + Mausoleum 5 → 24)</span></li>
+        <li><span class="obj-label">Kingdom</span><span class="obj-value">80</span></li>
+        <li><span class="obj-label">Housing</span><span class="obj-value">6 × level 19</span></li>
+        <li><span class="obj-label">Time limit</span><span class="obj-value">off (milestones 5 / 10 / 15)</span></li>
+        <li><span class="obj-label">Burial</span><span class="obj-value">weapons×4 · linen×4 · gems×5 · luxury×7 · papyrus×2</span></li>
+      </ul>
+
+      <h2 id="events">Scripted events (summary)</h2>
+      <p>JS <code>events[]</code> ×43 from pak (CC51.2). Requests / gifts / demand swings / wages / locusts / city-status; distant troops. Each refusal of the yearly 5 luxury goods request (from y3m7) announces <strong>2 Persian warships</strong>, no soldiers (random target), <strong>6 months</strong> later; they attack 12 months after that (OG warnings in between). Cities ×19 / routes ×13 / ornaments ×8 / texts ×16. Display orphans without polyline (Migdol / Buhen / Kyrene) use <code>route : 0</code>. Rome sells weapons; Enkomi marble+timber.</p>
+
+      <div class="dev-section">
+        <h2 id="dev">Developer reference</h2>
+        <details open>
+          <summary>Mission script</summary>
+          <div class="details-body">
+            <p><span class="file-ref">src/scripts/mission/m_051_alexandria_3.js</span></p>
+            <p>Raids: <code>mission51_on_request_cleared</code> (line 1223) schedules pak i=39 (×2 warships, pak <code>phrase_var</code>) on each refusal of pak i=5 (<code>tag_id : 1005</code>, line 210), 6 months on (its <code>time.year</code>); <code>mission51_raids</code> (line 1230) runs it through <code>mission_raids_month</code> (<span class="file-ref">src/scripts/missions.js</span>:305): the OG warnings, then the attack 12 months later. Its <code>events[]</code> slot (line 753) is <code>EVENT_TYPE_NONE</code> so the other indexes keep.</p>
+            <p><code>map_file</code>: <span class="file-ref">data/maps/m_051_alexandria_3.map</span>. Empire id <strong>0</strong>, <code>map_background</code> pack empire id 26. Full <code>hide_pak_*</code>: cities ×19, routes ×13 (1–13), ornaments ×8, texts ×16. SKIP empty map_obj idx=8. Dump 2026-08-01 Cleop. Rank 10. <code>next_mission: 52</code>. Enemy <code>ENEMY_9_PERSIAN</code>.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Messages</summary>
+          <div class="details-body">
+            <table class="msg-table">
+              <tr><th>Key</th><th>Id</th></tr>
+              <tr><td><code>message_mission_cleopatra_alexandria</code></td><td>445</td></tr>
+              <tr><td><code>message_mission_cleopatra_alexandria_2</code></td><td>460</td></tr>
+            </table>
+          </div>
+        </details>
+      </div>
+
+      <div class="mission-nav">
+        <a href="maritis.html">← 50 Maritis</a>
+        <a href="actium.html">52 Actium →</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

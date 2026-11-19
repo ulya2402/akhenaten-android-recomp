@@ -1,0 +1,33 @@
+#pragma once
+
+#include "core/tokenum.h"
+
+enum e_empire_object {
+    EMPIRE_OBJECT_ORNAMENT = 0,
+    EMPIRE_OBJECT_CITY = 1,
+    EMPIRE_OBJECT_TEXT = 2,
+    EMPIRE_OBJECT_BATTLE_ICON = 3,
+    EMPIRE_OBJECT_LAND_TRADE_ROUTE = 4,
+    EMPIRE_OBJECT_SEA_TRADE_ROUTE = 5,
+    EMPIRE_OBJECT_KINGDOME_ARMY = 6,
+    EMPIRE_OBJECT_ENEMY_ARMY = 7,
+    EMPIRE_OBJECT_DISTANT_BATTLE_ROUTE = 8,
+    EMPIRE_OBJECT_TRADER = 9,
+    EMPIRE_OBJECT_TRADE_ROUTE = 10,
+
+    EMPIRE_OBJECT_COUNT
+};
+using e_empire_object_tokens_t = token_holder<e_empire_object, EMPIRE_OBJECT_ORNAMENT, EMPIRE_OBJECT_COUNT>;
+extern const e_empire_object_tokens_t e_empire_object_tokens;
+
+enum e_empire_city {
+    EMPIRE_CITY_OURS = 0,
+    EMPIRE_CITY_PHARAOH_TRADING = 1,
+    EMPIRE_CITY_PHARAOH = 2,
+    EMPIRE_CITY_EGYPTIAN_TRADING = 3,
+    EMPIRE_CITY_EGYPTIAN = 4,
+    EMPIRE_CITY_FOREIGN_TRADING = 5,
+    EMPIRE_CITY_FOREIGN = 6,
+
+    EMPIRE_CITY_COUNT
+};

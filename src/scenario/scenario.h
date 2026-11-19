@@ -1,0 +1,412 @@
+#pragma once
+
+#include "core/buffer.h"
+#include "game/resource.h"
+#include "building/building_type.h"
+#include "game/game_environment.h"
+#include "core/custom_span.hpp"
+#include "core/xstring.h"
+#include "scenario_event_manager.h"
+#include "grid/map_geometry.h"
+#include "grid/point.h"
+#include "scenario/types.h"
+#include "scenario/scenario_difficulty.h"
+#include "game/difficulty.h"
+#include "core/archive.h"
+#include "core/settings_vars.h"
+#include "figure/formation.h"
+#include "grid/envinronment.h"
+
+#include <cstdint>
+#include <unordered_map>
+
+struct event_mission_start { int id; };
+
+struct event_mission_won {
+    int scenario_id;
+    int next_scenario_id;
+};
+
+/** Emitted at end of GamestateIO post_load() after city/on_post_load (save, mission pak, map). */
+struct event_level_post_load {
+    int session_kind; ///< e_session_type (game/game.h), stored as int for JS bindings
+    int scenario_id;
+};
+
+// Mission-JS herd spawn: [x,y] or { tile, type, count, radius }. type/count 0 → climate default.
+struct herd_point_t {
+    tile2i tile = tile2i::invalid;
+    e_figure_type type = FIGURE_NONE;
+    int16_t count = 0;
+    int16_t radius = 0;
+
+    bool valid() const {
+        return tile.valid();
+    }
+};
+
+namespace archive_helper {
+template<>
+inline void reader<herd_point_t>(archive arch, herd_point_t &p) {
+    p = herd_point_t{};
+    // Object form { tile, type, count, radius }. Missing "tile" → def sentinel, then [x,y]/{x,y}.
+    const vec2i k_no_tile(-100000, -100000);
+    const vec2i from_tile = arch.r_vec2i("tile", k_no_tile);
+    if (from_tile.x != k_no_tile.x || from_tile.y != k_no_tile.y) {
+        p.tile = tile2i(from_tile.x, from_tile.y);
+        p.type = arch.r_type<e_figure_type>("type", FIGURE_NONE);
+        p.count = (int16_t)arch.r_int("count", 0);
+        p.radius = (int16_t)arch.r_int("radius", 0);
+        return;
+    }
+
+    const vec2i t = arch.r_vec2i_impl({0, 0}, "x", "y");
+    p.tile = tile2i(t.x, t.y);
+}
+}
+
+struct scenario_data_buffers {
+    buffer* mission_index = nullptr;
+    buffer* map_name = nullptr;
+    buffer* map_settings = nullptr;
+    buffer* is_custom = nullptr;
+    buffer* player_name = nullptr;
+
+    buffer* header = nullptr;
+    buffer* info1 = nullptr;
+    buffer* info2 = nullptr;
+    buffer* info3 = nullptr;
+    buffer* events = nullptr;
+    buffer* win_criteria = nullptr;
+    buffer* map_points = nullptr;
+    buffer* river_points = nullptr;
+    buffer* empire = nullptr;
+    buffer* wheat = nullptr;
+    buffer* climate_id = nullptr;
+
+    buffer* requests = nullptr;
+    buffer* invasions = nullptr;
+    buffer* invasion_points_land = nullptr;
+    buffer* request_comply_dialogs = nullptr;
+    buffer* herds = nullptr;
+    buffer* demands = nullptr;
+    buffer* price_changes = nullptr;
+    buffer* fishing_points = nullptr;
+    buffer* request_extra = nullptr;
+    buffer* allowed_builds = nullptr;
+
+    buffer* events_ph = nullptr;
+
+    buffer* monuments = nullptr;
+};
+
+enum e_climate {
+    CLIMATE_CENTRAL = 0,
+    CLIMATE_NORTHERN = 1,
+    CLIMATE_DESERT = 2
+};
+
+struct win_criteria_t {
+    int enabled;
+    int goal;
+};
+ANK_CONFIG_STRUCT(win_criteria_t, enabled, goal)
+
+struct scenario_win_criteria_time_t {
+    int enabled;
+    int years;
+};
+ANK_CONFIG_STRUCT(scenario_win_criteria_time_t, enabled, years)
+
+struct custom_mission_config {
+    int mission_id;
+    xstring filename;
+    bool operator==(const custom_mission_config& other) const noexcept { return mission_id == other.mission_id; }
+    bool operator!=(const custom_mission_config& other) const noexcept { return mission_id != other.mission_id; }
+    bool operator<(const custom_mission_config& other) const noexcept { return mission_id < other.mission_id; }
+};
+ANK_CONFIG_STRUCT(custom_mission_config, mission_id, filename)
+
+template <>
+struct std::hash<custom_mission_config> {
+    std::size_t operator()(const custom_mission_config& k) const noexcept { return k.mission_id; }
+};
+int get_custom_mission_id(xstring name);
+
+struct request_t {
+    int year;
+    e_resource resource;
+    int amount;
+    int deadline_years;
+    int can_comply_dialog_shown;
+    int kingdom;
+    int month;
+    int state;
+    bool visible;
+    int months_to_comply;
+};
+
+struct invasion_t {
+    int year;
+    int type;
+    int amount;
+    int from;
+    e_formation_attack_type attack_type;
+    int month;
+};
+
+struct price_change_t {
+    int year;
+    int month;
+    e_resource resource;
+    int amount;
+    int is_rise;
+};
+
+struct demand_change_t {
+    int year;
+    int month;
+    e_resource resource;
+    int route_id;
+    int is_rise;
+};
+
+enum e_scenario_mode {
+    e_scenario_normal,
+    e_scenario_selected,
+    e_scenario_custom_map,
+};
+
+class io_buffer;
+
+struct scenario_data_t {
+    xstring scenario_name;
+    scenario_difficulty_t difficulty;
+
+    int start_year;
+    int climate;
+    int player_rank;
+    int player_incarnation;
+
+    int debt_interest_rate;
+
+    int kingdom_supplies_grain;
+    int image_id;
+    xstring subtitle;
+    xstring brief_description;
+    e_enemy_type enemy_id;
+    bool is_open_play;
+    int open_play_scenario_id;
+    bool is_custom;
+    bool alt_predator_type;
+
+    int player_faction;
+
+    // Hoisted (not nested) so ANK_CONFIG_STRUCT / MSVC can name the type.
+    using win_criteria_time_t = scenario_win_criteria_time_t;
+
+    struct win_criterias_t {
+        win_criteria_t population;
+        win_criteria_t culture;
+        win_criteria_t prosperity;
+        win_criteria_t monuments;
+        win_criteria_t kingdom;
+        win_criteria_t housing_count;
+        win_criteria_t housing_level;
+        win_criteria_time_t time_limit;
+        win_criteria_time_t survival_time;
+        int milestone25_year;
+        int milestone50_year;
+        int milestone75_year;
+        int next_mission;
+    } win_criteria;
+
+    struct {
+        int initial_funds;
+        int rescue_loan;
+    } finance;
+
+    struct {
+        int id;
+        int is_expanded;
+        int expansion_year;
+        int distant_battle_kingdome_travel_months;
+        int distant_battle_enemy_travel_months;
+    } empire;
+
+    //request_t requests[40];
+    demand_change_t demand_changes[40];
+    price_change_t price_changes[40];
+    invasion_t invasions[40];
+
+    struct {
+        int severity;
+        int year;
+    } earthquake;
+
+    int current_pharaoh;
+    struct {
+        int year;
+        int enabled;
+    } gladiator_revolt;
+
+    struct {
+        int sea_trade_problem;
+        int land_trade_problem;
+        int raise_wages;
+        int lower_wages;
+        int contaminated_water;
+        int copper_mine_collapsed;
+        int clay_pit_flooded;
+    } random_events;
+
+    map_data_t map;
+
+    tile2i entry_point;
+    tile2i exit_point;
+    tile2i river_entry_point;
+    tile2i river_exit_point;
+
+    tile2i earthquake_point;
+    hvector<herd_point_t, MAX_PREDATOR_HERD_POINTS> herd_points_predator;
+    hvector<herd_point_t, MAX_PREY_HERD_POINTS> herd_points_prey;
+    hvector<tile2i, MAX_FISH_POINTS> fishing_points;
+    hvector<tile2i, MAX_DISEMBARK_POINTS> disembark_points;
+    hvector<tile2i, MAX_INVASION_POINTS_LAND> invasion_points_land;
+    hvector<tile2i, MAX_INVASION_POINTS_SEA> invasion_points_sea;
+
+    bool allowed_buildings[BUILDING_MAX] = { 0 };
+
+    enum {
+        SCENARIO_PAK_RESERVED_INT16S = 114,
+        SCENARIO_EDITOR_ALLOW_SLOTS = 47,
+        EDITOR_ALLOW_SLOT_BRIDGE = 28,
+        EDITOR_ALLOW_SLOT_FERRY = 29,
+    };
+    int16_t pak_reserved[SCENARIO_PAK_RESERVED_INT16S] = {};
+
+    int16_t pak_editor_allow_flag(int slot) const;
+
+    resource_allow_vec init_resources;
+    settings_vars_t vars;
+
+    struct {
+        int hut;
+        int meeting;
+        int crops;
+    } native_images;
+
+    int campaign_scenario_id;
+    e_scenario_mode scmode;
+    int campaign_mission_rank;
+    // Bitmask of e_troop_carry_mask — destination mission accepts these fort types.
+    uint8_t carry_troops_mask;
+    // Destination accepts finished monument snapshots (Capital 49/51). Survives mission 50.
+    bool carry_monuments = false;
+    // First mission of a new Pharaoh period — drop dynasty personal savings.
+    bool reset_personal_savings = false;
+    int32_t has_won;
+    int32_t continue_months_left;
+    int32_t continue_months_chosen;
+    struct {
+        int starting_kingdom;
+    } settings;
+
+    struct sounds_t {
+        xstring briefing;
+        xstring victory;
+    } sounds;
+
+    struct {
+        int first;
+        int second;
+        int third;
+        struct {
+            int required;
+            int dispatched;
+        } burial_provisions[RESOURCES_MAX];
+    } monuments;
+
+    struct env_t {
+        bool flotsam_enabled;
+        bool has_animals;
+        uint8_t gods_least_mood;
+        bool hide_nilometer;
+        vegetation_opt marshland_grow;
+        vegetation_opt tree_grow;
+    } env;
+
+    struct meta_t {
+        xstring start_message;
+        bool hide_won_screen;
+        int_dcy initial_funds;
+        int_dcy rescue_loans;
+        int_dcy tax_percentage;
+        int_dcy house_tax_multipliers; // obsolete: warned about and ignored
+        int_dcy debt_interest;
+    } meta;
+
+    event_manager_t events;
+
+    bool is_saved;
+
+    void update();
+    e_scenario_mode mode();
+
+    bool is_scenario_id(xspan<int> missions);
+
+    int startup_funds() const;
+    int rescue_loan() const;
+    int debt_interest() const; // annual % for current difficulty
+    int city_tax_percentage() const;
+
+    void load_metadata(const mission_id_t &missionid, bool is_new_mission);
+    void bind_data(io_buffer *iob, size_t version, size_t size);
+    void init();
+
+    bool is_desert() const {
+        return climate == CLIMATE_DESERT;
+    }
+
+    int starting_kingdom() {
+        return settings.starting_kingdom;
+    }
+
+    void distant_battle_set_enemy_travel_months(int value);
+    void distant_battle_set_kingdome_travel_months(int value) {
+        empire.distant_battle_kingdome_travel_months = value;
+    }
+
+    template<typename ... Args>
+    bool is_scenario_id(const Args ... args) {
+        int values[] = { args... };
+        return is_scenario_id(make_span(values));
+    }
+};
+ANK_CONFIG_STRUCT(scenario_data_t::meta_t, start_message, hide_won_screen, initial_funds, rescue_loans, tax_percentage,
+  house_tax_multipliers, debt_interest)
+ANK_CONFIG_STRUCT(scenario_data_t::env_t, flotsam_enabled, has_animals, gods_least_mood, hide_nilometer, marshland_grow, tree_grow)
+ANK_CONFIG_STRUCT(scenario_data_t::sounds_t, briefing, victory)
+ANK_CONFIG_STRUCT(scenario_data_t::win_criterias_t, population, culture, prosperity, monuments, kingdom, housing_count, housing_level, time_limit, survival_time, milestone25_year, milestone50_year, milestone75_year, next_mission)
+
+extern scenario_data_t g_scenario;
+
+void scenario_set_name(pcstr name);
+
+
+int scenario_open_play_id();
+
+int scenario_property_enemy();
+
+int scenario_property_player_rank();
+
+bool scenario_building_allowed(e_building_type btype);
+void scenario_building_allow(e_building_type btype, bool allow);
+
+int scenario_editor_allow_mapped_types(int slot, e_building_type *out, int max_out);
+
+int scenario_building_image_native_hut();
+
+int scenario_building_image_native_meeting();
+
+int scenario_building_image_native_crops();

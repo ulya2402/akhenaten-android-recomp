@@ -1,0 +1,249 @@
+log_info("akhenaten: ui common started")
+
+ui {
+    popup_message: __ui_popup_message
+
+    sidebar {
+        @offset_x { get: __ui_widget_sidebar_city_offset_x }
+    }
+}
+
+imgui {
+    tree_node_ex: __imgui_tree_node_ex
+    tree_node_ex2: __imgui_tree_node_ex2
+    tree_pop: __imgui_tree_pop
+    begin_table: __imgui_begin_table
+    end_table: __imgui_end_table
+    table_flags_debug_props: __imgui_table_flags_debug_props
+    property_input : __debug_props_show
+    text: __imgui_text
+    same_line: __imgui_same_line
+    button: __imgui_button
+    set_next_item_width: __imgui_set_next_item_width
+    content_region_avail_x: __imgui_content_region_avail_x
+    input_text: __imgui_input_text
+}
+
+ui.image = function(image, pos, flags) {
+    if (!image || !pos) {
+        return
+    }
+
+    if (image.tid === undefined) {
+        return
+    }
+
+    if (flags) {
+        __ui_draw_image_flags(image.tid, pos, flags)
+    } else {
+        __ui_draw_image(image.tid, pos)
+    }
+}
+
+ui.image_scaled = function(image, pos, scale) {
+    if (!image || !pos) {
+        return
+    }
+    var tid = (typeof image === "number") ? image : image.tid
+    if (tid === undefined || tid === null) {
+        return
+    }
+    __ui_draw_image_scaled(tid, pos, scale)
+}
+
+ui.button_none = 0
+ui.button_clicked = 1
+ui.button_hovered = 2
+
+ui.begin_widget = __ui_begin_widget
+ui.end_widget = __ui_end_widget
+ui.set_clip_rectangle = __ui_set_clip_rectangle
+ui.reset_clip_rectangle = __ui_reset_clip_rectangle
+ui.fill_rect = __ui_fill_rect
+ui.border = __ui_border
+ui.button_border = __ui_button_border
+ui.panel = __ui_panel
+ui.label_colored = __ui_label_colored
+ui.set_tooltip = __ui_set_tooltip
+ui.text_abs_colored = __ui_text_abs_colored
+ui.draw_texture = __ui_draw_texture
+ui.window_is = __ui_window_is
+ui.resource_icon_flags = __ui_draw_resource_icon_flags
+ui.set_window_pos = __ui_set_window_pos
+ui.invalidate_minimap_preview = function(size) {
+	if (size)
+		__ui_invalidate_minimap_preview_size(size)
+	else
+		__ui_invalidate_minimap_preview()
+}
+ui.draw_minimap_preview = function(pos, size, generate_size) {
+	if (generate_size)
+		__ui_draw_minimap_preview_sized(pos, size, generate_size)
+	else
+		__ui_draw_minimap_preview(pos, size)
+}
+
+function show_window_by_id(window_id) {
+	return function() {
+		emit event_show_window{ id:window_id }
+	}
+}
+
+ui.arw_button = function(pos, down, tiny, allow_repeat) {
+    return __ui_draw_arw_button(pos, down, tiny, allow_repeat)
+}
+
+ui.button = __ui_draw_button
+
+ui.label = function(text, pos, font) {
+    if (!text || !pos) {
+        return
+    }
+
+    __ui_draw_label(text, pos, font)
+}
+
+ui.label_ex = function(text, pos, font, flags, box_width) {
+    if (!text || !pos) {
+        return
+    }
+
+    __ui_draw_label_ex(text, pos, font, flags, box_width || 0)
+}
+
+ui.label_year = function(year, pos, font) {
+    if (pos == null) {
+        return
+    }
+
+    __ui_label_year(year, pos, font)
+}
+
+ui.resource_icon = function(pos, resource) {
+    if (!pos) {
+        return
+    }
+
+    __ui_draw_resource_icon(pos, resource)
+}
+
+ui.line = function(hline, pos, size) {
+    if (!pos) {
+        return
+    }
+
+    __ui_draw_line(hline, pos, size)
+}
+
+ui.window_city_show = __ui_window_city_show
+ui.window_editor_map_show = __ui_window_editor_map_show
+ui.window_message_dialog_show = __ui_window_message_dialog_show
+ui.window_message_dialog = __ui_window_message_dialog
+ui.sidebar_set_type = __ui_widget_sidebar_set_type
+ui.scenario_mission_briefing_button_enabled = __ui_scenario_mission_briefing_button_enabled
+ui.sidebar_overlay_link_text = __ui_sidebar_overlay_link_text
+ui.show_yesno = __ui_dialog_show_yesno
+ui.show_ok = __ui_dialog_show_ok
+
+function px(i) { return i * 16 }
+function sw(v) { return screen.width + v}
+function sh(v) { return screen.height + v}
+function mbutton(i) { return [sw(0) / 2 - 128, sh(0) / 2 - 100 + 40 * i] }
+
+function baseui(base, ext) {
+    var newui = {};
+
+    for (var key in base.ui) { newui[key] = base.ui[key] }
+    for (var key in ext) { newui[key] = ext[key]}
+
+    return newui;
+}
+
+function ui_extend(base, ext) {
+    var newobj = {};
+
+    for (var key in base) {
+        var bdesc = Object.getOwnPropertyDescriptor(base, key);
+        if (bdesc && (bdesc.get || bdesc.set)) {
+            Object.defineProperty(newobj, key, bdesc);
+        } else {
+            newobj[key] = base[key];
+        }
+    }
+
+    if (ext == null) return newobj;
+
+    var keys = Object.keys(ext);
+    for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        var desc = Object.getOwnPropertyDescriptor(ext, k);
+        if (desc && (desc.get || desc.set)) {
+            Object.defineProperty(newobj, k, desc);
+        } else {
+            newobj[k] = desc ? desc.value : ext[k];
+        }
+    }
+
+    return newobj;
+}
+
+function inner_panel(config) { return ui_extend({type:"inner_panel"}, config) }
+function outer_panel(config) { return ui_extend({type:"outer_panel"}, config) }
+function text(config) { return ui_extend({type:"text"}, config) }
+function border(config) { return ui_extend({type:"border"}, config) }
+function dummy(config) { return ui_extend({type:"text"}, config) }
+function text_center(config) { return ui_extend({type:"text", align:"center"}, config) }
+function label(config) { return ui_extend({type:"label", font : FONT_NORMAL_WHITE_ON_DARK}, config) }
+function header(config) { return ui_extend({type:"label", font : FONT_LARGE_BLACK_ON_LIGHT}, config) }
+function multiline(config) { return ui_extend({type:"label", multiline:true, font : FONT_NORMAL_WHITE_ON_DARK}, config) }
+function image(config) { return ui_extend({type:"image"}, config) }
+function image_queue(config) { return ui_extend({type:"image_queue"}, config) }
+function image_button(config) { return ui_extend({type:"image_button"}, config) }
+function ok_button(config) { return ui_extend({type:"image_button", size[39, 26], pack:PACK_GENERAL, id:96, offset:0 }, config) }
+function cancel_button(config) { return ui_extend({type:"image_button", size[39, 26], pack:PACK_GENERAL, id:96, offset:4 }, config) }
+function button(config) { return ui_extend({type:"generic_button", font : FONT_NORMAL_BLACK_ON_LIGHT}, config) }
+function checkbox(config) { return ui_extend({type:"checkbox", size:[23, 23], font : FONT_NORMAL_BLACK_ON_LIGHT}, config) }
+function link(config) { return ui_extend({type:"generic_button", hbody:false, border:false, font:FONT_NORMAL_BLACK_ON_LIGHT, font_hover:FONT_NORMAL_YELLOW,}, config) }
+function arrowup(config) { return ui_extend({type:"arrow_button", down:false}, config) }
+function arrowdown(config) { return ui_extend({type:"arrow_button", down:true}, config) }
+function background(config) { return ui_extend({type:"background", down:true}, config) }
+function resource_icon(config) { return ui_extend({ type : "resource_icon"}, config) }
+function large_button(config) { return ui_extend({ type : "large_button"}, config) }
+function scrollable_list(config) { return ui_extend({ type : "scrollable_list"}, config) }
+function scrollbar(config) { return ui_extend({ type : "scrollbar"}, config) }
+function input(config) { return ui_extend({ type : "input", font : FONT_NORMAL_WHITE_ON_DARK }, config) }
+function menu_item(config) { return ui_extend({ type : "menu_item"}, config) }
+function menu_header(config) { return ui_extend({ type : "menu_header"}, config) }
+
+function help_button(config) { var i = image_button({margin{left:14, bottom:-40}, size[27, 27], pack:PACK_GENERAL, id:134, onclick_event: "help" }); return ui_extend(i, config) }
+function close_button(config) { var i = image_button({margin{right:-40, bottom:-40}, size[27, 27], pack:PACK_GENERAL, id:134, offset:4, onclick_event: "go_back" }); return ui_extend(i, config) }
+function next_button(config) { var i = image_button({size[27, 27], pack:PACK_GENERAL, id:90 }); return ui_extend(i, config) }
+function advisor_button(config) { var i = image_button({pack:PACK_GENERAL, id:106, offset:12, tooltip[68, 41]}); return ui_extend(i, config) }
+
+
+[es=(building_info_window, help), es=(terrain_info_window, help), es=(figure_info_window, help)]
+function info_window_help_button_on_help(window) {
+    var oi = city.object_info
+    if (oi.help_link) {
+        ui.window_message_dialog(oi.help_link)
+    } else if (oi.help_id > 0) {
+        ui.window_message_dialog(__lang_get_message_id(oi.help_id))
+    } else {
+        ui.window_message_dialog("message_table_of_contents")
+    }
+}
+
+[es=(advisor_window, help), es=(modal_window, help), es=(window, help), es=(ui_window, help)]
+function ui_help_button_on_help(window) {
+    window_show_help()
+}
+
+[es=(building_info_window, go_back), es=(terrain_info_window, go_back), es=(figure_info_window, go_back)]
+function info_window_close_button_on_go_back(window) {
+    ui.window_city_show()
+}
+
+[es=(modal_window, go_back), es=(window, go_back), es=(ui_window, go_back)]
+function ui_close_button_on_go_back(window) {
+    window_go_back()
+}

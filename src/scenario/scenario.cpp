@@ -1,0 +1,322 @@
+#include "scenario.h"
+
+#include "io/io_buffer.h"
+#include "city/campaign_carry.h"
+#include "city/city.h"
+#include "city/city_resource.h"
+#include "core/custom_span.hpp"
+#include "empire/trade_route.h"
+#include "earthquake.h"
+#include "scenario_event_manager.h"
+#include "game/difficulty.h"
+#include "game/game.h"
+#include "game/mission.h"
+#include "dev/debug.h"
+#include "core/log.h"
+
+#include "js/js_register.h"
+
+#include <cstring>
+
+scenario_data_t g_scenario;
+std::unordered_set<custom_mission_config> ANK_VARIABLE(custom_missions);
+
+void ANK_REGISTER_CONFIG_ITERATOR(config_load_scenario_load_meta_data) {
+    mission_id_t missionid(g_scenario.campaign_scenario_id);
+
+    g_scenario.load_metadata(missionid, /*is_new_mission*/ true);
+    js_register_mission_vars(g_scenario.vars);
+}
+
+int get_custom_mission_id(xstring mission) {
+    for (const auto& m : custom_missions) {
+        if (m.filename == mission) {
+            return m.mission_id;
+        }
+    }
+
+    verify_no_crash(false && "no custom scenario config");
+    return -1;
+}
+
+void scenario_data_t::init() {
+    campaign_scenario_id = 0;
+    campaign_mission_rank = 0;
+    carry_troops_mask = 0;
+    carry_monuments = false;
+    reset_personal_savings = false;
+    scmode = e_scenario_normal;
+    settings.starting_kingdom = difficulty_starting_kingdom();
+    if (debt_interest_rate <= 0) {
+        debt_interest_rate = 10;
+    }
+}
+
+void scenario_data_t::distant_battle_set_enemy_travel_months(int value) {
+    empire.distant_battle_enemy_travel_months = value;
+}
+
+int scenario_data_t::startup_funds() const {
+    const int funds = meta.initial_funds.get();
+    if (funds > 0) {
+        return funds;
+    }
+
+    return difficulty.adjust_money(finance.initial_funds);
+}
+
+int scenario_data_t::rescue_loan() const {
+    const int loan = meta.rescue_loans.get();
+    if (loan > 0) {
+        return loan;
+    }
+
+    return difficulty.loan_money(finance.rescue_loan);
+}
+
+int scenario_data_t::debt_interest() const {
+    const int rate = meta.debt_interest.get();
+    if (rate > 0) {
+        return rate;
+    }
+    if (debt_interest_rate > 0) {
+        return debt_interest_rate;
+    }
+    return 10;
+}
+
+// Percent of the taxed amount the city keeps: the mission's tax_percentage, else the system table.
+int scenario_data_t::city_tax_percentage() const {
+    if (!meta.tax_percentage.value.empty()) {
+        return meta.tax_percentage.get();
+    }
+    return finance_tax_rules.tax_percentage.get();
+}
+
+void scenario_data_t::load_metadata(const mission_id_t &missionid, bool is_new_mission) {
+    g_config_arch.r_section(missionid, [this, is_new_mission](archive arch) {
+        meta.tax_percentage.value.clear();
+        meta.house_tax_multipliers.value.clear();
+        arch.r(meta);
+        if (!meta.house_tax_multipliers.value.empty()) {
+            static bool warned = false;
+            if (!warned) {
+                warned = true;
+                logs::warn("[scenario] house_tax_multipliers is obsolete and ignored; use tax_percentage (percent the "
+                           "city keeps, OG 50)");
+            }
+        }
+        arch.r("env", env);
+
+        int rank = std::min(arch.r_int("player_rank", -1), 10);
+        if (rank >= 0) {
+            g_city.kingdome.player_rank = rank;
+        }
+
+        memset(allowed_buildings, 0, sizeof(allowed_buildings));
+        auto buildings = arch.r_array_num<e_building_type>("buildings");
+        for (const auto &b : buildings) {
+            allowed_buildings[b] = true;
+        }
+
+        init_resources.clear();
+        arch.r("init_resources", init_resources);
+
+        carry_troops_mask = 0;
+        for (const auto &name : arch.r_array_str("carry_troops")) {
+            carry_troops_mask |= troop_carry_mask_parse_name(name.c_str());
+        }
+        carry_monuments = arch.r_bool("carry_monuments");
+        reset_personal_savings = arch.r_bool("reset_personal_savings");
+        if (is_new_mission && reset_personal_savings) {
+            g_city.kingdome.campaign_carry_personal_savings = 0;
+        }
+
+        arch.r("invasion_points_land", invasion_points_land);
+        arch.r("invasion_points_sea", invasion_points_sea);
+        // The criteria come from the mission script only; start clean so a previous mission's goals do not linger.
+        win_criteria = {};
+        arch.r("win_criteria", win_criteria);
+        arch.r("sounds", sounds);
+
+        // Optional map-point overlays (pak remains if the key is absent).
+        // Accept [x, y] or { x, y }. Missing key keeps the current (pak) value.
+        auto overlay_tile = [&] (pcstr name, tile2i &dest) {
+            vec2i cur{ dest.x(), dest.y() };
+            vec2i v = arch.r_vec2i(name, cur);
+            dest = tile2i(v.x, v.y);
+        };
+        overlay_tile("entry_point", entry_point);
+        overlay_tile("exit_point", exit_point);
+        overlay_tile("river_entry_point", river_entry_point);
+        overlay_tile("river_exit_point", river_exit_point);
+        overlay_tile("earthquake_point", earthquake_point);
+        // disembark_points: mission config only (pak discarded). Absent key → empty.
+        arch.r_vector("disembark_points", disembark_points, MAX_DISEMBARK_POINTS);
+
+        // fishing / herd points: mission config only (map/pak discarded). Absent key → empty.
+        // herd entries: [x,y] or { tile:[x,y], type, count, radius }.
+        arch.r("fishing_points", fishing_points);
+        arch.r("herd_points_predator", herd_points_predator);
+        arch.r("herd_points_prey", herd_points_prey);
+
+        // Legacy positional types overlay (prefer per-point type in the object form).
+        const auto herd_types = arch.r_array_num<e_figure_type>("herd_types_predator");
+        for (size_t i = 0; i < herd_types.size() && i < herd_points_predator.size(); i++) {
+            if (herd_types[i] != FIGURE_NONE && herd_points_predator[i].type == FIGURE_NONE) {
+                herd_points_predator[i].type = herd_types[i];
+            }
+        }
+
+        // Mission list is unlock source of truth; appeased/bonuses come from save chunk.
+        g_city.local_cults.load_mission_unlocks(arch.r_array_str("local_cults"));
+
+        // Burial provisions: omit keys → keep pak. hide_pak_burial clears then JS list
+        // replaces. On save load, required is overwritten from JS; dispatched is kept.
+        if (arch.r_bool("hide_pak_burial", false)) {
+            for (int r = 0; r < RESOURCES_MAX; r++) {
+                monuments.burial_provisions[r].required = 0;
+                if (is_new_mission) {
+                    monuments.burial_provisions[r].dispatched = 0;
+                }
+            }
+        }
+        arch.r_array("burial_provisions", [&] (archive entry) {
+            const e_resource res = entry.r_type<e_resource>("resource", RESOURCE_NONE);
+            const int required = entry.r_int("required", 0);
+            if (res <= RESOURCE_NONE || res >= RESOURCES_MAX || required <= 0) {
+                return;
+            }
+            monuments.burial_provisions[res].required = required;
+            if (is_new_mission) {
+                monuments.burial_provisions[res].dispatched = 0;
+            }
+        });
+
+        settings_vars_t newvars;
+        arch.r("vars", newvars);
+        vars.insert(newvars);
+    });
+
+    // Keep pak rate if present; otherwise default 10%. Mission meta ladder is read via debt_interest().
+    if (debt_interest_rate <= 0) {
+        debt_interest_rate = 10;
+    }
+
+    if (is_new_mission) {
+        events.load_mission_metadata(missionid);
+    }
+}
+
+void scenario_data_t::bind_data(io_buffer *iob, size_t version, size_t size) {
+    assert(size == 2000);
+    char data[2000] = { 0 };
+    if (iob->is_read_access()) {
+        iob->bind(BIND_SIGNATURE_RAW, &data, sizeof(data));
+        // A damaged save may leave the chunk without a terminator.
+        vars.load(std::string(data, strnlen(data, sizeof(data))));
+    } else {
+        std::string save_data = vars.save();
+        if (save_data.size() >= sizeof(data)) {
+            // Keep whole "key=value\n" lines only, so the truncated text still loads.
+            const size_t last_newline = save_data.rfind('\n', sizeof(data) - 2);
+            const size_t keep = (last_newline == std::string::npos) ? 0 : last_newline + 1;
+            logs::error("scenario vars: %u bytes do not fit the %u-byte save chunk, saving the first %u",
+              (unsigned)save_data.size(), (unsigned)sizeof(data), (unsigned)keep);
+            save_data.resize(keep);
+        }
+        memcpy(data, save_data.data(), save_data.size());
+        iob->bind(BIND_SIGNATURE_RAW, &data, sizeof(data));
+    }
+}
+
+bool scenario_building_allowed(e_building_type building_type) {
+    if (building_type == BUILDING_DOCK_UP) {
+        return g_scenario.allowed_buildings[BUILDING_DOCK]
+            || g_scenario.allowed_buildings[BUILDING_DOCK_UP];
+    }
+    return g_scenario.allowed_buildings[building_type];
+}
+
+void scenario_building_allow(e_building_type btype, bool allow) {
+    g_scenario.allowed_buildings[btype] = allow;
+    if (btype == BUILDING_DOCK) {
+        g_scenario.allowed_buildings[BUILDING_DOCK_UP] = allow;
+    }
+}
+
+int16_t scenario_data_t::pak_editor_allow_flag(int slot) const {
+    if (slot < 1 || slot > SCENARIO_EDITOR_ALLOW_SLOTS) {
+        return 0;
+    }
+    return pak_reserved[slot - 1];
+}
+
+int scenario_editor_allow_mapped_types(int slot, e_building_type *out, int max_out) {
+    if (!out || max_out <= 0) {
+        return 0;
+    }
+    switch (slot) {
+    case scenario_data_t::EDITOR_ALLOW_SLOT_BRIDGE:
+        out[0] = BUILDING_LOW_BRIDGE;
+        return 1;
+    case scenario_data_t::EDITOR_ALLOW_SLOT_FERRY:
+        out[0] = BUILDING_FERRY;
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+int scenario_building_image_native_hut() {
+    return g_scenario.native_images.hut;
+}
+
+int scenario_building_image_native_meeting() {
+    return g_scenario.native_images.meeting;
+}
+
+int scenario_building_image_native_crops() {
+    return g_scenario.native_images.crops;
+}
+
+// fancy lambdas! probably gonna create many problems down the road. :3
+e_scenario_mode scenario_data_t::mode() {
+    return scmode;
+}
+
+bool scenario_data_t::is_scenario_id(xspan<int> missions) {
+    const bool is_custom_map = scmode != e_scenario_normal;
+    if (is_custom_map) {
+        return false;
+    }
+
+    for (const int rank : missions) {
+        if (g_scenario.campaign_scenario_id == rank - 1) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void scenario_set_name(pcstr name) {
+    g_scenario.scenario_name = (name && *name) ? name : "";
+}
+
+int scenario_open_play_id() {
+    return g_scenario.open_play_scenario_id;
+}
+
+int scenario_property_enemy() {
+    return g_scenario.enemy_id;
+}
+int scenario_property_player_rank() {
+    return g_scenario.player_rank;
+}
+
+void scenario_data_t::update() {
+    scenario_earthquake_process();
+    events.update_tick();
+    //scenario_slave_revolt_process();
+}

@@ -1,0 +1,349 @@
+#include "buildings.h"
+
+#include "building/building_house.h"
+#include "building/building_shipyard.h"
+#include "core/profiler.h"
+#include "grid/water.h"
+#include "grid/building.h"
+#include "grid/terrain.h"
+#include "grid/routing/routing.h"
+#include "city/city.h"
+#include "game/game_config.h"
+
+#include <algorithm>
+#include <set>
+
+city_buildings_t::tracked_buildings_t g_tracked_buildings;
+
+void city_buildings_t::track_building(building &b, bool active) {
+    g_tracked_buildings[b.type].push_back(b.id);
+    increase_count(b.type, active);
+}
+
+void city_buildings_t::check_buildings_twins() {
+    std::set<int> occuped;
+    for (auto &b : city_buildings()) {
+        if (b.is_valid()) {
+            auto result = occuped.insert(b.tile.grid_offset());
+            if (!result.second) {
+                verify_no_crash(false && "twin building, second will be removed");
+                b.state = BUILDING_STATE_UNUSED;
+            }
+        }
+    }
+}
+
+bool city_buildings_has_distribution_center() {
+    return g_city.buildings.distribution_center_placed;
+}
+
+void city_buildings_add_distribution_center(building* center) {
+    g_city.buildings.distribution_center_placed = 1;
+    if (!g_city.buildings.distribution_center.grid_offset()) {
+        g_city.buildings.distribution_center_building_id = center->id;
+        g_city.buildings.distribution_center.set(center->tile.grid_offset());
+    }
+}
+
+void city_buildings_remove_distribution_center(building* center) {
+    if (center->tile.grid_offset() == g_city.buildings.distribution_center.grid_offset()) {
+        g_city.buildings.distribution_center.set(0);
+        //        g_city.buildings.distribution_center.grid_offset() = 0;
+        //        g_city.buildings.distribution_center.x = 0;
+        //        g_city.buildings.distribution_center.y = 0;
+        g_city.buildings.distribution_center_placed = 0;
+    }
+}
+
+int city_buildings_get_trade_center() {
+    return g_city.buildings.trade_center_building_id;
+}
+
+void city_buildings_set_trade_center(int building_id) {
+    g_city.buildings.trade_center_building_id = building_id;
+}
+
+int city_buildings_triumphal_obelisk_available() {
+    return g_city.buildings.triumphal_obelisk_available > g_city.buildings.triumphal_obelisk_placed;
+}
+
+void city_buildings_build_triumphal_obelisk() {
+    g_city.buildings.triumphal_obelisk_placed++;
+}
+
+void city_buildings_remove_triumphal_obelisk(void) {
+    if (g_city.buildings.triumphal_obelisk_placed > 0)
+        g_city.buildings.triumphal_obelisk_placed--;
+}
+
+void city_buildings_earn_triumphal_obelisk(void) {
+    g_city.buildings.triumphal_obelisk_available++;
+}
+
+tile2i city_buildings_main_native_meeting_center() {
+    return g_city.buildings.main_native_meeting;
+}
+void city_buildings_set_main_native_meeting_center(int x, int y) {
+    g_city.buildings.main_native_meeting.set(x, y);
+}
+
+int city_buildings_is_mission_post_operational(void) {
+    return g_city.buildings.mission_post_operational > 0;
+}
+
+void city_buildings_set_mission_post_operational(void) {
+    g_city.buildings.mission_post_operational = 1;
+}
+
+tile2i city_building_get_festival_square_position() {
+    return g_city.buildings.festival_square;
+}
+
+int city_buildings_unknown_value() {
+    return g_city.buildings.unknown_value;
+}
+
+void city_t::buildings_update_open_water_access() {
+    OZZY_PROFILER_FUNCTION();
+}
+
+void city_buildings_t::update_counters() {
+    OZZY_PROFILER_FUNCTION();
+
+    std::fill(buildings.begin(), buildings.end(), record{ 0, 0 });
+    std::fill(industry.begin(), industry.end(), record{ 0, 0 });
+
+    g_city.buildings.reset_tracked_buildings_counters();
+    g_city.health.reset_mortuary_workers();
+
+    buildings_valid_do([] (building &b) {
+        b.dcast()->update_count();
+    });
+
+    for (auto &b : city_buildings()) {
+        if (b.type != BUILDING_NONE && b.state == BUILDING_STATE_CREATED) {
+            increase_count(b.type, false);
+        }
+    }
+}
+
+int city_buildings_t::count_industry_active(e_resource resource) {
+    return industry[resource].active;
+}
+
+int city_buildings_t::count_industry_total(e_resource resource) {
+    return industry[resource].total;
+}
+
+int city_buildings_t::count_active(std::initializer_list<e_building_type> types) {
+    int count = 0;
+    for (const auto &type : types) {
+        count += buildings[type].active;
+    }
+
+    return count;
+}
+
+int city_buildings_t::count_total(std::initializer_list<e_building_type> types) {
+    int count = 0;
+    for (const auto &type : types) {
+        count += buildings[type].total;
+    }
+
+    return count;
+}
+
+int city_buildings_t::count_active(e_building_type type) {
+    return buildings[type].active;
+}
+
+int city_buildings_t::count_total(e_building_type type) {
+    return buildings[type].total;
+}
+
+void city_buildings_t::increase_count(e_building_type type, bool active) {
+    buildings[type].total++;
+    buildings[type].active += (active ? 1 : 0);
+}
+
+void city_buildings_t::increase_active(e_building_type type) {
+    buildings[type].active++;
+}
+
+void city_buildings_t::increase_industry_count(int resource, bool active) {
+    industry[resource].total++;
+    industry[resource].active += (active ? 1 : 0);
+}
+
+void city_buildings_t::on_post_load () {
+    buildings_valid_do([] (building &b) {
+        b.dcast()->on_post_load();
+    });
+
+    check_buildings_twins();
+}
+
+const city_buildings_t::tracked_buildings_t &city_buildings_t::tracked_buildings() const {
+    return g_tracked_buildings;
+}
+
+void city_buildings_t::init() {
+    building_shipyard_repair_queues_clear();
+}
+
+void city_buildings_t::shutdown() {
+}
+
+void city_buildings_t::update_tick(bool refresh_only) {
+    has_high_fire_risk = false;
+    festival_square = tile2i::invalid;
+    festival_building_id = 0;
+    palace_point = tile2i::invalid;
+    palace_building_id = 0;
+    mansion_building_id = 0;
+    for (auto it = building_begin(), end = building_end(); it != end; ++it) {
+        if (!it->is_valid()) {
+            continue;
+        }
+        if (it->type == BUILDING_FESTIVAL_SQUARE && it->is_main()) {
+            festival_square = it->tile;
+            festival_building_id = it->id;
+        }
+        if (it->is_palace() && it->is_main() && palace_building_id == 0) {
+            palace_point = it->tile;
+            palace_building_id = it->id;
+        }
+        if (mansion_building_id == 0 && it->is_main()
+            && (it->type == BUILDING_PERSONAL_MANSION || it->type == BUILDING_FAMILY_MANSION
+                || it->type == BUILDING_DYNASTY_MANSION)) {
+            mansion_building_id = it->id;
+        }
+        if (it->fire_risk > 70) {
+            has_high_fire_risk = true;
+        }
+        it->dcast()->on_tick(refresh_only);
+    }
+}
+
+void city_buildings_t::reset_tracked_buildings_counters() {
+    for (auto &bids: g_tracked_buildings) {
+        bids.clear();
+    }
+}
+
+void city_buildings_t::update_day() {
+    buildings_valid_do([](building &b) {
+        b.dcast()->update_day();
+    });
+}
+
+void city_buildings_t::update_year() {
+    buildings_valid_do([] (building &b) {
+        b.dcast()->update_year();
+    });
+}
+
+void city_buildings_t::reload_objects() {
+    buildings_valid_do([] (building &b) {
+        b.dcast()->on_config_reload();
+    });
+}
+
+building_id city_buildings_t::temple_complex_id(e_building_type type) {
+    const auto &complexes = tracked_buildings().at(type);
+    for (building_id id : complexes) {
+        building *b = building_get(id);
+        if (b && b->is_valid() && b->type == type) {
+            return id;
+        }
+    }
+    return 0;
+}
+
+building_id city_buildings_t::temple_complex_id() {
+    for (const e_building_type type : temple_complex_types()) {
+        const building_id id = temple_complex_id(type);
+        if (id) {
+            return id;
+        }
+    }
+    return 0;
+}
+
+bool city_buildings_t::has_temple_complex() {
+    return temple_complex_id() > 0;
+}
+
+bool city_buildings_t::has_palace() const {
+    return palace_building_id > 0;
+}
+
+bool city_buildings_t::has_mansion() const {
+    return mansion_building_id > 0;
+}
+
+span_const<e_building_type> city_buildings_t::temple_complex_types() {
+    static svector<e_building_type, 16> types;
+    types.clear();
+    for (int t = BUILDING_NONE + 1; t < BUILDING_MAX && types.size() < types.capacity(); ++t) {
+        if (building_static_params::get((e_building_type)t).flags.is_temple_complex) {
+            types.push_back((e_building_type)t);
+        }
+    }
+    return make_span(types);
+}
+
+void city_buildings_t::update_month() {
+    buildings_valid_do([] (building &b) {
+        b.dcast()->update_month();
+    });
+}
+
+void city_buildings_t::update_week() {
+    map_terrain_remove_all(TERRAIN_FOUNTAIN_RANGE);
+    buildings_valid_do([](building &b) {
+        b.dcast()->update_week();
+    });
+}
+
+void city_buildings_t::update_religion_supply_houses() {
+    OZZY_PROFILER_FUNCTION();
+
+    // Always clear; remake proximity access is opt-in (OG: houses get religion from priests only).
+    for (auto &b : city_buildings()) {
+        if (b.state != BUILDING_STATE_VALID) {
+            continue;
+        }
+        if (auto house = b.dcast_house(); !!house) {
+            house->runtime_data().shrine_access = false;
+        }
+    }
+
+    if (!game_features::gameplay_change_shrine_house_access.to_bool()) {
+        return;
+    }
+
+    svector<building *, 512> shrines;
+    for (auto &b : city_buildings()) {
+        if (b.state == BUILDING_STATE_VALID && b.is_shrine()) {
+            shrines.push_back(&b);
+        }
+    }
+
+    auto mark_shrine_access = [](building *shrine, int radius) {
+        grid_area area = map_grid_get_area(shrine->tile, 1, radius);
+        for (int yy = area.tmin_y, endy = area.tmax_y; yy <= endy; yy++) {
+            for (int xx = area.tmin_x, endx = area.tmax_x; xx <= endx; xx++) {
+                int building_id = map_building_at(tile2i(xx, yy));
+                auto house = building_get(building_id)->dcast_house();
+                if (house) {
+                    house->runtime_data().shrine_access = true;
+                }
+            }
+        }
+    };
+
+    for (auto &s : shrines) {
+        mark_shrine_access(s, 3);
+    }
+}

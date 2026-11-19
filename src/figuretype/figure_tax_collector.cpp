@@ -1,0 +1,139 @@
+#include "figuretype/figure_tax_collector.h"
+
+#include "figure/figure.h"
+#include "core/profiler.h"
+#include "grid/road_access.h"
+#include "grid/building.h"
+#include "grid/random.h"
+#include "city/city_finance.h"
+#include "core/calc.h"
+#include "city/city_health.h"
+#include "city/ratings.h"
+#include "city/city.h"
+#include "figure/service.h"
+#include "building/building_house.h"
+#include "js/js_register.h"
+
+REPLICATE_STATIC_PARAMS_FROM_CONFIG(figure_tax_collector);
+
+const e_tax_collector_action_tokens_t ANK_CONFIG_ENUM(e_tax_collector_action_tokens)
+
+void figure_tax_collector::figure_action() {
+    OZZY_PROFILER_FUNCTION();
+    building* b = home();
+    switch (action_state()) {
+    case ACTION_0_TAX_COLLECTOR_CREATED:
+        // OG building_walker: invisible while waiting inside the office.
+        base.set_flag(e_figure_flag_invisible, true);
+        base.animctx.frame = 0;
+        base.wait_ticks--;
+        if (base.wait_ticks <= 0) {
+            tile2i road_tile = map_closest_road_within_radius(b->tile, b->size, 2);
+            if (road_tile.valid()) {
+                base.action_state = ACTION_1_TAX_COLLECTOR_ENTERING_EXITING;
+                base.set_cross_country_destination(road_tile);
+                base.roam_length = 0;
+            } else {
+                poof();
+            }
+        }
+        break;
+
+    case ACTION_1_TAX_COLLECTOR_ENTERING_EXITING:
+        {
+            // OG enter_exit: is_ghost while crossing to/from the building.
+            base.set_flag(e_figure_flag_invisible, true);
+            base.use_cross_country = true;
+            const bool finished = base.move_ticks_cross_country(1);
+            if (finished) {
+                if (base.has_home(map_building_at(tile()))) {
+                    // returned to own building
+                    poof();
+                } else {
+                    advance_action(ACTION_2_TAX_COLLECTOR_ROAMING);
+                    base.init_roaming_from_building(0);
+                    base.roam_length = 0;
+                }
+            }
+        }
+        break;
+
+    case ACTION_2_TAX_COLLECTOR_ROAMING:
+        base.set_flag(e_figure_flag_invisible, false);
+        base.roam_length++;
+        if (base.roam_length >= base.max_roam_length) {
+            tile2i road_tile = map_closest_road_within_radius(b->tile, b->size, 2);
+            if (road_tile.valid()) {
+                advance_action(ACTION_3_TAX_COLLECTOR_RETURNING, road_tile);
+            } else {
+                poof();
+            }
+        }
+
+        base.roam_ticks(1);
+        if (direction() == DIR_FIGURE_NONE) {
+            base.direction = (base.roam_random_counter + map_random_get(tile())) & 6;
+        }
+        break;
+
+    case ACTION_3_TAX_COLLECTOR_RETURNING:
+        base.set_flag(e_figure_flag_invisible, false);
+        base.move_ticks(1);
+            if (direction() == DIR_FIGURE_NONE) {
+                advance_action(ACTION_1_TAX_COLLECTOR_ENTERING_EXITING);
+                base.set_cross_country_destination(b->tile);
+                base.roam_length = 0;
+            } else if (direction() == DIR_FIGURE_REROUTE || direction() == DIR_FIGURE_CAN_NOT_REACH) {
+                poof();
+            }
+
+        break;
+
+    case FIGURE_ACTION_149_CORPSE:
+        break;
+
+    default:
+        assert(false);
+    };
+}
+
+void figure_tax_collector::figure_before_action() {
+    building* b = home();
+    if (!b->is_valid() || !b->has_figure(0, id())) {
+        poof();
+    }
+}
+
+int figure_tax_collector::provide_service() {
+    int max_tax_rate = 0;
+    // OG service_provide_tax_collector_coverage: count inhabited house tiles only.
+    int houses_serviced = 0;
+    figure_provide_service(tile(), &base, [&] (building *b, figure*) {
+        auto house = b->dcast_house();
+        if (!house) {
+            return;
+        }
+
+        if (house->house_population() > 0) {
+            int tax_multiplier = house->model().tax_multiplier;
+            if (tax_multiplier > max_tax_rate) {
+                max_tax_rate = tax_multiplier;
+            }
+
+            if (house->house_level() < HOUSE_ORDINARY_COTTAGE) {
+                runtime_data().poor_taxed++;
+            } else if (house->house_level() < HOUSE_COMMON_MANOR) {
+                runtime_data().middle_taxed++;
+            } else {
+                runtime_data().reach_taxed++;
+            }
+
+            auto &housed = house->runtime_data();
+            housed.tax_collector_id = home()->id;
+            housed.tax_coverage = 50;
+            houses_serviced++;
+        }
+    });
+    base.min_max_seen = max_tax_rate;
+    return houses_serviced;
+}

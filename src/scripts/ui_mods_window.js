@@ -1,0 +1,130 @@
+log_info("akhenaten: mods window started")
+
+[es=(mods_window, doubleclick_item)]
+function mods_window_on_double_click(p) {
+    if (!p || !p.text) return
+    var modId = p.text
+    if (!mods.downloaded(modId)) {
+        if (mods.download_progress(modId) === 0)
+            mods.download_mod_async(modId)
+    } else {
+        mods.toggle(modId)
+        mods.remount()
+    }
+}
+
+function mods_window_on_render_item(p) {
+    var prefix, name
+    if (!mods.downloaded(p.text)) {
+        var progress = mods.download_progress(p.text)
+        prefix = progress > 0 ? "[" + progress + "] " : "[n/a] "
+        name = mods.display_name(p.text)
+        if (progress > 0) {
+            var num_points = Math.floor((__game_frame() % 90) / 30)
+            for (var i = 0; i < num_points; i++) {
+                name += "."
+            }
+        }
+    } else {
+        var state = mods.enabled(p.text) ? (mods.broken(p.text) ? "ERR" : "ON") : "OFF"
+        prefix = "[" + state + "] "
+        name = mods.display_name(p.text)
+    }
+
+    ui.label(prefix + name, { x: p.x, y: p.y }, p.font)
+}
+
+function mods_unpack_scripts() {
+    var msg = __mods_unpack_scripts()
+    if (msg) {
+        ui.show_ok(msg, "Scripts unpacked")
+    }
+}
+
+[es=window]
+mods_window {
+    pos: [(sw(0) - px(40)) / 2, (sh(0) - px(30)) / 2]
+    allow_rmb_goback : true
+    refresh_mods_text : ""
+    refresh_mods_text_dots : 0
+    ui {
+        background_image : background({pack:PACK_UNLOADED, id:9})
+        background     : outer_panel({size[40, 30]})
+        title          : header({text:"#mods_window_title"
+                               font:FONT_LARGE_BLACK_ON_LIGHT, size[px(40), 20]
+                               multiline:false, align:"center"
+                               margin{top:20}})
+
+        unpack_scripts : large_button({ size[156, 25]
+                                        text:"#mods_window_unpack_scripts"
+                                        margin{right:-156, top:20}
+                                      })
+
+        refresh_mods : large_button({ size[156, 25]
+                                      text:"#mods_window_refresh_list"
+                                      margin{right:-156, top:44}
+                                    })
+
+        mods         : scrollable_list({pos[16, 75], size[36, 23], view_items:11,
+                                        draw_scrollbar_always:true
+                                        onrender_item: mods_window_on_render_item
+                                        ondoubleclick_event: "doubleclick_item" })
+
+        bottom_text  : text({text:"#mods_window_hint"
+                             font:FONT_NORMAL_BLACK_ON_LIGHT, size[px(40), 20]
+                             multiline:false
+                             align:"center"
+                             margin{bottom:-35}})
+    }
+}
+
+[es=(mods_window, unpack_scripts)]
+function mods_window_on_unpack_scripts(window) {
+    mods_unpack_scripts()
+}
+
+function mods_window_fill_list(window) {
+    var n = mods.count()
+    window.mods.clear()
+    for (var i = 0; i < n; i++) {
+        window.mods.add_item(mods.name(i))
+    }
+}
+
+[es=(mods_window, refresh_mods)]
+function mods_window_on_refresh_mods(window) {
+    mods.download_info_async()
+}
+
+[es=event_mods_info_updated]
+function mods_on_catalog_updated(ev) {
+    emit mods_window.list_updated{ count: ev.count }
+}
+
+[es=(mods_window, list_updated)]
+function mods_window_on_list_updated(window) {
+    mods_window_fill_list(window)
+}
+
+[es=(mods_window, ui_draw_foreground)]
+function mods_window_update(window) {
+    if (!mods.inupdate()) {
+        if (window.refresh_mods.text !== window.refresh_mods_text)
+            window.refresh_mods.text = window.refresh_mods_text
+        return
+    }
+
+    if (window.refresh_mods_text_dots + 30 >= __game_frame()) {
+        return
+    }
+
+    window.refresh_mods_text_dots = (window.refresh_mods_text_dots + 1) % 4
+    window.refresh_mods.text = mods_window.refresh_mods_text.replace(/\.*$/, "") + ".".repeat(window.refresh_mods_text_dots)
+}
+
+[es=(mods_window, init)]
+function mods_window_on_init(window) {
+    __log_marker("window_show:mods_window")
+    window.refresh_mods_text = window.refresh_mods.text
+    mods_window_fill_list(window)
+}

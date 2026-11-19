@@ -1,0 +1,44 @@
+#include "city/city_religion.h"
+
+#include "core/archive.h"
+#include "core/profiler.h"
+#include "core/xstring.h"
+#include "game/game_events.h"
+#include "js/js_game.h"
+#include "city/city.h"
+
+bool __city_god_is_known(int god_index) {
+    return g_city.religion.is_god_known((e_god)god_index) != GOD_STATUS_UNKNOWN;
+}
+ANK_FUNCTION_1(__city_god_is_known)
+
+void __city_god_set_known(int god_index, bool known) {
+    const auto new_status = known ? GOD_STATUS_KNOWN : GOD_STATUS_UNKNOWN;
+    events::emit(event_religion_god_status_update{ (e_god)god_index, new_status });
+    g_city.religion.set_god_known((e_god)god_index, new_status);
+}
+ANK_FUNCTION_2(__city_god_set_known)
+
+xstring __city_god_name(int god_index) {
+    return e_god_tokens.name((e_god)god_index);
+}
+ANK_FUNCTION_1(__city_god_name)
+
+void __city_religion_calculate_least_happy_god() {
+    g_city.religion.calculate_least_happy_god();
+}
+ANK_FUNCTION(__city_religion_calculate_least_happy_god)
+
+int __city_religion_least_happy_god() {
+    return (int)g_city.religion.least_happy_god;
+}
+ANK_FUNCTION(__city_religion_least_happy_god)
+
+std::optional<bvariant> __city_get_god_property(int god_index, pcstr property) {
+    if (god_index < 0 || god_index >= MAX_GODS) {
+        return {};
+    }
+    const god_state &g = g_city.religion.gods[god_index];
+    return archive_helper::get(g, property, true);
+}
+ANK_FUNCTION_2(__city_get_god_property)

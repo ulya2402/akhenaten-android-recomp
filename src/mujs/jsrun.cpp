@@ -1,0 +1,2118 @@
+#include "jsi.h"
+
+#include <new>
+#include <cstdint>
+#include <cstring>
+
+#include "jscompile.h"
+#include "jsvalue.h"
+#include "jsrun.h"
+#include "utf.h"
+
+#include "core/core.h"
+#include "core/profiler.h"
+#include "core/xstring.h"
+
+#include <setjmp.h>
+
+#if defined(_WIN32)
+#include <malloc.h>
+#endif
+
+#define STACK (J->stack)
+#define TOP (J->top)
+#define BOT (J->bot)
+
+static js_StringNode property_stack_overflow = js_intern("stack overflow");
+static js_StringNode property_out_ofmemory = js_intern("out of memory");
+static js_StringNode property_length = js_intern("length");
+static js_StringNode property_source = js_intern("source");
+static js_StringNode property_global = js_intern("global");
+static js_StringNode property_ignoreCase = js_intern("ignoreCase");
+static js_StringNode property_multiline = js_intern("multiline");
+static js_StringNode property_lastIndex = js_intern("lastIndex");
+static js_StringNode property_vec2_x = js_intern("x");
+static js_StringNode property_vec2_y = js_intern("y");
+static js_StringNode property_callee = js_intern("callee");
+static js_StringNode property_arguments = js_intern("arguments");
+static js_StringNode property_prototype = js_intern("prototype");
+
+void js_State::stackoverflow() {
+    OZZY_PROFILER_FUNCTION();
+
+    stack[top].type = JS_TSHRSTR;
+    stack[top].u.shrstr = property_stack_overflow;
+    ++top;
+    js_throw(this);
+}
+
+void js_outofmemory(js_State *J) {
+    STACK[TOP].type = JS_TSHRSTR;
+    STACK[TOP].u.shrstr = property_out_ofmemory;
+    ++TOP;
+    js_throw(J);
+}
+
+void *js_malloc(js_State *J, int size) {
+    void *ptr = J->alloc(J->actx, NULL, size);
+    if (!ptr)
+        js_outofmemory(J);
+
+    return ptr;
+}
+
+void *js_realloc(js_State *J, void *ptr, int size) {
+    ptr = J->alloc(J->actx, ptr, size);
+    if (!ptr)
+        js_outofmemory(J);
+    return ptr;
+}
+
+void js_free(js_State *J, void *ptr) {
+    J->alloc(J->actx, ptr, 0);
+}
+
+void js_frame_free(js_State *J, void *ptr) {
+    js_Alloc frame_alloc = J->frame_alloc ? J->frame_alloc : J->alloc;
+    void *frame_actx = J->frame_actx ? J->frame_actx : J->actx;
+    frame_alloc(frame_actx, ptr, 0);
+}
+
+js_StringNode jsV_newstring(js_State* J, const char* s, int n) {
+    OZZY_PROFILER_FUNCTION();
+
+    char *v = (char*)js_frame_alloc(J, n + 1);
+    if (n > 0 && s) {
+        memcpy(v, s, (size_t)n);
+    }
+    v[n] = 0;
+    js_StringNode r = js_intern(v);
+    js_frame_free(J, v);
+    return r;
+}
+
+#define CHECKSTACK(n) if (TOP + n >= JS_STACKSIZE) J->stackoverflow()
+#define JCHECKSTACK(n) if (top + n >= JS_STACKSIZE) stackoverflow()
+
+void js_pushvalue(js_State *J, js_Value v) {
+    CHECKSTACK(1);
+    STACK[TOP] = v;
+    ++TOP;
+}
+
+void js_State::pushundefined() {
+    JCHECKSTACK(1);
+    stack[top].type = JS_TUNDEFINED;
+    ++top;
+}
+
+void js_pushnull(js_State *J) {
+    CHECKSTACK(1);
+    STACK[TOP].type = JS_TNULL;
+    ++TOP;
+}
+
+void js_pushboolean(js_State *J, int v) {
+    CHECKSTACK(1);
+    STACK[TOP].type = JS_TBOOLEAN;
+    STACK[TOP].u.boolean = !!v;
+    ++TOP;
+}
+
+void js_pushnumber(js_State *J, double v) {
+    OZZY_PROFILER_FUNCTION();
+
+    CHECKSTACK(1);
+    STACK[TOP].type = JS_TNUMBER;
+    STACK[TOP].u.number = v;
+    ++TOP;
+}
+
+void js_State::pushstring(pcstr v) {
+    OZZY_PROFILER_FUNCTION();
+
+    JCHECKSTACK(1);
+    stack[top].type = JS_TSHRSTR;
+    stack[top].u.shrstr = js_intern(v);
+    ++top;
+}
+
+void js_State::pushstring(const js_StringNode v) {
+    OZZY_PROFILER_FUNCTION();
+
+    JCHECKSTACK(1);
+    stack[top].type = JS_TSHRSTR;
+    stack[top].u.shrstr = v;
+    ++top;
+}
+
+void js_pushlstring(js_State* J, const js_StringNode v) {
+    CHECKSTACK(1);
+    STACK[TOP].type = JS_TSHRSTR;
+    STACK[TOP].u.shrstr = v;
+    ++TOP;
+}
+
+void js_pushlstring(js_State *J, const char *v, int n) {
+    CHECKSTACK(1);
+    STACK[TOP].type = JS_TSHRSTR;
+    STACK[TOP].u.shrstr = jsV_newstring(J, v, n);
+    ++TOP;
+}
+
+void js_State::pushliteral(js_StringNode v) {
+    JCHECKSTACK(1);
+    stack[top].type = JS_TSHRSTR;
+    stack[top].u.shrstr = v;
+    ++top;
+}
+
+void js_pushobject(js_State *J, js_Object *v) {
+    CHECKSTACK(1);
+    STACK[TOP].type = JS_TOBJECT;
+    STACK[TOP].u.object = v;
+    ++TOP;
+}
+
+void js_pushglobal(js_State *J) {
+    js_pushobject(J, J->G);
+}
+
+void js_currentfunction(js_State *J) {
+    CHECKSTACK(1);
+    STACK[TOP] = STACK[BOT - 1];
+    ++TOP;
+}
+
+/* Read values from stack */
+
+static js_Value stackidx_undefined = { {0}, {0}, JS_TUNDEFINED };
+static js_Value *stackidx(js_State *J, int idx) {
+    idx = idx < 0 ? TOP + idx : BOT + idx;
+    if (idx < 0 || idx >= TOP) {
+        return &stackidx_undefined;
+    }
+
+    return STACK + idx;
+}
+
+js_Value *js_tovalue(js_State *J, int idx) {
+    return stackidx(J, idx);
+}
+
+int js_State::isdefined(int idx) { return stackidx(this, idx)->type != JS_TUNDEFINED; }
+int js_State::isundefined(int idx) { return stackidx(this, idx)->type == JS_TUNDEFINED; }
+int js_State::isnull(int idx) { return stackidx(this, idx)->type == JS_TNULL; }
+int js_State::isboolean(int idx) { return stackidx(this, idx)->type == JS_TBOOLEAN; }
+int js_State::isnumber(int idx) { return stackidx(this, idx)->type == JS_TNUMBER; }
+int js_State::iscnumber(int idx) {
+    js_Value *v = stackidx(this, idx);
+    return v->type == JS_TOBJECT && v->u.object->type == JS_CNUMBER;
+}
+int js_State::iscvec2i(int idx) {
+    js_Value *v = stackidx(this, idx);
+    return v->type == JS_TOBJECT && v->u.object->type == JS_CVEC2I;
+}
+int js_State::isstring(int idx) { enum js_Type t = (js_Type)stackidx(this, idx)->type; return t == JS_TSHRSTR; }
+int js_State::isprimitive(int idx) { return stackidx(this, idx)->type != JS_TOBJECT; }
+int js_State::isobject(int idx) { return stackidx(this, idx)->type == JS_TOBJECT; }
+int js_State::iscoercible(int idx) { js_Value *v = stackidx(this, idx); return v->type != JS_TUNDEFINED && v->type != JS_TNULL; }
+
+int js_State::iscallable(int idx) {
+    js_Value *v = stackidx(this, idx);
+    if (v->type == JS_TOBJECT) {
+        return v->u.object->type == JS_CFUNCTION ||
+               v->u.object->type == JS_CSCRIPT ||
+               v->u.object->type == JS_CCFUNCTION;
+    }
+
+    return 0;
+}
+
+int js_State::isarray(int idx) {
+    js_Value *v = stackidx(this, idx);
+    return v->type == JS_TOBJECT && v->u.object->type == JS_CARRAY;
+}
+
+int js_State::isregexp(int idx) {
+    js_Value *v = stackidx(this, idx);
+    return v->type == JS_TOBJECT && v->u.object->type == JS_CREGEXP;
+}
+
+void *js_frame_alloc(js_State *J, int size) {
+    js_Alloc frame_alloc = J->frame_alloc ? J->frame_alloc : J->alloc;
+    void *frame_actx = J->frame_actx ? J->frame_actx : J->actx;
+    void *ptr = frame_alloc(frame_actx, NULL, size);
+    if (!ptr) {
+        js_outofmemory(J);
+    }
+    return ptr;
+}
+
+int js_State::isuserdata(int idx, const char *tag) {
+    js_Value *v = stackidx(this, idx);
+    if (v->type == JS_TOBJECT && v->u.object->type == JS_CUSERDATA)
+        return !strcmp(tag, v->u.object->u.user.tag);
+    return 0;
+}
+
+/* Object modifiers */
+int js_hasobject_modifier(js_State *J, int idx, const js_StringNode key) {
+    js_Value *v = stackidx(J, idx);
+    if (v->type != JS_TOBJECT) {
+        return 0;
+    }
+
+    js_Object *obj = v->u.object;
+    if (!obj || !obj->modifiers) {
+        return 0;
+    }
+
+    js_FunctionModifier *mod = obj->modifiers;
+    while (mod) {
+        if (mod->key == key) {
+            return 1;
+        }
+
+        mod = mod->next;
+    }
+    return 0;
+}
+
+js_StringNode js_getobject_modifier(js_State* J, int idx, const js_StringNode key) {
+    js_Value *v = stackidx(J, idx);
+    if (v->type != JS_TOBJECT) {
+        return NULL;
+    }
+
+    js_Object *obj = v->u.object;
+    if (!obj || !obj->modifiers) {
+        return NULL;
+    }
+
+    js_FunctionModifier *mod = obj->modifiers;
+    while (mod) {
+        if (mod->key == key) {
+            return mod->value;
+        }
+
+        mod = mod->next;
+    }
+    return NULL;
+}
+
+js_StringNode obj_string = js_intern("string");
+js_StringNode obj_undefined = js_intern("undefined");
+js_StringNode obj_object = js_intern("object");
+js_StringNode obj_boolean = js_intern("boolean");
+js_StringNode obj_number = js_intern("number");
+js_StringNode obj_function = js_intern("function");
+
+static const js_StringNode js_typeof(js_State* J, int idx) {
+    js_Value* v = stackidx(J, idx);
+    switch (v->type) {
+    default:
+    case JS_TSHRSTR:
+        return obj_string;
+    case JS_TUNDEFINED:
+        return obj_undefined;
+    case JS_TNULL:
+        return obj_object;
+    case JS_TBOOLEAN:
+        return obj_boolean;
+    case JS_TNUMBER:
+        return obj_number;
+    case JS_TOBJECT:
+        if (v->u.object->type == JS_CFUNCTION || v->u.object->type == JS_CCFUNCTION)
+            return obj_function;
+
+        return obj_object;
+    }
+}
+
+int js_toboolean(js_State *J, int idx) {
+    return jsV_toboolean(J, stackidx(J, idx));
+}
+
+double js_tonumber(js_State *J, int idx) {
+    return jsV_tonumber(J, stackidx(J, idx));
+}
+
+int js_tointeger(js_State *J, int idx) {
+    return jsV_numbertointeger(jsV_tonumber(J, stackidx(J, idx)));
+}
+
+int js_toint32(js_State *J, int idx) {
+    return jsV_numbertoint32(jsV_tonumber(J, stackidx(J, idx)));
+}
+
+unsigned int js_touint32(js_State *J, int idx) {
+    return jsV_numbertouint32(jsV_tonumber(J, stackidx(J, idx)));
+}
+
+short js_toint16(js_State *J, int idx) {
+    return jsV_numbertoint16(jsV_tonumber(J, stackidx(J, idx)));
+}
+
+unsigned short js_touint16(js_State *J, int idx) {
+    return jsV_numbertouint16(jsV_tonumber(J, stackidx(J, idx)));
+}
+
+js_StringNode js_tostring(js_State *J, int idx) {
+    return jsV_tostring(J, stackidx(J, idx));
+}
+
+js_Object *js_State::toobject(int idx) {
+    return toobject(stackidx(this, idx));
+}
+
+js_Object *js_State::toobject_pending(int idx, const char *prop) {
+    OZZY_PROFILER_SECTION(_, prop);
+
+    pending_prop = prop;
+    js_Object *obj = toobject(stackidx(this, idx));
+    pending_prop = nullptr;
+    return obj;
+}
+
+void js_toprimitive(js_State *J, int idx, int hint) {
+    jsV_toprimitive(J, stackidx(J, idx), hint);
+}
+
+js_Regexp *js_toregexp(js_State *J, int idx) {
+    js_Value *v = stackidx(J, idx);
+    if (v->type == JS_TOBJECT && v->u.object->type == JS_CREGEXP)
+        return &v->u.object->u.r;
+    js_typeerror(J, "not a regexp");
+}
+
+void *js_touserdata(js_State *J, int idx, const char *tag) {
+    js_Value *v = stackidx(J, idx);
+    if (v->type == JS_TOBJECT && v->u.object->type == JS_CUSERDATA)
+        if (!strcmp(tag, v->u.object->u.user.tag))
+            return v->u.object->u.user.data;
+    js_typeerror(J, "not a %s", tag);
+}
+
+static js_Object *jsR_tofunction(js_State *J, int idx) {
+    js_Value *v = stackidx(J, idx);
+    if (v->type == JS_TUNDEFINED || v->type == JS_TNULL)
+        return NULL;
+    if (v->type == JS_TOBJECT)
+        if (v->u.object->type == JS_CFUNCTION || v->u.object->type == JS_CCFUNCTION)
+            return v->u.object;
+    js_typeerror(J, "not a function");
+}
+
+/* Stack manipulation */
+
+int js_State::gettop() {
+    return top - bot;
+}
+
+void js_pop(js_State *J, int n) {
+    TOP -= n;
+    if (TOP < BOT) {
+        TOP = BOT;
+        js_error(J, "stack underflow!");
+    }
+}
+
+void js_State::remove(int idx) {
+    idx = idx < 0 ? top + idx : bot + idx;
+    if (idx < bot || idx >= top)
+        js_error(this, "stack error!");
+    for (; idx < top - 1; ++idx)
+        stack[idx] = stack[idx + 1];
+    --top;
+}
+
+void js_State::replace(int idx) {
+    idx = idx < 0 ? top + idx : bot + idx;
+    if (idx < bot || idx >= top)
+        js_error(this, "stack error!");
+    stack[idx] = stack[--top];
+}
+
+void js_State::copy(int idx) {
+    JCHECKSTACK(1);
+    stack[top] = *stackidx(this, idx);
+    ++top;
+}
+
+void js_State::dup() {
+    JCHECKSTACK(1);
+    stack[top] = stack[top - 1];
+    ++top;
+}
+
+void js_State::dup2() {
+    JCHECKSTACK(2);
+    stack[top] = stack[top - 2];
+    stack[top + 1] = stack[top - 1];
+    top += 2;
+}
+
+void js_State::rot2() {
+    /* A B -> B A */
+    js_Value tmp = stack[top - 1];	/* A B (B) */
+    stack[top - 1] = stack[top - 2];	/* A A */
+    stack[top - 2] = tmp;		/* B A */
+}
+
+void js_State::rot3() {
+    /* A B C -> C A B */
+    js_Value tmp = stack[top - 1];	/* A B C (C) */
+    stack[top - 1] = stack[top - 2];	/* A B B */
+    stack[top - 2] = stack[top - 3];	/* A A B */
+    stack[top - 3] = tmp;		/* C A B */
+}
+
+void js_State::rot4() {
+    /* A B C D -> D A B C */
+    js_Value tmp = stack[top - 1];	/* A B C D (D) */
+    stack[top - 1] = stack[top - 2];	/* A B C C */
+    stack[top - 2] = stack[top - 3];	/* A B B C */
+    stack[top - 3] = stack[top - 4];	/* A A B C */
+    stack[top - 4] = tmp;		/* D A B C */
+}
+
+void js_State::rot2pop1() {
+    /* A B -> B */
+    stack[top - 2] = stack[top - 1];
+    --top;
+}
+
+void js_State::rot3pop2() {
+    /* A B C -> C */
+    stack[top - 3] = stack[top - 1];
+    top -= 2;
+}
+
+void js_State::rot(int n) {
+    int i;
+    js_Value tmp = stack[top - 1];
+    for (i = 1; i < n; ++i)
+        stack[top - i] = stack[top - i - 1];
+    stack[top - i] = tmp;
+}
+
+/* Property access that takes care of attributes and getters/setters */
+
+int js_isarrayindex(js_State *J, const char *str, int *idx) {
+    char buf[32];
+    *idx = jsV_numbertointeger(jsV_stringtonumber(J, str));
+    sprintf(buf, "%u", *idx);
+    return !strcmp(buf, str);
+}
+
+static void js_pushrune(js_State *J, Rune rune) {
+    char buf[UTFmax + 1];
+    if (rune > 0) {
+        buf[runetochar(buf, &rune)] = 0;
+        J->pushstring(buf);
+    } else {
+        J->pushundefined();
+    }
+}
+
+int js_State::hasproperty(js_Object *obj, js_StringNode name) {
+    OZZY_PROFILER_FUNCTION();
+
+    js_Property *ref;
+    int k;
+
+    auto J = this;
+    switch (obj->type) {
+    default:
+        break;
+
+    case JS_CARRAY:
+        if (name == property_length) {
+            js_pushnumber(J, obj->u.a.length);
+            return 1;
+        }
+        break;
+
+    case JS_CSTRING:
+        if (name == property_length) {
+            js_pushnumber(J, obj->u.s.length);
+            return 1;
+        }
+
+        if (js_isarrayindex(J, js_strnode_cstr(name), &k)) {
+            js_pushrune(J, js_runeat(J, js_strnode_cstr(obj->u.s.string), k));
+            return 1;
+        }
+        break;
+
+    case JS_CREGEXP:
+        if (name == property_source) {
+            J->pushliteral(js_intern(obj->u.r.source));
+            return 1;
+        }
+        if (name == property_global) {
+            js_pushboolean(J, obj->u.r.flags & JS_REGEXP_G);
+            return 1;
+        }
+        if (name == property_ignoreCase) {
+            js_pushboolean(J, obj->u.r.flags & JS_REGEXP_I);
+            return 1;
+        }
+        if (name == property_multiline) {
+            js_pushboolean(J, obj->u.r.flags & JS_REGEXP_M);
+            return 1;
+        }
+        if (name == property_lastIndex) {
+            js_pushnumber(J, obj->u.r.last);
+            return 1;
+        }
+        break;
+
+    case JS_CVEC2I:
+        if (name == property_vec2_x) {
+            js_pushnumber(J, obj->u.vec2.x);
+            return 1;
+        }
+        if (name == property_vec2_y) {
+            js_pushnumber(J, obj->u.vec2.y);
+            return 1;
+        }
+        break;
+
+    case JS_CUSERDATA:
+        if (obj->u.user.has && obj->u.user.has(J, obj->u.user.data, js_strnode_cstr(name))) {
+            return 1;
+        }
+    }
+
+    ref = obj->vgetproperty(name);
+    if (ref) {
+        if (ref->getter) {
+            js_pushobject(J, ref->getter);
+            js_pushobject(J, obj);
+            J->call(0);
+        } else if (ref->value.type == JS_TOBJECT) {
+            js_Object *o = ref->value.u.object;
+            void *p = nullptr;
+            js_CPtrType ptype = JS_PTR_INT;
+            if (o->type == JS_CPTR) {
+                p = o->u.p.ptr;
+                ptype = o->u.p.ptype;
+            } else if (o->type == JS_CPTROFF) {
+                void *base = jsV_get_cobj_ptr(obj);
+                if (!base) {
+                    J->pushundefined();
+                    return 1;
+                }
+                p = (char *)base + o->u.poff.off;
+                ptype = o->u.poff.ptype;
+            } else {
+                js_pushvalue(J, ref->value);
+                return 1;
+            }
+            if (!p) {
+                J->pushundefined();
+                return 1;
+            }
+            switch (ptype) {
+            case JS_PTR_INT:   js_pushnumber(J, *(int *)p); break;
+            case JS_PTR_BOOL:  js_pushboolean(J, *(bool *)p != 0); break;
+            case JS_PTR_FLOAT: js_pushnumber(J, *(float *)p); break;
+            case JS_PTR_INT8:  js_pushnumber(J, *(int8_t *)p); break;
+            case JS_PTR_UINT8:  js_pushnumber(J, *(uint8_t *)p); break;
+            case JS_PTR_UINT16: js_pushnumber(J, *(uint16_t *)p); break;
+            case JS_PTR_INT16:  js_pushnumber(J, *(int16_t *)p); break;
+            case JS_PTR_XSTRING: {
+                // p points at an xstring object, not an interned xstring_value.
+                xstring *xs = (xstring *)p;
+                J->pushstring(xs ? (js_StringNode)xs->_get() : nullptr);
+                break;
+            }
+            default: J->pushundefined(); break;
+            }
+        } else {
+            js_pushvalue(J, ref->value);
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
+void js_State::getproperty(js_Object* obj, const js_StringNode name) {
+    if (!hasproperty(obj, name)) {
+        pushundefined();
+    }
+}
+
+static void jsR_check_ephemeral_escape(js_State* J, js_Object* dst, const js_Value* value) {
+    if (!value || value->type != JS_TOBJECT || !value->u.object || !value->u.object->ephemeral) {
+        return;
+    }
+    if (dst && dst->ephemeral) {
+        return;
+    }
+    ++J->frame_escape_count;
+#if JS_FRAME_ESCAPE_HARD
+    js_error(J, "ephemeral object escaped to heap");
+#else
+    fprintf(stderr, "mujs: ephemeral object escaped to heap (count=%u)\n", J->frame_escape_count);
+#endif
+}
+
+static void jsR_check_ephemeral_object_escape(js_State* J, js_Object* dst, js_Object* obj) {
+    if (!obj || !obj->ephemeral) {
+        return;
+    }
+    if (dst && dst->ephemeral) {
+        return;
+    }
+    ++J->frame_escape_count;
+#if JS_FRAME_ESCAPE_HARD
+    js_error(J, "ephemeral object escaped to heap");
+#else
+    fprintf(stderr, "mujs: ephemeral object escaped to heap (count=%u)\n", J->frame_escape_count);
+#endif
+}
+
+static void jsR_setproperty(js_State* J, js_Object* obj, const js_StringNode name) {
+    js_Value *value = stackidx(J, -1);
+    js_Property *ref;
+    int k;
+    int own;
+
+    ref = jsV_getpropertyx(J, obj, name, &own);
+
+    /* Accessor setter wins over JS_CPTR write-through (symmetric with get). */
+    if (ref && ref->setter) {
+        js_pushobject(J, ref->setter);
+        js_pushobject(J, obj);
+        js_pushvalue(J, *value);
+        J->call(1);
+        js_pop(J, 1);
+        return;
+    }
+
+    /* If property exists and is JS_CPTR / JS_CPTROFF, write to *ptr and keep the cell */
+    if (ref && ref->value.type == JS_TOBJECT) {
+        js_Object *o = ref->value.u.object;
+        if (o->type == JS_CPTR || o->type == JS_CPTROFF) {
+            void *p = nullptr;
+            js_CPtrType ptype = JS_PTR_INT;
+            if (o->type == JS_CPTR) {
+                p = o->u.p.ptr;
+                ptype = o->u.p.ptype;
+            } else {
+                void *base = jsV_get_cobj_ptr(obj);
+                if (!base) {
+                    return;
+                }
+                p = (char *)base + o->u.poff.off;
+                ptype = o->u.poff.ptype;
+            }
+            if (p) {
+                switch (ptype) {
+                case JS_PTR_INT:   *(int *)p = js_tointeger(J, -1); break;
+                case JS_PTR_BOOL:  *(bool *)p = js_toboolean(J, -1) != 0; break;
+                case JS_PTR_FLOAT: *(float *)p = (float)js_tonumber(J, -1); break;
+                case JS_PTR_INT8:  *(int8_t *)p = (int8_t)js_tointeger(J, -1); break;
+                case JS_PTR_UINT8:  *(uint8_t *)p = (uint8_t)js_tointeger(J, -1); break;
+                case JS_PTR_UINT16: *(uint16_t *)p = (uint16_t)js_tointeger(J, -1); break;
+                case JS_PTR_INT16:  *(int16_t *)p = (int16_t)js_tointeger(J, -1); break;
+                case JS_PTR_XSTRING: {
+                    xstring *xs = (xstring *)p;
+                    if (J->isstring(-1)) {
+                        xs->_set(js_tostring(J, -1));
+                    } else if (J->isundefined(-1) || J->isnull(-1)) {
+                        *xs = xstring();
+                    }
+                    break;
+                }
+                default: break;
+                }
+            }
+            return;
+        }
+    }
+
+    if (obj->type == JS_CARRAY) {
+        if (name == property_length) {
+            double rawlen = jsV_tonumber(J, value);
+            int newlen = jsV_numbertointeger(rawlen);
+            if (newlen != rawlen)
+                js_rangeerror(J, "array length");
+            jsV_resizearray(J, obj, newlen);
+            return;
+        }
+
+        if (js_isarrayindex(J, js_strnode_cstr(name), &k)) {
+            if (k >= obj->u.a.length)
+                obj->u.a.length = k + 1;
+        }
+    }
+
+    else if (obj->type == JS_CSTRING) {
+        if (name == property_length) {
+            goto readonly;
+        }
+
+        if (js_isarrayindex(J, js_strnode_cstr(name), &k)) {
+            if (js_runeat(J, js_strnode_cstr(obj->u.s.string), k))
+                goto readonly;
+        }
+    } else if (obj->type == JS_CREGEXP) {
+        if (name == property_source) {
+            goto readonly;
+        }
+        if (name == property_global) {
+            goto readonly;
+        }
+        if (name == property_ignoreCase) {
+            goto readonly;
+        }
+        if (name == property_multiline) {
+            goto readonly;
+        }
+        if (name == property_lastIndex) {
+            obj->u.r.last = jsV_tointeger(J, value);
+            return;
+        }
+    } else if (obj->type == JS_CVEC2I) {
+        if (name == property_vec2_x) {
+            obj->u.vec2.x = jsV_tointeger(J, value);
+            return;
+        }
+        if (name == property_vec2_y) {
+            obj->u.vec2.y = jsV_tointeger(J, value);
+            return;
+        }
+    }
+
+    else if (obj->type == JS_CUSERDATA) {
+        if (obj->u.user.put && obj->u.user.put(J, obj->u.user.data, js_strnode_cstr(name)))
+            return;
+    }
+
+    /* First try to find a setter in prototype chain */
+    ref = jsV_getpropertyx(J, obj, name, &own);
+    if (ref && ref->setter) {
+        js_pushobject(J, ref->setter);
+        js_pushobject(J, obj);
+        js_pushvalue(J, *value);
+        J->call(1);
+        js_pop(J, 1);
+        return;
+    }
+
+    /* Property not found on this object, so create one */
+    if (!ref || !own)
+        ref = jsV_setproperty(J, obj, name);
+
+    if (ref) {
+        if (!(ref->atts & JS_READONLY)) {
+            jsR_check_ephemeral_escape(J, obj, value);
+            ref->value = *value;
+        } else
+            goto readonly;
+    }
+
+    return;
+
+readonly:
+    if (J->strict)
+        js_typeerror(J, "'%s' is read-only", js_strnode_cstr(name));
+}
+
+static void jsR_defproperty(js_State* J, js_Object* obj, const js_StringNode name,
+    int atts, js_Value *value, js_Object *getter, js_Object *setter) {
+    js_Property *ref;
+    int k;
+
+    if (obj->type == JS_CARRAY) {
+        if (name == property_length) {
+            goto readonly;
+        }
+    } else if (obj->type == JS_CSTRING) {
+        if (name == property_length) {
+            goto readonly;
+        }
+
+        if (js_isarrayindex(J, js_strnode_cstr(name), &k)) {
+            if (js_runeat(J, js_strnode_cstr(obj->u.s.string), k))
+                goto readonly;
+        }
+    } else if (obj->type == JS_CREGEXP) {
+        if (name == property_source) goto readonly;
+        if (name == property_global) goto readonly;
+        if (name == property_ignoreCase) goto readonly;
+        if (name == property_multiline) goto readonly;
+        if (name == property_lastIndex) goto readonly;
+    } else if (obj->type == JS_CVEC2I) {
+        if (name == property_vec2_x || name == property_vec2_y) {
+            if (getter || setter)
+                js_typeerror(J, "'%s' cannot have accessor on vec2i", js_strnode_cstr(name));
+
+            if (value) {
+                if (name == property_vec2_x)
+                    obj->u.vec2.x = jsV_tointeger(J, value);
+                else
+                    obj->u.vec2.y = jsV_tointeger(J, value);
+            }
+            return;
+        }
+    } else if (obj->type == JS_CUSERDATA) {
+        if (obj->u.user.put && obj->u.user.put(J, obj->u.user.data, js_strnode_cstr(name))) {
+            return;
+        }
+    }
+
+    ref = jsV_setproperty(J, obj, name);
+    if (ref) {
+        // X.property.name = {} compiles to defineProperty(get/set) and would
+        // shadow a CPTROFF/CPTR cell left on the prototype by JS_REGISTER_BOUND_*.
+        if ((getter || setter) && ref->value.type == JS_TOBJECT && ref->value.u.object
+          && (ref->value.u.object->type == JS_CPTR || ref->value.u.object->type == JS_CPTROFF)) {
+            verify_no_crash_var(false,
+              "accessor shadows bound C property '%s' — remove X.property.%s = {} "
+              "(CPTROFF/CPTR fields are read directly; empty {} installs __property_getter over them)",
+              js_strnode_cstr(name), js_strnode_cstr(name));
+        }
+        if (value) {
+            if (!(ref->atts & JS_READONLY)) {
+                jsR_check_ephemeral_escape(J, obj, value);
+                ref->value = *value;
+            } else if (J->strict)
+                js_typeerror(J, "'%s' is read-only", js_strnode_cstr(name));
+        }
+        if (getter) {
+            jsR_check_ephemeral_object_escape(J, obj, getter);
+        }
+        if (setter) {
+            jsR_check_ephemeral_object_escape(J, obj, setter);
+        }
+        if (getter) {
+            if (!(ref->atts & JS_DONTCONF))
+                ref->getter = getter;
+            else if (J->strict)
+                js_typeerror(J, "'%s' is non-configurable", js_strnode_cstr(name));
+        }
+        if (setter) {
+            if (!(ref->atts & JS_DONTCONF))
+                ref->setter = setter;
+            else if (J->strict)
+                js_typeerror(J, "'%s' is non-configurable", js_strnode_cstr(name));
+        }
+        ref->atts |= atts;
+    }
+
+    return;
+
+readonly:
+    if (J->strict)
+        js_typeerror(J, "'%s' is read-only or non-configurable", js_strnode_cstr(name));
+}
+
+int js_State::rdelproperty(js_Object *obj, const js_StringNode name) {
+    js_Property *ref;
+    int k;
+
+    auto dontconf = [&] () {
+        if (strict) {
+            js_typeerror(this, "'%s' is non-configurable", js_strnode_cstr(name));
+        }
+        return 0;
+    };
+
+    if (obj->type == JS_CARRAY) {
+        if (name == property_length)
+            return dontconf();
+    } else if (obj->type == JS_CSTRING) {
+        if (name == property_length)
+            return dontconf();
+
+        if (js_isarrayindex(this, js_strnode_cstr(name), &k))
+            if (js_runeat(this, js_strnode_cstr(obj->u.s.string), k))
+                return dontconf();
+
+    } else if (obj->type == JS_CREGEXP) {
+        if (name == property_source) return dontconf();
+        if (name == property_global) return dontconf();
+        if (name == property_ignoreCase) return dontconf();
+        if (name == property_multiline) return dontconf();
+        if (name == property_lastIndex) return dontconf();
+    } else if (obj->type == JS_CVEC2I) {
+        if (name == property_vec2_x || name == property_vec2_y)
+            return dontconf();
+    } else if (obj->type == JS_CUSERDATA) {
+        if (obj->u.user.rdelete && obj->u.user.rdelete(this, obj->u.user.data, js_strnode_cstr(name)))
+            return 1;
+    }
+
+    ref = vget_ownproperty(obj, name);
+    if (ref) {
+        if (ref->atts & JS_DONTCONF) {
+            return dontconf();
+        }
+        jsV_delproperty(this, obj, name);
+    }
+    return 1;
+}
+
+/* Registry, global and object property accessors */
+
+js_StringNode property_Undefined = js_intern("_Undefined");
+js_StringNode property_Null = js_intern("_Null");
+js_StringNode property_True = js_intern("_True");
+js_StringNode property_False = js_intern("_False");
+
+js_StringNode js_ref(js_State *J) {
+    js_Value *v = stackidx(J, -1);
+    js_StringNode s;
+    char buf[32];
+    switch (v->type) {
+    case JS_TUNDEFINED:
+        s = property_Undefined;
+        break;
+    case JS_TNULL:
+        s = property_Null;
+        break;
+    case JS_TBOOLEAN:
+        s = v->u.boolean ? property_True : property_True;
+        break;
+    case JS_TOBJECT:
+        sprintf(buf, "%p", (void *)v->u.object);
+        s = js_intern(buf);
+        break;
+    default:
+        sprintf(buf, "%d", J->nextref++);
+        s = js_intern(buf);
+        break;
+    }
+
+    js_setregistry(J, s);
+    return s;
+}
+
+void js_unref(js_State *J, const char *ref) {
+    js_delregistry(J, js_intern(ref));
+}
+
+void js_getregistry(js_State* J, const js_StringNode name) {
+    J->getproperty(J->R, name);
+}
+
+void js_setregistry(js_State *J, const js_StringNode name) {
+    jsR_setproperty(J, J->R, name);
+    js_pop(J, 1);
+}
+
+void js_delregistry(js_State* J, const js_StringNode name) {
+    J->rdelproperty(J->R, name);
+}
+
+void js_getglobal(js_State *J, const char *name) {
+    J->getproperty(J->G, js_intern(name));
+}
+
+void js_setglobal(js_State *J, const char *name) {
+    jsR_setproperty(J, J->G, js_intern(name));
+    js_pop(J, 1);
+}
+
+void js_defglobal(js_State *J, const js_StringNode name, int atts) {
+    jsR_defproperty(J, J->G, name, atts, stackidx(J, -1), NULL, NULL);
+    js_pop(J, 1);
+}
+
+void js_setproperty(js_State* J, int idx, const js_StringNode name) {
+    jsR_setproperty(J, J->toobject(idx), name);
+    js_pop(J, 1);
+}
+
+void js_defproperty(js_State *J, int idx, const js_StringNode name, int atts) {
+    jsR_defproperty(J, J->toobject(idx), name, atts, stackidx(J, -1), NULL, NULL);
+    js_pop(J, 1);
+}
+
+void js_delproperty(js_State* J, int idx, const js_StringNode name) {
+    J->rdelproperty(J->toobject(idx), name);
+}
+
+void js_defaccessor(js_State* J, int idx, const js_StringNode name, int atts) {
+    jsR_defproperty(J, J->toobject(idx), name, atts, NULL, jsR_tofunction(J, -2), jsR_tofunction(J, -1));
+    js_pop(J, 2);
+}
+
+int js_State::hasproperty(int idx, const js_StringNode name) {
+    return hasproperty(toobject(idx), name);
+}
+
+void js_setdumping(js_State *J, void (*dumpfun)(js_State *, const char *)) {
+    J->dumpfunction = dumpfun;
+}
+
+void js_dumpobject_ex(js_State *J, int idx) {
+    js_dumpobject(J, J->toobject(-1));
+}
+
+/* Iterator */
+
+void js_pushiterator(js_State *J, int idx, int own) {
+    js_pushobject(J, jsV_newiterator(J, J->toobject(idx), own));
+}
+
+const js_StringNode js_nextiterator(js_State *J, int idx) {
+    return jsV_nextiterator(J, J->toobject(idx));
+}
+
+/* Environment records */
+
+js_Environment *jsR_newenvironment(js_State *J, js_Object *vars, js_Environment *outer) {
+    if (J->frame_zone_depth > 0) {
+        js_error(J, "environment in frame zone");
+    }
+    js_Environment *E = (js_Environment*)js_malloc(J, sizeof * E);
+    memset(E, 0, sizeof(js_Environment));
+    E->gcmark = 0;
+    E->gcnext = J->gcenv;
+    J->gcenv = E;
+    ++J->gccounter;
+
+    E->outer = outer;
+    E->variables = vars;
+    return E;
+}
+
+static void js_initvar(js_State *J, const js_StringNode name, int idx) {
+    jsR_defproperty(J, J->E->variables, name, JS_DONTENUM | JS_DONTCONF, stackidx(J, idx), NULL, NULL);
+}
+
+static void js_defvar(js_State* J, const js_StringNode name) {
+    jsR_defproperty(J, J->E->variables, name, JS_DONTENUM | JS_DONTCONF, NULL, NULL, NULL);
+}
+
+static int js_hasvar(js_State* J, const js_StringNode name) {
+    js_Environment *E = J->E;
+    do {
+        js_Property *ref = E->variables->vgetproperty(name);
+        if (ref) {
+            if (ref->getter) {
+                js_pushobject(J, ref->getter);
+                js_pushobject(J, E->variables);
+                J->call(0);
+            } else {
+                js_pushvalue(J, ref->value);
+            }
+            return 1;
+        }
+        E = E->outer;
+    } while (E);
+    return 0;
+}
+
+static void js_setvar(js_State* J, const js_StringNode name) {
+    js_Environment *E = J->E;
+    do {
+        js_Property *ref = E->variables->vgetproperty(name);
+        if (ref) {
+            if (ref->setter) {
+                js_pushobject(J, ref->setter);
+                js_pushobject(J, E->variables);
+                J->copy(-3);
+                J->call(1);
+                js_pop(J, 1);
+                return;
+            }
+            // JS_CPTR / JS_CPTROFF globals (ANK_BOUND_*): write through *ptr.
+            // Plain replace would destroy the binding and leave C++ unchanged
+            // (broke scenario.alt_predator_type = true and similar setters).
+            if (ref->value.type == JS_TOBJECT) {
+                js_Object *o = ref->value.u.object;
+                if (o->type == JS_CPTR || o->type == JS_CPTROFF) {
+                    jsR_setproperty(J, E->variables, name);
+                    return;
+                }
+            }
+            if (!(ref->atts & JS_READONLY)) {
+                jsR_check_ephemeral_escape(J, E->variables, stackidx(J, -1));
+                ref->value = *stackidx(J, -1);
+            } else if (J->strict)
+                js_typeerror(J, "'%s' is read-only", js_strnode_cstr(name));
+            return;
+        }
+        E = E->outer;
+    } while (E);
+    //if (J->strict)
+    //	js_referenceerror(J, "assignment to undeclared variable '%s'", name);
+    jsR_setproperty(J, J->G, name);
+}
+
+int js_State::delvar(const js_StringNode name) {
+    js_Environment *pE = this->E;
+    do {
+        js_Property *ref = vget_ownproperty(pE->variables, name);
+        if (ref) {
+            if (ref->atts & JS_DONTCONF) {
+                if (strict) {
+                    js_typeerror(this, "'%s' is non-configurable", js_strnode_cstr(name));
+                }
+
+                return 0;
+            }
+            jsV_delproperty(this, pE->variables, name);
+            return 1;
+        }
+        pE = pE->outer;
+    } while (pE);
+
+    return rdelproperty(this->G, name);
+}
+
+/* Function calls */
+
+void js_State::savescope(js_Environment *newE) {
+    OZZY_PROFILER_FUNCTION();
+
+    if (envtop + 1 >= JS_ENVLIMIT) {
+        stackoverflow();
+    }
+
+    envstack[envtop++] = E;
+    E = newE;
+}
+
+void js_State::restorescope() {
+    E = envstack[--envtop];
+}
+
+void js_State::callwfunction(int n, js_Function *F, js_Environment *scope) {
+    const char *js_fn = js_strnode_cstr(F->name);
+    const char *js_file = js_strnode_cstr(F->filename);
+    OZZY_PROFILER_FUNCTION_NAME(js_fn[0] ? js_fn : "(anonymous)", js_file[0] ? js_file : "js", F->line);
+
+    js_Value v;
+    int i;
+
+    savescope(scope);
+
+    auto J = this;
+    if (n > F->numparams) {
+        js_pop(J, F->numparams - n);
+        n = F->numparams;
+    }
+
+    for (i = n; i < F->varlen; ++i) {
+        pushundefined();
+    }
+
+    r_run(F);
+    v = *stackidx(J, -1);
+    top = --bot; /* clear stack */
+    js_pushvalue(J, v);
+
+    restorescope();
+}
+
+void js_State::callfunction(int n, js_Function *F, js_Environment *scope) {
+    js_Value v;
+    int i;
+
+    auto J = this;
+    scope = jsR_newenvironment(J, jsV_newobject(J, JS_COBJECT, NULL), scope);
+
+    savescope(scope);
+
+    if (F->arguments) {
+        J->newobject();
+        if (!strict) {
+            js_currentfunction(J);
+            js_defproperty(J, -2, property_callee, JS_DONTENUM);
+        }
+        js_pushnumber(J, n);
+        js_defproperty(J, -2, property_length, JS_DONTENUM);
+        for (i = 0; i < n; ++i) {
+            J->copy(i + 1);
+            js_setindex(J, -2, i);
+        }
+        js_initvar(J, property_arguments, -1);
+        js_pop(J, 1);
+    }
+
+    for (i = 0; i < F->numparams; ++i) {
+        if (i < n)
+            js_initvar(J, F->vartab[i], i + 1);
+        else {
+            J->pushundefined();
+            js_initvar(J, F->vartab[i], -1);
+            js_pop(J, 1);
+        }
+    }
+    js_pop(J, n);
+
+    J->r_run(F);
+    v = *stackidx(J, -1);
+    top = --bot; /* clear stack */
+    js_pushvalue(J, v);
+
+    J->restorescope();
+}
+
+static void jsR_callscript(js_State *J, int n, js_Function *F, js_Environment *scope) {
+    js_Value v;
+
+    if (scope) {
+        J->savescope(scope);
+    }
+
+    js_pop(J, n);
+    J->r_run(F);
+    v = *stackidx(J, -1);
+    TOP = --BOT; /* clear stack */
+    js_pushvalue(J, v);
+
+    if (scope) {
+        J->restorescope();
+    }
+}
+
+static void jsR_callcfunction(js_State *J, int n, int min, js_CFunction F) {
+    int i;
+    js_Value v;
+
+    for (i = n; i < min; ++i)
+        J->pushundefined();
+
+    F(J);
+    v = *stackidx(J, -1);
+    TOP = --BOT; /* clear stack */
+    js_pushvalue(J, v);
+}
+
+void js_State::pushtrace(const char *name, const char *file, int line) {
+    OZZY_PROFILER_SECTION(_, name);
+
+    if (++tracetop == JS_ENVLIMIT) {
+        js_error(this, "call stack overflow");
+    }
+
+    trace[tracetop].name = name;
+    trace[tracetop].file = file;
+    trace[tracetop].line = line;
+}
+
+static void jsR_profiler_callable(js_Object *obj, const char **name, const char **file, int *line) {
+    if (obj->type == JS_CFUNCTION || obj->type == JS_CSCRIPT) {
+        *name = js_strnode_cstr(obj->u.f.function->name);
+        *file = js_strnode_cstr(obj->u.f.function->filename);
+        *line = obj->u.f.function->line;
+    } else if (obj->type == JS_CCFUNCTION) {
+        *name = js_strnode_cstr(obj->u.c.name);
+        *file = "native";
+        *line = 0;
+    } else {
+        *name = "(callable)";
+        *file = "js";
+        *line = 0;
+    }
+    if (!(*name)[0]) {
+        *name = "(anonymous)";
+    }
+    if (!(*file)[0]) {
+        *file = "js";
+    }
+}
+
+void js_State::call(int n) {
+    js_Object *obj;
+    int savebot;
+
+    auto J = this;
+    if (!iscallable(-n - 2)) {
+        js_typeerror(J, "called object is not a function");
+    }
+
+    obj = toobject(-n - 2);
+
+    const char *js_fn;
+    const char *js_file;
+    int js_line;
+    jsR_profiler_callable(obj, &js_fn, &js_file, &js_line);
+    OZZY_PROFILER_FUNCTION_NAME(js_fn, js_file, js_line);
+
+    savebot = bot;
+    bot = top - n - 1;
+
+    if (obj->type == JS_CFUNCTION) {
+        pushtrace(js_strnode_cstr(obj->u.f.function->name), js_strnode_cstr(obj->u.f.function->filename), obj->u.f.function->line);
+        if (obj->u.f.function->lightweight) {
+            callwfunction(n, obj->u.f.function, obj->u.f.scope);
+        } else {
+            callfunction(n, obj->u.f.function, obj->u.f.scope);
+        }
+        --tracetop;
+    } else if (obj->type == JS_CSCRIPT) {
+        pushtrace(js_strnode_cstr(obj->u.f.function->name), js_strnode_cstr(obj->u.f.function->filename), obj->u.f.function->line);
+        jsR_callscript(J, n, obj->u.f.function, obj->u.f.scope);
+        --tracetop;
+    } else if (obj->type == JS_CCFUNCTION) {
+        pushtrace(js_strnode_cstr(obj->u.c.name), "native", 0);
+        jsR_callcfunction(J, n, obj->u.c.length, obj->u.c.function);
+        --tracetop;
+    }
+
+    bot = savebot;
+}
+
+void js_State::construct(int n) {
+    OZZY_PROFILER_FUNCTION();
+
+    js_Object *obj;
+    js_Object *newobj;
+
+    auto J = this;
+    if (!iscallable(-n - 1)) {
+        js_typeerror(J, "called object is not a function");
+    }
+
+    obj = toobject(-n - 1);
+
+    /* built-in constructors create their own objects, give them a 'null' this */
+    if (obj->type == JS_CCFUNCTION && obj->u.c.constructor) {
+        int savebot = bot;
+        js_pushnull(J);
+        if (n > 0) {
+            J->rot(n + 1);
+        }
+        bot = top - n - 1;
+
+        pushtrace(js_strnode_cstr(obj->u.c.name), "native", 0);
+        jsR_callcfunction(J, n, obj->u.c.length, obj->u.c.constructor);
+        --tracetop;
+
+        bot = savebot;
+        return;
+    }
+
+    /* extract the function object's prototype property */
+    J->getproperty(-n - 1, property_prototype);
+    js_Object *prototype = (isobject(-1)) ? toobject(-1) : Object_prototype;
+    js_pop(J, 1);
+
+    /* create a new object with above prototype, and shift it into the 'this' slot */
+    newobj = jsV_newobject(J, JS_COBJECT, prototype);
+    js_pushobject(J, newobj);
+    if (n > 0)
+        J->rot(n + 1);
+
+    /* call the function */
+    call(n);
+
+    /* if result is not an object, return the original object we created */
+    if (!isobject(-1)) {
+        js_pop(J, 1);
+        js_pushobject(J, newobj);
+    }
+}
+
+void js_eval(js_State *J) {
+    if (!J->isstring(-1)) {
+        return;
+    }
+    js_loadeval(J, "(eval)", js_strnode_cstr(js_tostring(J, -1)));
+    J->rot2pop1();
+    J->copy(0); /* copy 'this' */
+    J->call(0);
+}
+
+int js_pconstruct(js_State *J, int n) {
+    int savetop = TOP - n - 2;
+    if (js_try(J)) {
+        /* clean up the stack to only hold the error object */
+        STACK[savetop] = STACK[TOP - 1];
+        TOP = savetop + 1;
+        return 1;
+    }
+    J->construct(n);
+    js_endtry(J);
+    return 0;
+}
+
+int js_State::pcall(int n) {
+    const char *js_fn = "(callable)";
+    const char *js_file = "js";
+    int js_line = 0;
+    if (iscallable(-n - 2)) {
+        jsR_profiler_callable(toobject(-n - 2), &js_fn, &js_file, &js_line);
+    }
+    OZZY_PROFILER_FUNCTION_NAME(js_fn, js_file, js_line);
+
+    int savetop = top - n - 2;
+    if (js_try(this)) {
+        /* clean up the stack to only hold the error object */
+        stack[savetop] = stack[top - 1];
+        top = savetop + 1;
+        return 1;
+    }
+    call(n);
+    js_endtry(this);
+    return 0;
+}
+
+/* Exceptions */
+
+void *js_savetrypc(js_State *J, js_Instruction *pc) {
+    if (J->trytop == JS_TRYLIMIT) {
+        js_error(J, "try: exception stack overflow");
+    }
+
+    J->trybuf[J->trytop].E = J->E;
+    J->trybuf[J->trytop].envtop = J->envtop;
+    J->trybuf[J->trytop].tracetop = J->tracetop;
+    J->trybuf[J->trytop].top = J->top;
+    J->trybuf[J->trytop].bot = J->bot;
+    J->trybuf[J->trytop].pc = pc;
+    return J->trybuf[J->trytop++].buf;
+}
+
+void *js_savetry(js_State *J) {
+    if (J->trytop == JS_TRYLIMIT)
+        js_error(J, "try: exception stack overflow");
+    J->trybuf[J->trytop].E = J->E;
+    J->trybuf[J->trytop].envtop = J->envtop;
+    J->trybuf[J->trytop].tracetop = J->tracetop;
+    J->trybuf[J->trytop].top = J->top;
+    J->trybuf[J->trytop].bot = J->bot;
+    J->trybuf[J->trytop].pc = NULL;
+    return J->trybuf[J->trytop++].buf;
+}
+
+void js_endtry(js_State *J) {
+    if (J->trytop == 0)
+        js_error(J, "endtry: exception stack underflow");
+    --J->trytop;
+}
+
+void js_throw(js_State *J) {
+    if (J->trytop > 0) {
+        js_Value v = *stackidx(J, -1);
+        --J->trytop;
+        J->E = J->trybuf[J->trytop].E;
+        J->envtop = J->trybuf[J->trytop].envtop;
+        J->tracetop = J->trybuf[J->trytop].tracetop;
+        J->top = J->trybuf[J->trytop].top;
+        J->bot = J->trybuf[J->trytop].bot;
+        js_pushvalue(J, v);
+        longjmp(J->trybuf[J->trytop].buf, 1);
+    }
+    if (J->panic)
+        J->panic(J);
+    abort();
+}
+
+/* Main interpreter loop */
+
+static void jsR_dumpstack(js_State *J) {
+    int i;
+    printf("stack {\n");
+    for (i = 0; i < TOP; ++i) {
+        putchar(i == BOT ? '>' : ' ');
+        printf("% 4d: ", i);
+        js_dumpvalue(J, STACK[i]);
+        putchar('\n');
+    }
+    printf("}\n");
+}
+
+static void jsR_dumpenvironment(js_State *J, js_Environment *E, int d) {
+    printf("scope %d ", d);
+    js_dumpobject(J, E->variables);
+    if (E->outer)
+        jsR_dumpenvironment(J, E->outer, d + 1);
+}
+
+void js_stacktrace(js_State *J) {
+    int n;
+    printf("stack trace:\n");
+    for (n = J->tracetop; n >= 0; --n) {
+        const char *name = J->trace[n].name;
+        const char *file = J->trace[n].file;
+        int line = J->trace[n].line;
+        if (line > 0) {
+            if (name[0])
+                printf("\tat %s (%s:%d)\n", name, file, line);
+            else
+                printf("\tat %s:%d\n", file, line);
+        } else
+            printf("\tat %s (%s)\n", name, file);
+    }
+}
+
+void js_trap(js_State *J, int pc) {
+    if (pc > 0) {
+        js_Function *F = STACK[BOT - 1].u.object->u.f.function;
+        printf("trap at %d in function ", pc);
+        jsC_dumpfunction(J, F);
+    }
+    jsR_dumpstack(J);
+    jsR_dumpenvironment(J, J->E, 0);
+    js_stacktrace(J);
+}
+
+void js_State::r_run(js_Function *F) {
+    const char *js_fn = js_strnode_cstr(F->name);
+    const char *js_file = js_strnode_cstr(F->filename);
+    OZZY_PROFILER_FUNCTION_NAME(js_fn[0] ? js_fn : "(anonymous)", js_file[0] ? js_file : "js", F->line);
+
+    js_Function **FT = F->funtab;
+    double *NT = F->numtab;
+    const js_StringNode *ST = F->strtab;
+    js_Instruction *pcstart = F->code;
+    js_Instruction *pc = F->code;
+    int offset;
+
+    js_StringNode str = nullptr;
+    js_Object *obj;
+    double x, y;
+    unsigned int ux, uy;
+    int ix, iy, okay;
+    int b;
+
+    auto J = this;
+    while (1) {
+        //if (gccounter > JS_GCLIMIT) {
+        //    gccounter = 0;
+        //    gc(0);
+        //}
+
+        js_OpCode opcode = (js_OpCode)(*pc++);
+        switch (opcode) {
+        case OP_POP: js_pop(J, 1); break;
+        case OP_DUP: J->dup(); break;
+        case OP_DUP2: dup2(); break;
+        case OP_ROT2: J->rot2(); break;
+        case OP_ROT3: J->rot3(); break;
+        case OP_ROT4: J->rot4(); break;
+
+        case OP_NUMBER_0: js_pushnumber(J, 0); break;
+        case OP_NUMBER_1: js_pushnumber(J, 1); break;
+        case OP_NUMBER_POS: js_pushnumber(J, *pc++); break;
+        case OP_NUMBER_NEG: js_pushnumber(J, -(*pc++)); break;
+        case OP_NUMBER: js_pushnumber(J, NT[*pc++]); break;
+        case OP_STRING: pushliteral(ST[*pc++]); break;
+
+        case OP_CLOSURE: js_newfunction(J, FT[*pc++], J->E); break;
+        case OP_NEWOBJECT: J->newobject(); break;
+        case OP_NEWARRAY: J->newarray(); break;
+        case OP_NEWREGEXP: J->newregexp(js_strnode_cstr(ST[pc[0]]), pc[1]); pc += 2; break;
+        case OP_SETMODIFIERS:
+        {
+            int mod_count = *pc++;
+            int obj_idx = -1 - mod_count * 2;
+
+            /* Debug: check what's at the expected object position */
+            js_Value *obj_val = stackidx(J, obj_idx);
+            if (obj_val->type != JS_TOBJECT) {
+                /* Print error with details */
+                js_error(J, "OP_SETMODIFIERS: expected object at index %d (mod_count=%d), got type %d", obj_idx, mod_count, obj_val->type);
+            }
+
+            js_Object *obj = obj_val->u.object;
+            js_FunctionModifier **tail = &obj->modifiers;
+
+            /* Read modifiers from stack (in reverse order) */
+            for (int i = 0; i < mod_count; i++) {
+                int idx = -1 - (mod_count - i - 1) * 2;
+                auto value = js_tostring(J, idx);
+                auto key = js_tostring(J, idx - 1);
+
+                js_FunctionModifier *mod = (js_FunctionModifier *)js_malloc(J, sizeof(js_FunctionModifier));
+                new (mod) js_FunctionModifier();
+                mod->key = key;
+                mod->value = value;
+                mod->next = NULL;
+
+                *tail = mod;
+                tail = &mod->next;
+            }
+
+            /* Pop modifier strings from stack */
+            for (int i = 0; i < mod_count * 2; i++) {
+                js_pop(J, 1);
+            }
+        } break;
+
+        case OP_UNDEF: pushundefined(); break;
+        case OP_NULL: js_pushnull(J); break;
+        case OP_TRUE: js_pushboolean(J, 1); break;
+        case OP_FALSE: js_pushboolean(J, 0); break;
+
+        case OP_THIS: J->copy(0); break;
+        case OP_GLOBAL: js_pushobject(J, J->G); break;
+        case OP_CURRENT: js_currentfunction(J); break;
+
+        case OP_INITLOCAL:
+            STACK[BOT + *pc++] = STACK[--TOP];
+            break;
+
+        case OP_GETLOCAL:
+            CHECKSTACK(1);
+            STACK[TOP++] = STACK[BOT + *pc++];
+            break;
+
+        case OP_SETLOCAL:
+            STACK[BOT + *pc++] = STACK[TOP - 1];
+            break;
+
+        case OP_DELLOCAL:
+            ++pc;
+            js_pushboolean(J, 0);
+            break;
+
+        case OP_INITVAR:
+            js_initvar(J, ST[*pc++], -1);
+            js_pop(J, 1);
+            break;
+
+        case OP_DEFVAR:
+            js_defvar(J, ST[*pc++]);
+            break;
+
+        case OP_GETVAR:
+            str = ST[*pc++];
+            if (!js_hasvar(J, str))
+                js_referenceerror(J, "'%s' is not defined", js_strnode_cstr(str));
+            break;
+
+        case OP_HASVAR:
+            if (!js_hasvar(J, ST[*pc++]))
+                pushundefined();
+            break;
+
+        case OP_SETVAR:
+            js_setvar(J, ST[*pc++]);
+            break;
+
+        case OP_DELVAR:
+            b = delvar(ST[*pc++]);
+            js_pushboolean(J, b);
+            break;
+
+        case OP_IN:
+            str = js_tostring(J, -2);
+            if (!isobject(-1)) {
+                js_typeerror(J, "operand to 'in' is not an object");
+            }
+            b = J->hasproperty(-1, str);
+            js_pop(J, 2 + b);
+            js_pushboolean(J, b);
+            break;
+
+        case OP_INITPROP:
+            obj = toobject(-3);
+            str = js_tostring(J, -2);
+            jsR_setproperty(J, obj, str);
+            js_pop(J, 2);
+            break;
+
+        case OP_INITGETTER:
+            obj = toobject(-3);
+            str = js_tostring(J, -2);
+            jsR_defproperty(J, obj, str, 0, NULL, jsR_tofunction(J, -1), NULL);
+            js_pop(J, 2);
+            break;
+
+        case OP_INITSETTER:
+            obj = toobject(-3);
+            str = js_tostring(J, -2);
+            jsR_defproperty(J, obj, str, 0, NULL, NULL, jsR_tofunction(J, -1));
+            js_pop(J, 2);
+            break;
+
+        case OP_GETPROP:
+            str = js_tostring(J, -1);
+            obj = toobject_pending(-2, js_strnode_cstr(str));
+            J->getproperty(obj, str);
+            J->rot3pop2();
+            break;
+
+        case OP_GETPROP_S:
+            str = ST[*pc++];
+            obj = toobject_pending(-1, js_strnode_cstr(str));
+            J->getproperty(obj, str);
+            J->rot2pop1();
+            break;
+
+        case OP_SETPROP:
+            str = js_tostring(J, -2);
+            obj = toobject_pending(-3, js_strnode_cstr(str));
+            jsR_setproperty(J, obj, str);
+            J->rot3pop2();
+            break;
+
+        case OP_SETPROP_S:
+            str = ST[*pc++];
+            obj = toobject_pending(-2, js_strnode_cstr(str));
+            jsR_setproperty(J, obj, str);
+            J->rot2pop1();
+            break;
+
+        case OP_DELPROP:
+            str = js_tostring(J, -1);
+            obj = toobject(-2);
+            b = rdelproperty(obj, str);
+            js_pop(J, 2);
+            js_pushboolean(J, b);
+            break;
+
+        case OP_DELPROP_S:
+            str = ST[*pc++];
+            obj = toobject(-1);
+            b = rdelproperty(obj, str);
+            js_pop(J, 1);
+            js_pushboolean(J, b);
+            break;
+
+        case OP_ITERATOR:
+            if (!J->isundefined(-1) && !J->isnull(-1)) {
+                obj = jsV_newiterator(J, J->toobject(-1), 0);
+                js_pop(J, 1);
+                js_pushobject(J, obj);
+            }
+            break;
+
+        case OP_NEXTITER:
+            obj = toobject(-1);
+            str = jsV_nextiterator(J, obj);
+            if (str) {
+                pushliteral(str);
+                js_pushboolean(J, 1);
+            } else {
+                js_pop(J, 1);
+                js_pushboolean(J, 0);
+            }
+            break;
+
+            /* Function calls */
+
+        case OP_EVAL:
+            js_eval(J);
+            break;
+
+        case OP_CALL:
+            J->call(*pc++);
+            break;
+
+        case OP_NEW:
+            J->construct(*pc++);
+            break;
+
+        case OP_EMIT:
+            str = ST[*pc++];
+            js_emit(J, js_strnode_cstr(str));
+            js_pop(J, 1); /* payload */
+            js_pushnull(J);
+            break;
+
+            /* Unary operators */
+
+        case OP_TYPEOF: {
+            auto pstr = js_typeof(J, -1);
+            js_pop(J, 1);
+            pushliteral(pstr);
+            break;
+        }
+
+        case OP_POS:
+            x = js_tonumber(J, -1);
+            js_pop(J, 1);
+            js_pushnumber(J, x);
+            break;
+
+        case OP_NEG:
+            x = js_tonumber(J, -1);
+            js_pop(J, 1);
+            js_pushnumber(J, -x);
+            break;
+
+        case OP_BITNOT:
+            ix = js_toint32(J, -1);
+            js_pop(J, 1);
+            js_pushnumber(J, ~ix);
+            break;
+
+        case OP_LOGNOT:
+            b = js_toboolean(J, -1);
+            js_pop(J, 1);
+            js_pushboolean(J, !b);
+            break;
+
+        case OP_INC:
+            x = js_tonumber(J, -1);
+            js_pop(J, 1);
+            js_pushnumber(J, x + 1);
+            break;
+
+        case OP_DEC:
+            x = js_tonumber(J, -1);
+            js_pop(J, 1);
+            js_pushnumber(J, x - 1);
+            break;
+
+        case OP_POSTINC:
+            x = js_tonumber(J, -1);
+            js_pop(J, 1);
+            js_pushnumber(J, x + 1);
+            js_pushnumber(J, x);
+            break;
+
+        case OP_POSTDEC:
+            x = js_tonumber(J, -1);
+            js_pop(J, 1);
+            js_pushnumber(J, x - 1);
+            js_pushnumber(J, x);
+            break;
+
+            /* Multiplicative operators */
+
+        case OP_MUL:
+            x = js_tonumber(J, -2);
+            y = js_tonumber(J, -1);
+            js_pop(J, 2);
+            js_pushnumber(J, x * y);
+            break;
+
+        case OP_DIV:
+            x = js_tonumber(J, -2);
+            y = js_tonumber(J, -1);
+            js_pop(J, 2);
+            js_pushnumber(J, x / y);
+            break;
+
+        case OP_MOD:
+            x = js_tonumber(J, -2);
+            y = js_tonumber(J, -1);
+            js_pop(J, 2);
+            js_pushnumber(J, fmod(x, y));
+            break;
+
+            /* Additive operators */
+
+        case OP_ADD:
+            js_concat(J);
+            break;
+
+        case OP_SUB:
+            x = js_tonumber(J, -2);
+            y = js_tonumber(J, -1);
+            js_pop(J, 2);
+            js_pushnumber(J, x - y);
+            break;
+
+            /* Shift operators */
+
+        case OP_SHL:
+            ix = js_toint32(J, -2);
+            uy = js_touint32(J, -1);
+            js_pop(J, 2);
+            js_pushnumber(J, ix << (uy & 0x1F));
+            break;
+
+        case OP_SHR:
+            ix = js_toint32(J, -2);
+            uy = js_touint32(J, -1);
+            js_pop(J, 2);
+            js_pushnumber(J, ix >> (uy & 0x1F));
+            break;
+
+        case OP_USHR:
+            ux = js_touint32(J, -2);
+            uy = js_touint32(J, -1);
+            js_pop(J, 2);
+            js_pushnumber(J, ux >> (uy & 0x1F));
+            break;
+
+            /* Relational operators */
+
+        case OP_LT: b = js_compare(J, &okay); js_pop(J, 2); js_pushboolean(J, okay && b < 0); break;
+        case OP_GT: b = js_compare(J, &okay); js_pop(J, 2); js_pushboolean(J, okay && b > 0); break;
+        case OP_LE: b = js_compare(J, &okay); js_pop(J, 2); js_pushboolean(J, okay && b <= 0); break;
+        case OP_GE: b = js_compare(J, &okay); js_pop(J, 2); js_pushboolean(J, okay && b >= 0); break;
+
+        case OP_INSTANCEOF:
+            b = js_instanceof(J);
+            js_pop(J, 2);
+            js_pushboolean(J, b);
+            break;
+
+            /* Equality */
+
+        case OP_EQ: b = js_equal(J); js_pop(J, 2); js_pushboolean(J, b); break;
+        case OP_NE: b = js_equal(J); js_pop(J, 2); js_pushboolean(J, !b); break;
+        case OP_STRICTEQ: b = js_strictequal(J); js_pop(J, 2); js_pushboolean(J, b); break;
+        case OP_STRICTNE: b = js_strictequal(J); js_pop(J, 2); js_pushboolean(J, !b); break;
+
+        case OP_JCASE:
+            offset = *pc++;
+            b = js_strictequal(J);
+            if (b) {
+                js_pop(J, 2);
+                pc = pcstart + offset;
+            } else {
+                js_pop(J, 1);
+            }
+            break;
+
+            /* Binary bitwise operators */
+
+        case OP_BITAND:
+            ix = js_toint32(J, -2);
+            iy = js_toint32(J, -1);
+            js_pop(J, 2);
+            js_pushnumber(J, ix & iy);
+            break;
+
+        case OP_BITXOR:
+            ix = js_toint32(J, -2);
+            iy = js_toint32(J, -1);
+            js_pop(J, 2);
+            js_pushnumber(J, ix ^ iy);
+            break;
+
+        case OP_BITOR:
+            ix = js_toint32(J, -2);
+            iy = js_toint32(J, -1);
+            js_pop(J, 2);
+            js_pushnumber(J, ix | iy);
+            break;
+
+            /* Try and Catch */
+
+        case OP_THROW:
+            js_throw(J);
+
+        case OP_TRY:
+            offset = *pc++;
+            if (js_trypc(J, pc)) {
+                pc = J->trybuf[J->trytop].pc;
+            } else {
+                pc = pcstart + offset;
+            }
+            break;
+
+        case OP_ENDTRY:
+            js_endtry(J);
+            break;
+
+        case OP_CATCH:
+            str = ST[*pc++];
+            obj = jsV_newobject(J, JS_COBJECT, NULL);
+            js_pushobject(J, obj);
+            J->rot2();
+            js_setproperty(J, -2, str);
+            J->E = jsR_newenvironment(J, obj, J->E);
+            js_pop(J, 1);
+            break;
+
+        case OP_ENDCATCH:
+            J->E = J->E->outer;
+            break;
+
+            /* With */
+
+        case OP_WITH:
+            obj = toobject(-1);
+            J->E = jsR_newenvironment(J, obj, J->E);
+            js_pop(J, 1);
+            break;
+
+        case OP_ENDWITH:
+            J->E = J->E->outer;
+            break;
+
+            /* Branching */
+
+        case OP_DEBUGGER:
+            js_trap(J, (int)(pc - pcstart) - 1);
+            break;
+
+        case OP_JUMP:
+            pc = pcstart + *pc;
+            break;
+
+        case OP_JTRUE:
+            offset = *pc++;
+            b = js_toboolean(J, -1);
+            js_pop(J, 1);
+            if (b)
+                pc = pcstart + offset;
+            break;
+
+        case OP_JFALSE:
+            offset = *pc++;
+            b = js_toboolean(J, -1);
+            js_pop(J, 1);
+            if (!b)
+                pc = pcstart + offset;
+            break;
+
+        case OP_RETURN:
+            return;
+
+        case OP_LINE:
+            trace[tracetop].line = *pc++;
+            if (debug_hook) {
+                const js_StackTrace &t = trace[tracetop];
+                debug_hook(J, t.file, t.line, debug_hook_udata);
+            }
+            break;
+        }
+    }
+}
+
+/* Debug hook API */
+
+void js_setdebughook(js_State *J, js_DebugHook hook, void *udata) {
+    J->debug_hook = hook;
+    J->debug_hook_udata = udata;
+}
+
+/* Function modifiers API */
+
+int js_hasmodifier(js_State* J, int idx, const js_StringNode key) {
+    js_Object *obj = J->toobject(idx);
+    if (!obj || obj->type != JS_CFUNCTION)
+        return 0;
+
+    if (obj->u.f.function) {
+        js_Function *func = obj->u.f.function;
+        js_FunctionModifier *mod = func->modifiers;
+        while (mod) {
+            if (mod->key == key) {
+                return 1;
+            }
+
+            mod = mod->next;
+        }
+    }
+    return 0;
+}
+
+js_StringNode js_getmodifier(js_State* J, int idx, const js_StringNode key) {
+    js_Object *obj = J->toobject(idx);
+    if (!obj || obj->type != JS_CFUNCTION) {
+        js_typeerror(J, "not a function");
+    }
+
+    if (obj->u.f.function) {
+        js_Function *func = obj->u.f.function;
+        js_FunctionModifier *mod = func->modifiers;
+        while (mod) {
+            if (mod->key == key)
+                return mod->value;
+
+            mod = mod->next;
+        }
+    }
+    return NULL;
+}

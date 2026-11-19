@@ -1,0 +1,167 @@
+log_info("akhenaten: localization_ci config started")
+
+localization_ci = [
+     { key:"#TR_NO_PATCH_TITLE", text:"未安装1.0.1.0补丁"},
+     { key:"#TR_NO_PATCH_MESSAGE", text:""},
+     { key:"#TR_MISSING_FONTS_TITLE", text:"缺失字体"},
+     { key:"#TR_MISSING_FONTS_MESSAGE", text:""},
+     { key:"#TR_NO_EDITOR_TITLE", text:"未安装地图编辑器"},
+     { key:"#TR_NO_EDITOR_MESSAGE", text:""},
+     { key:"#TR_INVALID_LANGUAGE_TITLE", text:"语言包路径无效"},
+     { key:"#TR_INVALID_LANGUAGE_MESSAGE", text:"指定路径未检测到有效语言包。 请检视日志查看错误。"},
+     { key:"#dock_order_trade", text:"交易"},
+     { key:"#dock_order_dont_trade", text:"不交易"},
+     { key:"#dock_order_accept_all", text:"全部接受"},
+     { key:"#dock_orders_hint", text:"船只只有在至少一项货物设为“交易”时才会使用此码头。"},
+     { key:"#dock_orders_closed", text:"此码头不接受任何货物 — 船只不会在此停泊。"},
+     { key:"#TR_BUTTON_OK", text:"确定"},
+     { key:"#TR_BUTTON_CANCEL", text:"取消"},
+     { key:"#TR_BUTTON_RESET_DEFAULTS", text:"重置默认"},
+     { key:"#TR_BUTTON_CONFIGURE_HOTKEYS", text:"热键绑定"},
+     { key:"#TR_CONFIG_TITLE", text:"配置设定"},
+     { key:"#TR_CONFIG_LANGUAGE_LABEL", text:"语言包:"},
+     { key:"#TR_CONFIG_LANGUAGE_DEFAULT", text:"默认"},
+     { key:"#TR_CONFIG_HEADER_UI_CHANGES", text:"用户界面更变"},
+     { key:"#TR_CONFIG_HEADER_GAMEPLAY_CHANGES", text:"游戏内容更变"},
+     { key:"#TR_CONFIG_HEADER_GODS_CHANGES", text:"Gods changes"},
+     { key:"#TR_CONFIG_HEADER_BUILDING_CHANGES", text:"Building changes"},
+     { key:"#TR_CONFIG_HEADER_RESOURCE_CHANGES", text:"Resource changes"},
+     { key:"#TR_CONFIG_SHOW_INTRO_VIDEO", text:"播放开场动画"},
+     { key:"#TR_CONFIG_SIDEBAR_INFO", text:"控制面板更多信息"},
+     { key:"#TR_CONFIG_SMOOTH_SCROLLING", text:"平滑视角滚动"},
+     { key:"#TR_CONFIG_VISUAL_FEEDBACK_ON_DELETE", text:"优化清理土地视觉反馈"},
+     { key:"#TR_CONFIG_ALLOW_CYCLING_TEMPLES", text:"允许连续建造每种神庙"},
+     { key:"#TR_CONFIG_SHOW_WATER_STRUCTURE_RANGE", text:"建造时显示贮水池水泉及水井覆盖范围"},
+     { key:"#TR_CONFIG_SHOW_CONSTRUCTION_SIZE", text:"显示拖动建设大小"},
+     { key:"#TR_CONFIG_HIGHLIGHT_LEGIONS", text:"鼠标悬停时高亮军团"},
+     { key:"#TR_CONFIG_FIX_IMMIGRATION_BUG", text:"修复非常困难不来人BUG"},
+     { key:"#TR_CONFIG_FIX_100_YEAR_GHOSTS", text:"修复人口百岁仍占房BUG"},
+     { key:"#TR_CONFIG_FIX_EDITOR_EVENTS", text:"自定游戏修正：皇帝更位支持度重置至50；生存时间结束才胜利"},
+     { key:"#TR_HOTKEY_TITLE", text:"热键绑定"},
+     { key:"#TR_HOTKEY_LABEL", text:"热键"},
+     { key:"#TR_HOTKEY_ALTERNATIVE_LABEL", text:"可替代键"},
+     { key:"#TR_HOTKEY_HEADER_ARROWS", text:"方向键"},
+     { key:"#TR_HOTKEY_HEADER_GLOBAL", text:"全局热键"},
+     { key:"#TR_HOTKEY_HEADER_CITY", text:"城市热键"},
+     { key:"#TR_HOTKEY_HEADER_ADVISORS", text:"顾问"},
+     { key:"#TR_HOTKEY_HEADER_OVERLAYS", text:"覆层"},
+     { key:"#TR_HOTKEY_HEADER_BOOKMARKS", text:"城市地图视角标签"},
+     { key:"#TR_HOTKEY_HEADER_EDITOR", text:"编辑器"},
+     { key:"#TR_HOTKEY_HEADER_BUILD", text:"建造热键"},
+     { key:"#TR_HOTKEY_ARROW_UP", text:"上"},
+     { key:"#TR_HOTKEY_ARROW_DOWN", text:"下"},
+     { key:"#TR_HOTKEY_ARROW_LEFT", text:"左"},
+     { key:"#TR_HOTKEY_ARROW_RIGHT", text:"右"},
+     { key:"#TR_HOTKEY_TOGGLE_FULLSCREEN", text:"全屏切换"},
+     { key:"#TR_HOTKEY_CENTER_WINDOW", text:"中心窗口化"},
+     { key:"#TR_HOTKEY_RESIZE_TO_640", text:"重置分辨率至640x480"},
+     { key:"#TR_HOTKEY_RESIZE_TO_800", text:"重置分辨率至800x600"},
+     { key:"#TR_HOTKEY_RESIZE_TO_1024", text:"重置分辨率至1024x768"},
+     { key:"#TR_HOTKEY_SAVE_SCREENSHOT", text:"保存截图"},
+     { key:"#TR_HOTKEY_SAVE_CITY_SCREENSHOT", text:"保存城市全景截图"},
+     { key:"#TR_HOTKEY_LOAD_FILE", text:"载入文件"},
+     { key:"#TR_HOTKEY_SAVE_FILE", text:"保存文件"},
+     { key:"#TR_HOTKEY_INCREASE_GAME_SPEED", text:"加快游戏速度"},
+     { key:"#TR_HOTKEY_DECREASE_GAME_SPEED", text:"减慢游戏速度"},
+     { key:"#TR_HOTKEY_TOGGLE_PAUSE", text:"暂停切换"},
+     { key:"#TR_HOTKEY_CYCLE_LEGION", text:"切换各军团所在视角"},
+     { key:"#TR_HOTKEY_ROTATE_MAP_LEFT", text:"顺时针旋转地图视角"},
+     { key:"#TR_HOTKEY_ROTATE_MAP_RIGHT", text:"逆时针旋转地图视角"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_LABOR", text:"劳工顾问"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_MILITARY", text:"军事顾问"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_IMPERIAL", text:"皇帝顾问"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_RATINGS", text:"评比顾问"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_TRADE", text:"贸易顾问"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_POPULATION", text:"人口顾问"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_HEALTH", text:"健康顾问"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_EDUCATION", text:"教育顾问"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_ENTERTAINMENT", text:"娱乐顾问"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_RELIGION", text:"宗教顾问"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_FINANCIAL", text:"财政顾问"},
+     { key:"#TR_HOTKEY_SHOW_ADVISOR_CHIEF", text:"首席顾问"},
+     { key:"#TR_HOTKEY_TOGGLE_OVERLAY", text:"当前覆层视角切换"},
+     {key:"#TR_HOTKEY_TOGGLE_FLAT_BUILDINGS", text:"扁平建筑视图"},
+     { key: "#sidebar_flat_buildings", text: "扁平视图" },
+     { key: "#sidebar_flat_buildings_on", text: "扁平视图：开" },
+     { key: "#TR_CONFIG_FLAT_BUILDINGS", text: "扁平建筑视图 (Shift+F) — 压低高大建筑以看见后方道路" },
+     { key: "#TR_TOOLTIP_FLAT_BUILDINGS", text: "扁平建筑视图 (Shift+F)。开启时：Ctrl+右键抬高单一建筑。" },
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_WATER", text:"显示供水覆层"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_FIRE", text:"显示火灾覆层"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_DAMAGE", text:"显示损坏覆层"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_CRIME", text:"显示犯罪覆层"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_PROBLEMS", text:"显示问题覆层"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_MALARIA_RISK", text:"显示疟疾风险覆层"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_DISEASE", text:"显示疾病覆层"},
+     { key:"#TR_HOTKEY_SHOW_OVERLAY_HIDE_CLIFFS", text:"隐藏悬崖"},
+     { key:"#TR_HOTKEY_GO_TO_BOOKMARK_1", text:"前往视角标签 1"},
+     { key:"#TR_HOTKEY_GO_TO_BOOKMARK_2", text:"前往视角标签 2"},
+     { key:"#TR_HOTKEY_GO_TO_BOOKMARK_3", text:"前往视角标签 3"},
+     { key:"#TR_HOTKEY_GO_TO_BOOKMARK_4", text:"前往视角标签 4"},
+     { key:"#TR_HOTKEY_SET_BOOKMARK_1", text:"设定视角标签 1"},
+     { key:"#TR_HOTKEY_SET_BOOKMARK_2", text:"设定视角标签 2"},
+     { key:"#TR_HOTKEY_SET_BOOKMARK_3", text:"设定视角标签 3"},
+     { key:"#TR_HOTKEY_SET_BOOKMARK_4", text:"设定视角标签 4"},
+     { key:"#TR_HOTKEY_EDITOR_TOGGLE_BATTLE_INFO", text:"战斗信息切换"},
+     { key:"#TR_HOTKEY_EDIT_TITLE", text:"按下新热键"},
+     { key:"#mansion_protected_by_police", text:"有警察保护"},
+     { key:"#mansion_not_protected_theft", text:"未受保护——盗贼可能窃取积蓄"}
+
+     { key: "#overlay_menu_normal", text: "普通" }
+     { key: "#overlay_menu_risks", text: "风险" }
+     { key: "#overlay_menu_water", text: "水" }
+     { key: "#overlay_menu_entertainment", text: "娱乐" }
+     { key: "#overlay_menu_religion", text: "宗教" }
+     { key: "#overlay_menu_education", text: "教育" }
+     { key: "#overlay_menu_health", text: "健康" }
+     { key: "#overlay_menu_administration", text: "管理" }
+     { key: "#overlay_menu_food", text: "食物" }
+     { key: "#overlay_menu_other", text: "其他" }
+
+     { key: "#overlay_fire", text: "火災" }
+     { key: "#overlay_damage", text: "損壞" }
+     { key: "#overlay_architect_reach", text: "建築師可達範圍" }
+     { key: "#overlay_architect_reach_hint", text: "點擊建築師崗位" }
+     { key: "#overlay_architect_reach_tile", text: "在建築師巡邏範圍內" }
+     { key: "#overlay_crime", text: "犯罪" }
+     { key: "#overlay_entertainment", text: "娛樂" }
+     { key: "#overlay_booth", text: "雜耍" }
+     { key: "#overlay_bandstand", text: "樂師" }
+     { key: "#overlay_pavilion", text: "舞者" }
+     { key: "#overlay_senet_house", text: "塞尼特玩家" }
+     { key: "#overlay_education", text: "教育" }
+     { key: "#overlay_scribal_school", text: "文書學校" }
+     { key: "#overlay_library", text: "圖書館" }
+     { key: "#overlay_academy", text: "學院" }
+     { key: "#overlay_apothecary", text: "藥房" }
+     { key: "#overlay_dentist", text: "牙醫" }
+     { key: "#overlay_physician", text: "醫生" }
+     { key: "#overlay_mortuary", text: "停屍房" }
+     { key: "#overlay_tax_income", text: "稅收" }
+     { key: "#overlay_bazaar_access", text: "市集通行" }
+     { key: "#overlay_desirability", text: "吸引力" }
+     { key: "#overlay_fertility", text: "肥沃度" }
+     { key: "#overlay_magistrate", text: "治安官" }
+     { key: "#overlay_food_stocks", text: "食物儲備" }
+     { key: "#overlay_labor", text: "勞動力" }
+     { key: "#overlay_labor_access", text: "勞動力通行" }
+     { key: "#overlay_native", text: "土著" }
+     { key: "#overlay_problems", text: "問題" }
+     { key: "#overlay_routing", text: "路線" }
+     { key: "#overlay_malaria_risk", text: "瘧疾風險" }
+     { key: "#overlay_health", text: "健康" }
+     { key: "#overlay_criminal", text: "罪犯" }
+     { key: "#overlay_osiris", text: "奧西里斯" }
+     { key: "#overlay_ra", text: "拉" }
+     { key: "#overlay_ptah", text: "普塔" }
+     { key: "#overlay_seth", text: "賽特" }
+     { key: "#overlay_bast", text: "巴斯泰特" }
+     { key: "#TR_PALACE_TOOLTIP_UNEMPLOYMENT", text: "失业率" }
+     { key: "#TR_PALACE_TOOLTIP_CULTURE_RATING", text: "文化评分" }
+     { key: "#TR_PALACE_TOOLTIP_PROSPERITY_RATING", text: "繁荣评分" }
+     { key: "#TR_PALACE_TOOLTIP_MONUMENT_RATING", text: "纪念碑评分" }
+     { key: "#TR_PALACE_TOOLTIP_KINGDOM_RATING", text: "王国评分" },
+     { key: "#TR_CONFIG_HISTORICAL_ECONOMY", text: "Enhanced: historical economy — deben as unit of account; part of wages paid in granary grain" },
+     { key: "#finance_deben_unit_of_account", text: "deben-weight" },
+     { key: "#finance_historical_economy_hint", text: "Debens measure value (metal-weight account). Part of labour is paid from granary grain when available." },
+     { key: "#finance_wages_paid_in_grain", text: "Wages paid in grain (deben-eq)" },
+]

@@ -1,0 +1,865 @@
+#include "building.h"
+
+#include <new>
+
+#include "building/rotation.h"
+#include "building/building_type.h"
+#include "building/building_storage.h"
+#include "building/destruction.h"
+#include "city/buildings.h"
+#include "city/city_population.h"
+#include "city/city_recorded_paths.h"
+#include "city/city_warnings.h"
+#include "game/game_events.h"
+#include "widget/city/ornaments.h"
+#include "widget/city/flat_draw.h"
+#include "core/svector.h"
+#include "core/profiler.h"
+#include "figure/formation_batalion.h"
+#include "game/resource.h"
+#include "game/undo.h"
+#include "game/game.h"
+#include "graphics/view/view.h"
+#include "grid/building.h"
+#include "grid/building_tiles.h"
+#include "grid/desirability.h"
+#include "grid/crime.h"
+#include "grid/elevation.h"
+#include "grid/grid.h"
+#include "grid/random.h"
+#include "grid/image.h"
+#include "grid/routing/routing_terrain.h"
+#include "construction/build_planner.h"
+#include "grid/floodplain.h"
+#include "grid/terrain.h"
+#include "grid/tiles.h"
+#include "io/io_buffer.h"
+#include "graphics/graphics.h"
+#include "monuments.h"
+#include "overlays/city_overlay.h"
+#include "sound/sound_building.h"
+#include "city/city.h"
+#include "figure/figure.h"
+#include "figure/route.h"
+#include "figuretype/figure_cartpusher.h"
+#include "core/object_property.h"
+#include "game/game_config.h"
+#include "core/random.h"
+#include "sound/sound.h"
+
+#include <string.h>
+#include <map>
+#include <algorithm>
+#include <cmath>
+
+#include "dev/debug.h"
+#include "js/js_register.h"
+
+declare_console_command_p(destroytype) {
+    int type = args.next_int(0);
+
+    buildings_valid_do([] (building &b) {
+        b.destroy_by_collapse();
+    }, (e_building_type)type);
+};
+
+using e_building_state_tokens_t = token_holder<e_building_state, BUILDING_STATE_UNUSED, BUILDING_STATE_COUNT>;
+const e_building_state_tokens_t e_building_state_tokens;
+
+using e_destroy_reason_tokens_t = token_holder<e_destroy_reason, e_destroy_simple, e_destroy_reason_max>;
+const e_destroy_reason_tokens_t ANK_CONFIG_ENUM(e_destroy_reason_tokens);
+
+using e_building_type_tokens_t = token_holder<e_building_type, BUILDING_NONE, BUILDING_MAX>;
+const e_building_type_tokens_t ANK_CONFIG_ENUM(e_building_type_tokens);
+
+using e_house_level_tokens_t = token_holder<e_house_level, HOUSE_CRUDE_HUT, HOUSE_LEVEL_MAX>;
+const e_house_level_tokens_t ANK_CONFIG_ENUM(e_house_level_tokens);
+
+static std::array<const building_static_params*, BUILDING_MAX> *building_impl_params = nullptr;
+static std::array<buildings::create_building_function_cb*, BUILDING_MAX> *building_ctors = nullptr;
+
+building_static_params building_static_params::dummy;
+
+void buildings::register_ctor(e_building_type e, create_building_function_cb *fn) {
+    if (!building_ctors) {
+        building_ctors = new std::array<create_building_function_cb*, BUILDING_MAX>();
+        std::fill(building_ctors->begin(), building_ctors->end(), nullptr);
+    }
+    (*building_ctors)[e] = fn;
+}
+
+void buildings::unregister_ctor(e_building_type e) {
+    if (building_ctors && e > BUILDING_NONE && e < BUILDING_MAX) {
+        (*building_ctors)[e] = nullptr;
+    }
+}
+
+bool buildings::has_ctor(e_building_type e) {
+    return building_ctors && e > BUILDING_NONE && e < BUILDING_MAX && (*building_ctors)[e] != nullptr;
+}
+
+void building::initialize(e_building_type _tp, tile2i _tl, int orientation) {
+    verify_no_crash(!_ptr);
+    const auto &props = building_static_params::get(_tp);
+    type = _tp;
+    tile = _tl;
+    state = BUILDING_STATE_CREATED;
+    size = props.building_size;
+    distance_from_entry = 0;
+
+    map_random_7bit = map_random_get(tile.grid_offset()) & 0x7f;
+    figure_roam_direction = map_random_7bit & 6;
+    fire_proof = props.fire_proof;
+    damage_proof = props.damage_proof;
+    is_adjacent_to_water = map_terrain_is_adjacent_to_water(tile, size);
+    des_influence = props.desirability.to_influence();
+    crime_influence = props.crime.to_influence();
+
+    max_workers = props.laborers;
+    labor_category = props.labor_category;
+    fire_risk_increase = props.fire_risk;
+    collapse_risk_increase = props.damage_risk;
+
+    // unique data
+    input = params().input;
+    output = params().output;
+
+    setup_static_flags();
+
+    dcast()->on_create(orientation);
+}
+
+void building::setup_static_flags() {
+    set_flag(e_building_monument, params().flags.is_monument);
+    set_flag(e_building_extractor, params().flags.is_extractor);
+    set_flag(e_building_harvester, params().flags.is_harvester);
+    set_flag(e_building_farm, params().flags.is_farm);
+    set_flag(e_building_fort, params().flags.is_fort);
+    set_flag(e_building_education, params().flags.is_education);
+    set_flag(e_building_palace, params().flags.is_palace);
+    set_flag(e_building_temple, params().flags.is_temple);
+    set_flag(e_building_shrine, params().flags.is_shrine);
+    set_flag(e_building_tax_collector, params().flags.is_tax_collector);
+    set_flag(e_building_statue, params().flags.is_statue);
+    set_flag(e_building_administration, params().flags.is_administration);
+    set_flag(e_building_water_crossing, params().flags.is_water_crossing);
+    set_flag(e_building_infrastructure, params().flags.is_infrastructure);
+    set_flag(e_building_beautification, params().flags.is_beautification);
+    set_flag(e_building_guild, params().flags.is_guild);
+    set_flag(e_building_industry, params().flags.is_industry);
+    set_flag(e_building_workshop, params().flags.is_workshop);
+    set_flag(e_building_house, params().flags.is_house);
+    set_flag(e_building_wall, params().flags.is_wall);
+    set_flag(e_building_defense, params().flags.is_defense);
+    set_flag(e_building_temple_complex, params().flags.is_temple_complex);
+    set_flag(e_building_religion, params().flags.is_religion);
+    set_flag(e_building_military, params().flags.is_military);
+    set_flag(e_building_entertainment, params().flags.is_entertainment);
+    set_flag(e_building_food, params().flags.is_food);
+    set_flag(e_building_non_deletable, params().flags.non_deletable);
+}
+
+desirability_t::influence_t building_desirability_t::to_influence() const {
+    desirability_t::influence_t inf;
+    e_difficulty diff = game.difficulty();
+    auto approach_diff = [&] (auto &arr) { if (arr.empty()) return (int)0; return (int)arr[std::min<int>(diff, arr.size() - 1)]; };
+
+    inf.size = 0;
+    inf.value = approach_diff(value);
+    inf.step = approach_diff(step);
+    inf.step_size = approach_diff(step_size);
+    inf.range = approach_diff(range);
+
+    return inf;
+}
+
+crime_t::influence_t building_crime_t::to_influence() const {
+    crime_t::influence_t inf;
+    e_difficulty diff = game.difficulty();
+    auto approach_diff = [&] (auto &arr) { if (arr.empty()) return (int)0; return (int)arr[std::min<int>(diff, arr.size() - 1)]; };
+
+    inf.size = 0;
+    inf.value = approach_diff(value);
+    inf.step = approach_diff(step);
+    inf.step_size = approach_diff(step_size);
+    inf.range = approach_diff(range);
+
+    return inf;
+}
+
+void building_impl::acquire(e_building_type e, building &b) {
+    static_assert(sizeof(building_impl) <= sizeof(building::ptr_buffer_t));
+
+    if (building_ctors && e > BUILDING_NONE && e < BUILDING_MAX) {
+        if (auto *fn = (*building_ctors)[e]) {
+            if (fn(e, b)) {
+                return;
+            }
+        }
+    }
+
+    if (e > BUILDING_NONE && e < BUILDING_MAX) {
+        static std::array<bool, BUILDING_MAX> reported{};
+        if (!reported[e]) {
+            reported[e] = true;
+            logs::error("No building model registered for type %d, falling back to the base impl", (int)e);
+        }
+    }
+
+    b.acquire_impl<building_impl>();
+}
+
+bool building_impl::required_resource(e_resource r) const {
+    return base.input.resource == r || base.input.resource_second== r;
+}
+
+int building_impl::stored_amount(e_resource r) const {
+    if (r == RESOURCE_GOLD) {
+        return base.deben_storage;
+    }
+    return base.storage.get(r);
+}
+
+resource_vec building_impl::required_resources() const {
+    if (base.input.resource == RESOURCE_NONE && base.input.resource_second == RESOURCE_NONE) {
+        return {};
+    }
+
+    resource_vec r;
+    if (base.input.resource != RESOURCE_NONE) {
+        r.push_back(base.input.resource);
+    }
+
+    if (base.input.resource_second != RESOURCE_NONE) {
+        r.push_back(base.input.resource_second);
+    }
+
+    return r;
+}
+
+metainfo building_impl::get_info() const {
+    const auto &metainfo = !current_params().meta_id.empty()
+                                ? base.get_info(current_params().meta_id)
+                                : current_params().meta;
+    return metainfo;
+}
+
+void building_impl::set_animation(const animation_t &anim) {
+    base.anim.setup(anim);
+}
+
+void building_impl::set_slot_animation(int slot, const xstring &key) {
+    if (slot < 0 || slot >= (int)base.anims.size()) {
+        return;
+    }
+    base.anims[slot] = anim(key);
+}
+
+bool building_impl::add_overlay(const xstring &name) {
+    if (name.empty() || has_overlay(name)) {
+        return false;
+    }
+
+    const auto &defs = current_params().overlay_anims;
+    auto it = defs.find(name);
+    if (it == defs.end()) {
+        return false;
+    }
+
+    const e_resource resource = it->second.resource;
+    if (resource != RESOURCE_NONE) {
+        auto &list = base.overlay_anims;
+        list.erase(std::remove_if(list.begin(), list.end(),
+                                  [resource](const building_overlay_anim &ov) {
+                                      return ov.resource == resource;
+                                  }),
+                   list.end());
+    }
+
+    if (base.overlay_anims.size() >= base.overlay_anims.capacity()) {
+        return false;
+    }
+
+    base.overlay_anims.push_back(it->second);
+    return true;
+}
+
+void building_impl::remove_overlay(const xstring &name) {
+    auto &list = base.overlay_anims;
+    for (auto it = list.begin(); it != list.end(); ++it) {
+        if (it->key == name) {
+            list.erase(it);
+            return;
+        }
+    }
+}
+
+bool building_impl::has_overlay(const xstring &name) const {
+    for (const auto &ov : base.overlay_anims) {
+        if (ov.key == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void building_impl::seed_default_overlays() {
+    base.overlay_anims.clear();
+    for (const auto &kv : current_params().overlay_anims) {
+        if (kv.second.default_active) {
+            add_overlay(kv.first);
+        }
+    }
+}
+
+void building_impl::draw_overlay_anims(painter &ctx, vec2i point, color color_mask) const {
+    for (const auto &ov : base.overlay_anims) {
+        const int img = ov.first_img();
+        if (img <= 0) {
+            continue;
+        }
+
+        int amount = 0;
+        if (ov.resource != RESOURCE_NONE) {
+            const int units = (int)ceil((float)stored_amount(ov.resource) / 100.0f);
+            if (ov.stack) {
+                amount = units;
+                if (amount <= 0) {
+                    continue;
+                }
+            } else {
+                amount = units - 1;
+                if (amount < 0) {
+                    continue;
+                }
+            }
+        } else if (ov.stack) {
+            amount = 1;
+        }
+
+        if (ov.stack) {
+            const int stacks = std::min(amount, (int)ov.max_count);
+            vec2i pos = ov.pos;
+            for (int i = 0; i < stacks; ++i) {
+                auto &command = ImageDraw::create_subcommand(ctx, render_command_t::ert_generic);
+                command.image_id = img;
+                command.pixel = point + pos;
+                command.mask = color_mask;
+                pos += ov.step;
+            }
+        } else {
+            int frame = amount;
+            if (ov.max_frames > 0) {
+                frame = std::min(frame, (int)ov.max_frames - 1);
+            }
+            frame = std::min(frame, (int)ov.max_count);
+            auto &command = ImageDraw::create_subcommand(ctx, render_command_t::ert_generic);
+            command.image_id = img + frame;
+            command.pixel = point + ov.pos;
+            command.mask = color_mask;
+        }
+    }
+}
+
+xstring building_impl::get_sound() {
+    return snd::get_building_info_sound(type());
+}
+
+const int building_static_params::base_img() const { return first_img(animkeys().base); }
+
+void building_static_params::for_each(handler f) {
+    if (building_impl_params) {
+        for (const auto& p: *building_impl_params) {
+            if (p) {
+                f(*p);
+            }
+        }
+    }
+}
+
+void building_static_params::register_model(e_building_type e, const building_static_params &p) {
+    if (!building_impl_params) {
+        building_impl_params = new std::array<const building_static_params *, BUILDING_MAX>();
+        std::fill(building_impl_params->begin(), building_impl_params->end(), nullptr);
+    }
+    (*building_impl_params)[e] = &p;
+}
+
+void building_static_params::unregister_model(e_building_type e) {
+    if (building_impl_params && e > BUILDING_NONE && e < BUILDING_MAX) {
+        (*building_impl_params)[e] = nullptr;
+    }
+}
+
+const building_static_params &building_static_params::get(e_building_type e) {
+    if (!building_impl_params || e < BUILDING_NONE || e >= BUILDING_MAX) {
+        return building_static_params::dummy;
+    }
+    auto p = (*building_impl_params)[e];
+    return (p == nullptr) ? building_static_params::dummy : *p;
+}
+
+building_static_params &building_static_params::ref(e_building_type e) {
+    auto *cfg = building_impl_params->at(e);
+    verify_no_crash(cfg);
+    return *const_cast<building_static_params *>(cfg);
+}
+
+const building_impl *building::dcast() const {
+    if (!_ptr) {
+        building_impl::acquire(type, const_cast<building&>(*this));
+    }
+
+    verify_no_crash(!!_ptr);
+    return _ptr;
+}
+
+building_impl *building::dcast() {
+    if (!_ptr) {
+        building_impl::acquire(type, *this);
+    }
+
+    verify_no_crash(!!_ptr);
+    return _ptr;
+}
+
+const building* building::main() const {
+    OZZY_PROFILER_SECTION(_, "building_main")
+
+    if (prev_part_building_id <= 0) {
+        return this;
+    }
+
+    // Large stepped pyramid is 20×20 / 2×2 = 100 parts; grand is 144. The old
+    // guard of 99 made late parts (SE corner) fall through to building_get(0),
+    // so get_bricks_image picked the wrong corner sprite.
+    const building* b = this;
+    for (int guard = 0; guard < (int)MAX_BUILDINGS; guard++) {
+        if (b->prev_part_building_id <= 0) {
+            return b;
+        }
+        b = building_get(b->prev_part_building_id);
+    }
+
+    return building_get(0);
+}
+
+building* building::main() {
+    return const_cast<building*>(static_cast<const building*>(this)->main());
+}
+
+building* building::top_xy() {
+    building* top = main();
+    building* b = top;
+    for (int guard = 0; guard < (int)MAX_BUILDINGS && b; guard++) {
+        if (b->tile.x() < top->tile.x()
+            || (b->tile.x() == top->tile.x() && b->tile.y() < top->tile.y())) {
+            top = b;
+        }
+        b = b->has_next() ? b->next() : nullptr;
+    }
+    return top;
+}
+
+bool building::is_main() {
+    return (prev_part_building_id == 0);
+}
+
+void building::reset_slot(building_id slot_id) {
+    this->~building();
+    // Members without an initializer were zero in the OG records. Value-initialization zeroes them
+    // before the constructor runs; a memset between the destructor and placement new is a store to
+    // dead storage, which GCC's lifetime DSE drops (stale next_part_building_id etc. survived).
+    new (this) building();
+    id = slot_id;
+}
+
+void building::clear_impl() {
+    memset(&_ptr_buffer, 0, sizeof(ptr_buffer_t));
+    _ptr = nullptr;
+}
+
+void building::reset_impl() {
+    _ptr = nullptr;
+}
+
+xstring building::get_sound() {
+    return snd::get_building_info_sound(type);
+}
+
+void building::clear_related_data() {
+    if (storage_id) {
+        building_storage_delete(storage_id);
+        storage_id = 0;
+    }
+
+    if (type == BUILDING_DISTRIBUTION_CENTER_UNUSED) {
+        city_buildings_remove_distribution_center(this);
+    }
+
+    if (type == BUILDING_RESERVED_TRIUMPHAL_ARCH_56) {
+        city_buildings_remove_triumphal_obelisk();
+    }
+
+    // Flat view raised set: drop this id and main id (parts share main).
+    if (id > 0) {
+        city_flat_erase_raised(id);
+        if (const building *m = main()) {
+            if (m->id > 0 && m->id != id) {
+                city_flat_erase_raised(m->id);
+            }
+        }
+    }
+
+    dcast()->on_destroy();
+    g_recorded_paths.building_clear(id);
+    clear_impl();
+}
+
+e_overlay building::get_overlay() const {
+    return const_cast<building*>(this)->dcast()->get_overlay();
+}
+
+bool building::is_floodplain_farm() {
+    return is_farm() && map_terrain_is(tile, TERRAIN_FLOODPLAIN);
+}
+
+bool building::is_deletable() const {
+    if (get_flag(e_building_non_deletable)) {
+        return false;
+    }
+    const building_impl *impl = dcast();
+    return !impl || impl->allow_demolish();
+}
+
+bool building::is_monument() const {
+    switch (type) {
+    case BUILDING_SPHINX:
+    case BUILDING_SMALL_OBELISK:
+    case BUILDING_LARGE_OBELISK:
+    case BUILDING_MAUSOLEUM:
+    case BUILDING_ALEXANDRIA_LIBRARY:
+    case BUILDING_CAESAREUM:
+    case BUILDING_PHAROS_LIGHTHOUSE:
+    case BUILDING_SMALL_ROYAL_TOMB:
+    case BUILDING_ABU_SIMBEL:
+    case BUILDING_MEDIUM_ROYAL_TOMB:
+    case BUILDING_LARGE_ROYAL_TOMB:
+    case BUILDING_GRAND_ROYAL_TOMB:
+    case BUILDING_SUN_TEMPLE:
+        return true;
+
+    default:
+        return get_flag(e_building_monument);
+    }
+}
+
+void building::draw_usable_paths(painter &ctx) {
+    dcast()->draw_usable_paths(ctx);
+}
+
+int building::stored_amount(e_resource res) const {
+    building *b = (building *)this;
+    return b->dcast()->stored_amount(res);
+}
+
+int building::need_resource_amount(e_resource resource) const {
+    verify_no_crash(resource != RESOURCE_NONE);
+    return max_storage_amount(resource) - stored_amount(resource);
+}
+
+bool building::need_resource(e_resource resource) const {
+    return ((building*)this)->dcast()->required_resource(resource);
+}
+
+int building::max_storage_amount(e_resource resource) const {
+    const auto &params = building_static_params::get(type);
+    if (params.max_storage_amount > 0) {
+        return params.max_storage_amount;
+    }
+    return 200; // default value
+}
+
+bool building::workshop_has_resources() {
+    verify_no_crash(is_workshop());
+    bool has_second_material = true;
+    if (input.resource_second != RESOURCE_NONE) {
+        has_second_material = (stored_amount(input.resource_second) >= 100);
+    }
+
+    bool hase_first_resource = (stored_amount(input.resource) >= 100);
+    return has_second_material && hase_first_resource;
+}
+
+void building::force_damage(e_damage_type type, int16_t value) {
+    const bool valid = (state == BUILDING_STATE_VALID || state == BUILDING_STATE_MOTHBALLED);
+    if (!valid) {
+        return;
+    }
+
+    switch (type) {
+    case e_damage_fire: fire_risk += value; break;
+    case e_damage_collapse: collapse_risk += value; break;
+    case e_damage_enemy: structure_damage += value; break;
+    default:
+        structure_damage += value;
+        break;
+    }
+}
+
+void building::destroy_by_collapse() {
+    verify_no_crash(is_main());
+
+    events::emit(event_collase_damage{ id });
+
+    destroy_reason = e_destroy_collapse;
+    state = BUILDING_STATE_RUBBLE;
+    city_flat_erase_raised(id);
+    dcast()->on_before_collapse();
+    map_building_tiles_set_rubble(id, tile, size);
+    figure_create_explosion_cloud(tile, size);
+    destroy_linked_parts(false);
+    g_sound.play_effect(SOUND_EFFECT_EXPLOSION);
+}
+
+void building::destroy_by_enemy() {
+    verify_no_crash(is_main());
+
+    events::emit(event_collase_damage{ id });
+
+    destroy_reason = e_destroy_enemy;
+    state = BUILDING_STATE_RUBBLE;
+    city_flat_erase_raised(id);
+    dcast()->on_before_collapse();
+    map_building_tiles_set_rubble(id, tile, size);
+    figure_create_explosion_cloud(tile, size);
+    destroy_linked_parts(false);
+    g_sound.play_effect(SOUND_EFFECT_EXPLOSION);
+}
+
+void building::destroy_by_flooded() {
+    verify_no_crash(is_main());
+
+    events::emit(event_flooded_damage{ id });
+
+    destroy_reason = e_destroy_flooded;
+    state = BUILDING_STATE_RUBBLE;
+    city_flat_erase_raised(id);
+    dcast()->on_before_flooded();
+    map_building_tiles_set_rubble(id, tile, size);
+    destroy_linked_parts(false);
+    g_sound.play_effect(SOUND_EFFECT_FLOODED);
+}
+
+void building::destroy_on_fire_impl(bool plagued) {
+    game_undo_disable();
+    fire_risk = 0;
+    collapse_risk = 0;
+
+    events::emit(event_fire_damage{ id });
+
+    //int was_tent = b->house_size && b->data.house.level <= HOUSE_STURDY_HUT;
+    state = BUILDING_STATE_DELETED_BY_GAME;
+    output.resource = RESOURCE_NONE;
+    output.resource_second = RESOURCE_NONE;
+    distance_from_entry = 0;
+    clear_related_data();
+
+    int waterside_building = 0;
+    if (type == BUILDING_DOCK || type == BUILDING_DOCK_UP || type == BUILDING_FISHING_WHARF || type == BUILDING_SHIPWRIGHT) {
+        waterside_building = 1;
+    }
+
+    map_building_tiles_remove(id, tile);
+    unsigned int rand_int = random_short();
+
+    grid_area varea = map_grid_get_area(tile, size, 0);
+    map_grid_area_foreach(varea, [plagued] (tile2i tile) {
+        if (map_terrain_is(tile, TERRAIN_WATER)) {
+            return;
+        }
+
+        // FIXME: possible can't render image & fire animation
+        building *ruin = building_create(BUILDING_BURNING_RUIN, tile, 0);
+        ruin->has_plague = plagued;
+    });
+
+    if (waterside_building) {
+        map_routing_update_water();
+    }
+}
+
+void building::destroy_by_fire() {
+    verify_no_crash(is_main());
+
+    destroy_on_fire_impl(false);
+    destroy_linked_parts(true);
+    g_sound.play_effect(SOUND_EFFECT_EXPLOSION);
+}
+
+void building::destroy_linked_parts(bool on_fire) {
+    building *part = this;
+    for (int i = 0; i < (int)MAX_BUILDINGS; i++) {
+        if (part->prev_part_building_id <= 0) {
+            break;
+        }
+
+        int part_id = part->prev_part_building_id;
+        part = building_get(part_id);
+        if (on_fire) {
+            part->destroy_on_fire_impl(false);
+        } else {
+            map_building_tiles_set_rubble(part_id, part->tile, part->size);
+            part->state = BUILDING_STATE_RUBBLE;
+        }
+    }
+
+    part = this;
+    for (int i = 0; i < (int)MAX_BUILDINGS; i++) {
+        part = part->next();
+        if (part->id <= 0) {
+            break;
+        }
+
+        if (on_fire) {
+            part->destroy_on_fire_impl(false);
+        } else {
+            map_building_tiles_set_rubble(part->id, part->tile, part->size);
+            part->state = BUILDING_STATE_RUBBLE;
+        }
+    }
+}
+
+void building::mark_plague(int days) {
+    verify_no_crash(is_main());
+    disease_days = days;
+    has_plague = true;
+}
+
+bool building::is_ajacent_tile(tile2i t) const {
+    grid_area area = map_grid_get_area(tile, size, 1);
+    return area.contains(t);
+}
+
+const building_static_params &building::params() const {
+    return building_static_params::get(type);
+}
+
+xstring building::cls_name() const {
+    const auto &params = building_static_params::get(type);
+    if (!params.info_title_id.empty()) {
+        return params.info_title_id;
+    }
+
+    const auto &m = params.meta;
+    return ui::str(m.text_id, 0);
+}
+
+tile2i building::access_tile() {
+    return dcast()->access_tile();
+}
+
+int building::worker_percentage() const {
+    return calc_percentage<int>(num_workers, max_workers);
+}
+
+bool building::has_figure(int i, figure *f) {
+    return has_figure(i, f->id);
+}
+
+bool building::has_figure_of_type(int i, e_figure_type _type) {
+    // seatrch through all the figures if index is -1
+    if (i == -1) {
+        bool has_any = false;
+        for (int slot = 0; slot < max_figures; slot++) {
+            if (get_figure(slot)->type == _type) {
+                has_any = true;
+            }
+        }
+
+        return has_any;
+    }
+
+    verify_no_crash(i >= 0 && i < (int)max_figures);
+    if (i < 0 || i >= (int)max_figures) {
+        return false;
+    }
+    return (get_figure(i)->type == _type);
+}
+
+int building::get_figure_slot(figure *f) {
+    // search through all the slots, check if figure matches
+    for (int i = 0; i < max_figures; i++) {
+        if (has_figure(i, f)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void building::set_figure(int i, int figure_id) {
+    verify_no_crash(i >= 0 && i < (int)max_figures);
+    if (i < 0 || i >= (int)max_figures) {
+        return;
+    }
+    figure_ids[i] = figure_id;
+}
+
+void building::set_figure(int i, figure *f) {
+    set_figure(i, f ? f->id : 0);
+}
+
+void building::remove_figure(int i) {
+    set_figure(i, 0);
+}
+
+void building::remove_figure_by_id(int id) {
+    for (auto &fid : figure_ids) {
+        if (fid == id) {
+            fid = 0;
+        }
+    }
+}
+
+figure *building::get_figure(int i) const {
+    return ::figure_get(get_figure_id(i));
+}
+
+bool building::has_figure(int i, int figure_id) const {
+    // seatrch through all the figures if index is -1
+    if (i == -1) {
+        verify_no_crash(figure_id > 0);
+        for (int slot = 0; slot < max_figures; slot++) {
+            figure* f = this->get_figure(slot);
+            if (f->id == figure_id) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    verify_no_crash(i >= 0 && i < (int)max_figures);
+    if (i < 0 || i >= (int)max_figures) {
+        return false;
+    }
+
+    figure *f = this->get_figure(i);
+    if (figure_id == -1) {
+        return f->id > 0;
+    }
+
+    return (f->id == figure_id);
+}
+
+///////////////
+
+int building::mothball_toggle() {
+    if (state == BUILDING_STATE_VALID) {
+        state = BUILDING_STATE_MOTHBALLED;
+        num_workers = 0;
+    } else if (state == BUILDING_STATE_MOTHBALLED) {
+        state = BUILDING_STATE_VALID;
+    }
+
+    return state;
+}

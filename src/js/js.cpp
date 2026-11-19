@@ -1,0 +1,1203 @@
+#include "js.h"
+
+#include "content/dir.h"
+#include "core/log.h"
+#include "core/profiler.h"
+#include "graphics/window.h"
+#include "js/js_constants.h"
+#include "js/js_defines.h"
+#include "js/js_folder_notifier.h"
+#include "js/js_game.h"
+#include "graphics/elements/panel.h"
+#include "mujs/mujs.h"
+#include "mujs/jsi.h"
+#include "mujs/jsvalue.h"
+#include "mujs/jscompile.h"
+#include "platform/arguments.h"
+#include "platform/platform.h"
+#include "core/interlocked.h"
+#include "core/variant.h"
+#include "core/bstring.h"
+#include "core/system_time.h"
+#include "content/mods.h"
+#include "scenario/scenario.h"
+#include "game/mission.h"
+#include "game/game.h"
+#include "dev/debug.h"
+#if defined(GAME_PLATFORM_ANDROID)
+#include "graphics/elements/lang_text.h"
+#endif
+
+#include "js/js_debugger.h"
+#include "js/js_self_tests.h"
+
+#if defined(GAME_PLATFORM_ANDROID)
+#include "platform/android/android.h"
+#endif
+
+#include <filesystem>
+#include <new>
+#include <cstdlib>
+#include <cstring>
+#include <memory_resource>
+#include <unordered_set>
+
+#if defined(GAME_PLATFORM_LINUX)
+#include <linux/limits.h>
+#include <malloc.h>
+#elif defined(GAME_PLATFORM_MACOSX)
+#include <sys/syslimits.h>
+#include <malloc/malloc.h>
+#elif defined(GAME_PLATFORM_ANDROID)
+#include <malloc.h>
+#endif
+
+struct {
+    const size_t FRAME_ALLOC_BUFFER_SIZE = 256 * 1024;
+    svector<vfs::path, 4> scripts_folders;
+    hvector<vfs::path, 16> files2load;
+    std::unordered_set<std::string> queued_files;
+    std::unordered_set<std::string> loaded_files;
+    int have_error;
+    bool reset_requested = false;
+    bool requeue_mods = false;
+    uint32_t generation = 0;
+    bstring256 error_str;
+    js_State *J;
+    char *frame_alloc_buffer = nullptr;
+    std::pmr::monotonic_buffer_resource frame_alloc_ctx;
+} vm;
+
+namespace
+{
+    volatile std::uint64_t g_mujs_heap_bytes = 0;
+
+    void mujs_heap_add_bytes(size_t n)
+    {
+        threading::xchgadd(&g_mujs_heap_bytes, static_cast<std::uint64_t>(n));
+    }
+
+    void mujs_heap_sub_bytes(size_t n)
+    {
+        threading::xchgadd(&g_mujs_heap_bytes, static_cast<std::uint64_t>(0 - static_cast<std::uint64_t>(n)));
+    }
+
+    size_t mujs_malloc_block_size(void *ptr)
+    {
+        if (!ptr) {
+            return 0;
+        }
+#if defined(GAME_PLATFORM_WIN)
+        return _msize(ptr);
+#elif defined(GAME_PLATFORM_MACOSX)
+        return malloc_size(ptr);
+#elif defined(GAME_PLATFORM_LINUX) || defined(GAME_PLATFORM_ANDROID)
+        return malloc_usable_size(ptr);
+#else
+        return 0;
+#endif
+    }
+} // namespace
+
+uint64_t js_mujs_heap_bytes()
+{
+    return g_mujs_heap_bytes;
+}
+
+void js_reset_vm_state();
+
+declare_console_command_p(reload_scripts){
+    out.println("Reloading JavaScript VM from scratch...");
+
+    mission_id_t missionid(g_scenario.campaign_scenario_id);
+
+    js_vm_setup();
+
+    bool reloaded = js_vm_sync(missionid.value());
+    out.println(reloaded ? "JavaScript VM reloaded successfully!" : "JavaScript VM reloaded (no files to sync)");
+}
+
+declare_console_command_p(js_debugger){
+    const bstring128 subcmd = args.next_str();
+
+    if (subcmd == "start") {
+        const int port = args.next_int(4711);
+        if (g_mujs_debugger.is_running()) {
+            out.printf("JS Debugger is already running on port %d\n", g_mujs_debugger.port());
+        } else {
+            g_mujs_debugger.start(vm.J, port);
+            out.printf("JS Debugger started — attach VSCode on localhost:%d (type: mujs)\n", port);
+        }
+    } else if (subcmd == "stop") {
+        if (!g_mujs_debugger.is_running()) {
+            out.println("JS Debugger is not running");
+        } else {
+            g_mujs_debugger.stop();
+            out.println("JS Debugger stopped");
+        }
+    } else if (subcmd == "status") {
+        if (g_mujs_debugger.is_running()) {
+            out.printf("JS Debugger: running on port %d\n", g_mujs_debugger.port());
+        } else {
+            out.println("JS Debugger: stopped");
+        }
+    } else if (subcmd == "verbose") {
+        const bool enable = (args.next_str() != "off");
+        g_mujs_debugger.set_verbose(enable);
+        out.printf("JS Debugger verbose trace: %s\n", enable ? "ON" : "OFF");
+        out.println("(each JS line will be logged — use 'js_debugger verbose off' to stop)");
+    } else {
+        out.println("Usage: js_debugger <start [port]|stop|status|verbose [on|off]>");
+        out.println("  start [port]  — start DAP server (default port 4711)");
+        out.println("  stop          — stop DAP server, resume game if paused");
+        out.println("  status        — show current state");
+        out.println("  verbose [off] — log every JS line (diagnosis for missing breakpoints)");
+    }
+}
+
+static js_StringNode property_stackTrace = js_intern("stackTrace");
+
+static void js_vm_log_stacktrace(js_State *J) {
+    // Try to get stack trace from error object if it's an Error
+    if (J->isobject(-1)) {
+        if (J->hasproperty(-1, property_stackTrace)) {
+            J->getproperty(-1, property_stackTrace);
+            if (J->isstring(-1)) {
+                auto stack_trace = js_tostring(J, -1);
+                logs::info("!!! Stack trace: %s", stack_trace->value.c_str());
+                js_pop(J, 1);
+                return;
+            }
+            js_pop(J, 1);
+        }
+    }
+
+    // Fallback: try to get stack trace from current state
+    // Access internal trace array (this requires accessing internal structure)
+    // Note: This is implementation-dependent and may break if mujs internals change
+    if (J && J->tracetop >= 0) {
+        logs::info("!!! Call stack:");
+        for (int n = J->tracetop; n >= 0; --n) {
+            const char *name = J->trace[n].name;
+            const char *file = J->trace[n].file;
+            int line = J->trace[n].line;
+            if (line > 0) {
+                if (name && name[0]) {
+                    logs::info("!!!   at %s (%s:%d)", name, file ? file : "<unknown>", line);
+                } else {
+                    logs::info("!!!   at %s:%d", file ? file : "<unknown>", line);
+                }
+            } else {
+                logs::info("!!!   at %s (%s)", name ? name : "<anonymous>", file ? file : "<unknown>");
+            }
+        }
+    }
+}
+
+// Helper function to dump stack values for debugging
+static void js_vm_dump_stack(js_State *J) {
+    int stack_size = J->gettop();
+    logs::info("!!! ==================================================");
+    logs::info("!!! Stack Dump (size: %d):", stack_size);
+    logs::info("!!! ==================================================");
+
+    if (stack_size == 0) {
+        logs::info("!!!   <empty stack>");
+        logs::info("!!! ==================================================");
+        return;
+    }
+
+    int items_to_show = stack_size < 10 ? stack_size : 10;
+
+    for (int i = 0; i < items_to_show; i++) {
+        int idx = i - stack_size; // Convert to negative index
+        bstring256 value_desc;
+
+        if (J->isundefined(idx)) {
+            value_desc = "undefined";
+        } else if (J->isnull(idx)) {
+            value_desc = "null";
+        } else if (J->isboolean(idx)) {
+            value_desc.printf("boolean: %s", js_toboolean(J, idx) ? "true" : "false");
+        } else if (J->isnumber(idx)) {
+            value_desc.printf("number: %g", js_tonumber(J, idx));
+        } else if (J->isstring(idx)) {
+            auto str = js_tostring(J, idx);
+            if (str->value.length() > 50) {
+                value_desc.printf("string: \"%.50s...\"", str->value.c_str());
+            } else {
+                value_desc.printf("string: \"%s\"", str->value.c_str());
+            }
+        } else if (J->isobject(idx)) {
+            if (J->isarray(idx)) {
+                value_desc.printf("array (length: %d)", js_getlength(J, idx));
+            } else if (J->iscallable(idx)) {
+                value_desc = "function";
+            } else {
+                // Try to get some info about the object
+                int prop_count = 0;
+                bstring256 props_preview;
+
+                // Save stack state
+                int save_top = J->gettop();
+
+                // Try to iterate first few properties
+                js_pushiterator(J, idx, 0);
+                js_StringNode prop_name;
+                while (prop_count < 3 && (prop_name = js_nextiterator(J, -1)) != NULL) {
+                    if (prop_count > 0) {
+                        props_preview.append(", ");
+                    }
+                    props_preview.append(prop_name->value.c_str());
+                    prop_count++;
+                }
+                js_pop(J, 1); // Remove iterator
+
+                // Restore stack state
+                while (J->gettop() > save_top) {
+                    js_pop(J, 1);
+                }
+
+                if (prop_count > 0) {
+                    value_desc.printf("object {%s, ...}", props_preview.c_str());
+                } else {
+                    value_desc = "object {}";
+                }
+            }
+        } else {
+            value_desc = "<unknown type>";
+        }
+
+        logs::info("!!!   [%d]: %s", i, value_desc.c_str());
+    }
+
+    if (stack_size > 10) {
+        logs::info("!!!   ... (%d more items not shown)", stack_size - 10);
+    }
+    logs::info("!!! ==================================================");
+}
+
+static js_StringNode property_name = js_intern("name");
+static js_StringNode property_message = js_intern("message");
+
+xstring js_toxstring(js_State* J, int idx) {
+    if (!J->isstring(idx)) {
+        return {};
+    }
+
+    js_StringNode id = js_tostring(J, idx);
+    xstring result;
+    result._set(id);
+    return result;
+}
+
+int js_vm_trypcall(js_State *J, int params) {
+    int ok = js_vm_trypcall_keep_result(J, params);
+    if (ok) {
+        js_pop(J, 1);
+    }
+    return ok;
+}
+
+int js_vm_trypcall_keep_result(js_State *J, int params) {
+    if (vm.have_error) {
+        return 0;
+    }
+
+    int error = J->pcall(params);
+    if (error) {
+        vm.have_error = 1;
+        auto error_msg = js_tostring(J, -1);
+
+        // Log error type if it's an Error object
+        if (J->isobject(-1)) {
+            if (J->hasproperty(-1, property_name)) {
+                J->getproperty(-1, property_name);
+                auto error_name = js_tostring(J, -1);
+                pcstr en = js_strnode_cstr(error_name);
+                logs::info("!!! Error type: %s", en && en[0] ? en : "<unknown>");
+                js_pop(J, 1);
+            }
+        }
+
+        // Log full error message (MuJS now provides detailed context)
+        const char *cur_symbol = error_msg->value.c_str();
+        const char *start_str = cur_symbol;
+        bstring256 error_msg_copy;
+        while (*cur_symbol) {
+            if (*cur_symbol != '\n') {
+                cur_symbol++;
+                continue;
+            }
+
+            error_msg_copy.printf("%.*s", cur_symbol - start_str, start_str);
+            start_str = cur_symbol + 1;
+            cur_symbol += 2;
+            logs::info("!!! %s", error_msg_copy.c_str());
+        }
+        logs::info("!!! %s", start_str);
+
+        // Log stack trace
+        js_vm_log_stacktrace(J);
+
+        // Dump stack values for additional debugging info
+        js_vm_dump_stack(J);
+
+        vm.error_str = error_msg_copy;
+
+        // An error thrown from a mod's code drops that mod (VM rebuild without it) instead of
+        // stopping every JS call until the next rebuild.
+        xstring owner = mods_owner_of_script(error_msg->value.c_str());
+        if (owner.empty() && J->isobject(-1) && J->hasproperty(-1, property_stackTrace)) {
+            J->getproperty(-1, property_stackTrace);
+            if (J->isstring(-1)) {
+                owner = mods_owner_of_script(js_tostring(J, -1)->value.c_str());
+            }
+            js_pop(J, 1);
+        }
+        if (!owner.empty()) {
+            bstring256 reason;
+            pcstr msg = error_msg->value.c_str();
+            pcstr eol = strchr(msg, '\n');
+            reason.printf("%.*s", eol ? (int)(eol - msg) : (int)strlen(msg), msg);
+            mods_mark_broken(owner, reason.c_str());
+            vm.have_error = 0;
+        }
+
+        js_pop(J, 1);
+        return 0;
+    }
+
+    return 1;
+}
+
+bool js_vm_have_error() {
+    return vm.have_error;
+}
+
+void js_vm_reset_error() {
+    vm.have_error = 0;
+}
+
+bool js_vm_global_is_callable(js_State *J, const char *name) {
+    if (!J || !name) {
+        return false;
+    }
+    js_getglobal(J, name);
+    bool ok = J->iscallable(-1);
+    js_pop(J, 1);
+    return ok;
+}
+
+int js_vm_stack_depth_if_idle() {
+    if (!vm.J) {
+        return 0;
+    }
+    if (vm.J->bot != 0) {
+        return -1;
+    }
+    return vm.J->gettop();
+}
+
+int js_vm_force_idle_stack() {
+    const int depth = js_vm_stack_depth_if_idle();
+    if (depth <= 0) {
+        return 0;
+    }
+    js_pop(vm.J, depth);
+    return depth;
+}
+
+static void copy_js_value_text(js_State *J, js_Value *v, char *out, size_t outsz) {
+    if (!out || !outsz) {
+        return;
+    }
+    out[0] = '\0';
+    if (!v) {
+        return;
+    }
+    switch (v->type) {
+    case JS_TSHRSTR:
+        snprintf(out, outsz, "%s", js_strnode_cstr(v->u.shrstr));
+        return;
+    default:
+        break;
+    }
+    snprintf(out, outsz, "%s", js_strnode_cstr(jsV_tostring(J, v)));
+}
+
+/** Own properties only; enumeration list stays valid when AA-tree lookup is wrong for a key. */
+static js_Property *find_own_prop_by_name_cstr(js_Object *o, pcstr key) {
+    for (js_Property *p = o->head; p; p = p->next) {
+        pcstr pn = js_strnode_cstr(p->name);
+        if (pn && !strcmp(pn, key)) {
+            return p;
+        }
+    }
+    return nullptr;
+}
+
+/** js_ploadstring failed; stack[-1] is the thrown value. Read Error name/message without invoking toString. */
+static void js_vm_log_script_parse_or_compile_failure(js_State *J, pcstr path_label) {
+    char buf[768];
+    buf[0] = '\0';
+
+    if (J->gettop() > 0) {
+        js_Value *topv = js_tovalue(J, -1);
+        if (topv->type == JS_TOBJECT && topv->u.object->type == JS_CERROR) {
+            char namebuf[96];
+            char msgbuf[640];
+            namebuf[0] = '\0';
+            msgbuf[0] = '\0';
+
+            js_Object *eo = topv->u.object;
+
+            if (js_Property *ref = find_own_prop_by_name_cstr(eo, "name")) {
+                if (!ref->getter) {
+                    copy_js_value_text(J, &ref->value, namebuf, sizeof namebuf);
+                }
+            }
+            if (!namebuf[0]) {
+                if (js_Property *ref = eo->vgetproperty(property_name)) {
+                    if (!ref->getter) {
+                        copy_js_value_text(J, &ref->value, namebuf, sizeof namebuf);
+                    }
+                }
+            }
+
+            if (js_Property *ref = find_own_prop_by_name_cstr(eo, "message")) {
+                if (!ref->getter) {
+                    copy_js_value_text(J, &ref->value, msgbuf, sizeof msgbuf);
+                }
+            }
+            if (!msgbuf[0]) {
+                if (js_Property *ref = eo->vgetproperty(property_message)) {
+                    if (!ref->getter) {
+                        copy_js_value_text(J, &ref->value, msgbuf, sizeof msgbuf);
+                    }
+                }
+            }
+            if (!msgbuf[0]) {
+                if (js_Property *ref = find_own_prop_by_name_cstr(eo, "stackTrace")) {
+                    if (!ref->getter) {
+                        copy_js_value_text(J, &ref->value, msgbuf, sizeof msgbuf);
+                    }
+                }
+            }
+
+            if (msgbuf[0]) {
+                if (namebuf[0]) {
+                    snprintf(buf, sizeof buf, "%s: %s", namebuf, msgbuf);
+                } else {
+                    snprintf(buf, sizeof buf, "%s", msgbuf);
+                }
+            } else if (namebuf[0]) {
+                snprintf(buf, sizeof buf, "%s", namebuf);
+            }
+        }
+
+        if (!buf[0]) {
+            js_StringNode s = js_tostring(J, -1);
+            snprintf(buf, sizeof buf, "%s", js_strnode_cstr(s));
+            if (!buf[0]) {
+                snprintf(buf, sizeof buf, "unknown error");
+            }
+        }
+
+        js_pop(J, 1);
+    } else {
+        snprintf(buf, sizeof buf, "unknown error");
+    }
+
+    logs::info("!!! Script load failed (%s): %s", path_label, buf);
+}
+
+int js_vm_load_file_and_exec(pcstr path) {
+    if (!path || !*path) {
+        return 0;
+    }
+
+#if defined(GAME_PLATFORM_ANDROID)
+    if (strcmp(path, ":localization_base_en.js") == 0) {
+        if (lang_android_load_localization_base_en_direct(path)) {
+            logs::info("Loaded localization base directly on Android: %s", path);
+            return 1;
+        }
+    }
+#endif
+
+#if defined(GAME_PLATFORM_ANDROID)
+    const bool prefer_internal_script = (*path == ':');
+#else
+    const bool prefer_internal_script = false;
+#endif
+
+#if defined(GAME_PLATFORM_ANDROID)
+    auto startup_log = [] (pcstr stage, pcstr detail) {
+        bstring1024 msg;
+        msg.printf("Startup: %s %s", stage, detail ? detail : "");
+        android_append_startup_log(msg.c_str());
+    };
+#endif
+
+    pcstr npath = (*path == ':') ? (path + 1) : path;
+
+    if (!prefer_internal_script) {
+        auto r = mods_find_script(npath, true);
+        if (!!r.reader) {
+#if defined(GAME_PLATFORM_ANDROID)
+            startup_log("js open", r.path.c_str());
+#endif
+            const uint32_t fsize = r.reader->size();
+            std::string data = (char *)r.reader->data();
+
+#if defined(GAME_PLATFORM_ANDROID)
+            startup_log("js parse", r.path.c_str());
+#endif
+            int error = js_ploadstring(vm.J, r.path.c_str(), data.c_str());
+            if (error) {
+                js_vm_log_script_parse_or_compile_failure(vm.J, r.path.c_str());
+                mods_mark_broken(r.mod, r.path.c_str());
+#if defined(GAME_PLATFORM_ANDROID)
+                startup_log("js parse failed", r.path.c_str());
+#endif
+                return 0;
+            }
+
+#if defined(GAME_PLATFORM_ANDROID)
+            startup_log("js exec", r.path.c_str());
+#endif
+            js_getglobal(vm.J, "");
+            int ok = js_vm_trypcall(vm.J, 0);
+            if (!ok) {
+                mods_mark_broken(r.mod, r.path.c_str());
+                // The mod is dropped on the next rebuild; the rest of the queue still has to run.
+                js_vm_reset_error();
+                logs::error("Fatal error on call base after load %s", r.path.c_str());
+                if (vm.error_str.len() > 0) {
+                    logs::error("Error details: %s", vm.error_str.c_str());
+                } else if (vm.J->gettop() > 0) {
+                    auto error_msg = js_tostring(vm.J, -1);
+                    if (!error_msg->value.empty()) {
+                        logs::error("Error details: %s", error_msg->value.c_str());
+                    }
+                }
+#if defined(GAME_PLATFORM_ANDROID)
+                startup_log("js exec failed", r.path.c_str());
+#endif
+                return 0;
+            }
+#if defined(GAME_PLATFORM_ANDROID)
+            startup_log("js done", r.path.c_str());
+#endif
+            return 1;
+        }
+    }
+
+    vfs::path rpath = path;
+    vfs::reader reader;
+
+    if (prefer_internal_script) {
+        reader = vfs::file_open(path, "rt");
+        if (reader) {
+            rpath = path;
+        }
+    }
+
+    if (!vm.scripts_folders.empty()) {
+        if (!reader) {
+            rpath = js_vm_get_absolute_path(npath);
+        }
+    }
+
+#if defined(GAME_PLATFORM_ANDROID)
+    startup_log("js open", rpath.c_str());
+#endif
+    if (!reader) {
+        reader = vfs::file_open(rpath, "rt");
+    }
+    if (!reader && !prefer_internal_script) {
+        reader = vfs::file_open(path, "rt");
+    }
+
+    if (!reader) {
+        logs::info("!!! Cant find script at %s", rpath.c_str());
+#if defined(GAME_PLATFORM_ANDROID)
+        startup_log("js open failed", rpath.c_str());
+#endif
+        return 0;
+    }
+
+    const uint32_t fsize = reader->size();
+    std::string data = (char *)reader->data();
+
+#if defined(GAME_PLATFORM_ANDROID)
+    startup_log("js parse", rpath.c_str());
+#endif
+    int error = js_ploadstring(vm.J, rpath, data.c_str());
+    if (error) {
+        js_vm_log_script_parse_or_compile_failure(vm.J, rpath.c_str());
+#if defined(GAME_PLATFORM_ANDROID)
+        startup_log("js parse failed", rpath.c_str());
+#endif
+        return 0;
+    }
+
+#if defined(GAME_PLATFORM_ANDROID)
+    startup_log("js exec", rpath.c_str());
+#endif
+    js_getglobal(vm.J, "");
+    int ok = js_vm_trypcall(vm.J, 0);
+    if (!ok) {
+        logs::error("Fatal error on call base after load %s", path);
+        if (vm.error_str.len() > 0) {
+            logs::error("Error details: %s", vm.error_str.c_str());
+        } else if (vm.J->gettop() > 0) {
+            auto error_msg = js_tostring(vm.J, -1);
+            if (!error_msg->value.empty()) {
+                logs::error("Error details: %s", js_strnode_cstr(error_msg));
+            }
+        }
+        //js_pop(internal_J, 1);
+#if defined(GAME_PLATFORM_ANDROID)
+        startup_log("js exec failed", rpath.c_str());
+#endif
+        return 0;
+    }
+#if defined(GAME_PLATFORM_ANDROID)
+    startup_log("js done", rpath.c_str());
+#endif
+    return 1;
+}
+
+js_State *js_vm_state() {
+    return vm.J;
+}
+
+void js_vm_shutdown() {
+    if (!vm.J) {
+        return;
+    }
+    js_freestate(vm.J);
+    vm.J = nullptr;
+}
+
+namespace {
+    std::string js_vm_file_key(pcstr path) {
+        return path ? std::string(path) : std::string();
+    }
+
+    void js_vm_queue_file(pcstr path, bool allow_reload = false) {
+        if (!path || !*path) {
+            return;
+        }
+
+        const std::string key = js_vm_file_key(path);
+        if (key.empty()) {
+            return;
+        }
+
+        if (vm.queued_files.find(key) != vm.queued_files.end()) {
+            return;
+        }
+
+        if (!allow_reload && vm.loaded_files.find(key) != vm.loaded_files.end()) {
+            return;
+        }
+
+        vm.files2load.push_back(vfs::path(path));
+        vm.queued_files.insert(key);
+    }
+}
+
+bool js_vm_sync(const xstring &mission_id) {
+    // A requested rebuild waits for an idle VM: freeing js_State under a running JS call crashes.
+    const bool reset_now = vm.reset_requested && js_vm_stack_depth_if_idle() >= 0;
+    if (vm.files2load.empty() && !reset_now) {
+        return false;
+    }
+
+    if (vm.have_error || reset_now) {
+        js_reset_vm_state();
+    }
+
+    const int nfiles = (int)vm.files2load.size();
+    bstring512 files_summary;
+    for (int i = 0; i < nfiles; i++) {
+        if (i > 0) {
+            files_summary.append(", ");
+        }
+        // Keep the summary short for the log line.
+        if (files_summary.len() > 400) {
+            files_summary.append("…");
+            break;
+        }
+        files_summary.append(vm.files2load[i].c_str());
+    }
+    const time_millis t0 = time_get_millis();
+
+    // Iterate by index so newly appended imports (from js_game_import) are also processed.
+    // Mod scripts go last, after every built-in they may patch has been defined.
+    for (int i = 0;; i++) {
+        if (i >= (int)vm.files2load.size()) {
+            if (!vm.requeue_mods) {
+                break;
+            }
+            vm.requeue_mods = false;
+            mods_queue_enabled_scripts();
+            if (i >= (int)vm.files2load.size()) {
+                break;
+            }
+        }
+        const std::string key = js_vm_file_key(vm.files2load[i].c_str());
+        vm.queued_files.erase(key);
+        logs::info("JS: script reloaded %s", vm.files2load[i].c_str());
+#if defined(GAME_PLATFORM_ANDROID)
+        bstring1024 startup_message;
+        startup_message.printf("Startup: js_vm_sync %d/%d %s", i + 1, vm.files2load.size(), vm.files2load[i].c_str());
+        android_append_startup_log(startup_message.c_str());
+#endif
+        js_vm_load_file_and_exec(vm.files2load[i]);
+        if (!key.empty()) {
+            vm.loaded_files.insert(key);
+        }
+    }
+
+    vm.files2load.clear();
+    vm.queued_files.clear();
+
+    // Only clear values *this* sync pushed (relative to entry depth). Absolute
+    // pop-to-zero is unsafe when js_vm_sync runs nested under a JS→C call
+    // (BOT != 0); at frame_end BOT is 0 and baseline is the idle top.
+    const int stack_baseline = vm.J ? vm.J->gettop() : 0;
+
+    js_register_game_handlers(mission_id);
+    js_register_entity_systems();
+
+    if (vm.J) {
+        const int top = vm.J->gettop();
+        if (top > stack_baseline) {
+            logs::info("JS: clearing leftover stack before config refresh (+%d)", top - stack_baseline);
+            js_pop(vm.J, top - stack_baseline);
+        }
+    }
+
+    config::refresh(vm.J);
+    archive_check::flush();
+
+    if (vm.J) {
+        const int top = vm.J->gettop();
+        if (top > stack_baseline) {
+            logs::info("JS: clearing leftover stack after config refresh (+%d)", top - stack_baseline);
+            js_pop(vm.J, top - stack_baseline);
+        }
+    }
+
+    const unsigned elapsed_ms = (unsigned)(time_get_millis() - t0);
+    logs::info("JS: vm_sync done files=%d (%s) refresh=full elapsed_ms=%u", nfiles, files_summary.c_str(),
+               elapsed_ms);
+
+    vm.have_error = 0;
+    return true;
+}
+
+void js_vm_reload_file(pcstr path) {
+    js_vm_queue_file(path, true);
+}
+
+void js_vm_request_reset() {
+    vm.reset_requested = true;
+}
+
+uint32_t js_vm_generation() {
+    return vm.generation;
+}
+
+int js_vm_exec_function_args(pcstr funcname, const char *szTypes, ...) {
+    if (vm.have_error)
+        return 0;
+    int i, ok, savetop;
+    char msg[2] = { 0, 0 };
+    va_list vl;
+
+    if (vm.J == 0)
+        return 1;
+
+    //log_info("script-if:// exec function ", funcname, 0);
+
+    savetop = vm.J->gettop();
+    js_getglobal(vm.J, funcname);
+    js_pushnull(vm.J);
+
+    //  szTypes is the last argument specified; you must access
+    //  all others using the variable-argument macros.
+    va_start( vl, szTypes );
+
+    // Step through the list.
+    for( i = 0; szTypes[i] != '\0'; ++i ) {
+        switch( szTypes[i] ) {   // Type to expect.
+            case 'i':
+                js_pushnumber(vm.J, va_arg(vl, int));
+                break;
+            case 'f':
+                js_pushnumber(vm.J, va_arg(vl, double));
+                break;
+            case 'c':
+                msg[0] = va_arg(vl, int);
+                vm.J->pushstring(msg);
+                break;
+            case 's':
+                vm.J->pushstring(va_arg(vl, char *));
+                break;
+
+            default:
+                js_pushnull(vm.J);
+                logs::info("!!! Undefined value for js.pcall engine_js_push when find ");
+                break;
+        }
+    }
+    va_end( vl );
+
+    ok = js_vm_trypcall(vm.J, (int)strlen(szTypes));
+    if (!ok) {
+        logs::error("Fatal error on call function %s", funcname);
+        if (vm.error_str.len() > 0) {
+            logs::error("Error details: %s", vm.error_str.c_str());
+        } else if (vm.J->gettop() > 0) {
+            auto error_msg = js_tostring(vm.J, -1);
+            if (!error_msg->value.empty()) {
+                logs::error("Error details: %s", error_msg->value.c_str());
+            }
+        }
+        while (vm.J->gettop() > savetop) {
+            js_pop(vm.J, 1);
+        }
+        return 0;
+    }
+
+    if (vm.J->gettop() != savetop) {
+        logs::info("STACK grow for %s [%d]", funcname, vm.J->gettop());
+        while (vm.J->gettop() > savetop) {
+            js_pop(vm.J, 1);
+        }
+    }
+    return ok;
+}
+
+int js_vm_exec_function(pcstr funcname) {
+    return js_vm_exec_function_args(funcname, "");
+}
+
+void js_vm_load_module(js_State *J) {
+    auto scriptName = js_tostring(J, 1);
+
+    js_vm_queue_file(scriptName->value.c_str());
+}
+
+void js_game_panic(js_State *J) {
+    logs::info("JSE !!! Uncaught exception: %s", js_strnode_cstr(js_tostring(J, -1)));
+}
+
+int js_game_import(js_State *J, pcstr filename) {
+    bstring256 import_path(":", filename, ".js");
+    js_vm_queue_file(import_path.c_str());
+    return 0;
+}
+
+static void js_native_debugger_is_running(js_State *J) {
+    js_pushboolean(J, g_mujs_debugger.is_running());
+}
+
+static void js_native_debugger_port(js_State *J) {
+    js_pushnumber(J, (double)g_mujs_debugger.port());
+}
+
+static void js_native_debugger_start(js_State *J) {
+#if defined(GAME_PLATFORM_ANDROID)
+    logs::warn("JS Debugger is not supported on Android");
+    js_pushboolean(J, false);
+    return;
+#else
+    int port = 4711;
+    if (J->gettop() >= 1 && J->isnumber(1)) {
+        port = (int)js_tonumber(J, 1);
+    }
+    if (g_mujs_debugger.is_running()) {
+        js_pushboolean(J, false);
+        return;
+    }
+    g_mujs_debugger.start(J, port);
+    js_pushboolean(J, true);
+#endif
+}
+
+static void js_native_debugger_stop(js_State *J) {
+    if (!g_mujs_debugger.is_running()) {
+        js_pushboolean(J, false);
+        return;
+    }
+    g_mujs_debugger.stop();
+    js_pushboolean(J, true);
+}
+
+/** Property lookup on the global object (undefined if missing). Safe in frame zone — no eval/try. */
+static void js_native_global_get(js_State *J) {
+    if (!J->isstring(1) && !J->iscnumber(1) && !J->isnumber(1)) {
+        J->pushundefined();
+        return;
+    }
+    const char *name = js_strnode_cstr(js_tostring(J, 1));
+    if (!name || !*name) {
+        J->pushundefined();
+        return;
+    }
+    js_getglobal(J, name);
+}
+
+void js_register_vm_functions(js_State *J) {
+    REGISTER_GLOBAL_FUNCTION(J, js_vm_load_module, "include", 1);
+    REGISTER_GLOBAL_FUNCTION(J, js_native_global_get, "__js_global", 1);
+    REGISTER_GLOBAL_FUNCTION(J, js_native_debugger_is_running, "__js_debugger_is_running", 0);
+    REGISTER_GLOBAL_FUNCTION(J, js_native_debugger_port, "__js_debugger_port", 0);
+    REGISTER_GLOBAL_FUNCTION(J, js_native_debugger_start, "__js_debugger_start", 1);
+    REGISTER_GLOBAL_FUNCTION(J, js_native_debugger_stop, "__js_debugger_stop", 0);
+}
+
+#if defined(TRACY_MEMORY_ENABLE)
+extern bool TracyProfilerAvailable;
+#endif
+void *js_alloc_wrapper(void *actx, void *ptr, int size) {
+    (void)actx;
+
+    if (size == 0) {
+        if (ptr) {
+            const size_t freed = mujs_malloc_block_size(ptr);
+            mujs_heap_sub_bytes(freed);
+#if defined(TRACY_MEMORY_ENABLE)
+            if (TracyProfilerAvailable) {
+                TracyFreeS(ptr, 20);
+            }
+#endif
+            free(ptr);
+        }
+        return nullptr;
+    }
+
+    if (!ptr) {
+        void *new_ptr = malloc((size_t)size);
+#if defined(TRACY_MEMORY_ENABLE)
+        if (new_ptr && TracyProfilerAvailable) {
+            TracyAllocS(new_ptr, size, 20);
+        }
+#endif
+        if (new_ptr) {
+            mujs_heap_add_bytes(mujs_malloc_block_size(new_ptr));
+        }
+        return new_ptr;
+    }
+
+    void *old_ptr = ptr;
+    const size_t old_sz = mujs_malloc_block_size(old_ptr);
+    void *new_ptr = realloc(old_ptr, (size_t)size);
+
+#if defined(TRACY_MEMORY_ENABLE)
+    if (TracyProfilerAvailable && new_ptr) {
+        TracyFreeS(old_ptr, 20);
+        TracyAllocS(new_ptr, size, 20);
+    }
+#endif
+
+    if (!new_ptr && size > 0) {
+        return nullptr;
+    }
+
+    mujs_heap_sub_bytes(old_sz);
+    if (new_ptr) {
+        mujs_heap_add_bytes(mujs_malloc_block_size(new_ptr));
+    }
+
+    return new_ptr;
+}
+
+void *js_frame_alloc_wrapper(void *actx, void *ptr, int size) {
+    if (size == 0) {
+        (void)actx;
+        (void)ptr;
+        return nullptr;
+    }
+
+    if (!ptr) {
+        size_t alloc_size = static_cast<size_t>(size);
+        return vm.frame_alloc_ctx.allocate(alloc_size, alignof(std::max_align_t));
+    }
+
+    void *new_ptr = js_frame_alloc_wrapper(actx, nullptr, size);
+    return new_ptr;
+}
+
+static void js_vm_frame_arena_release(void * /*actx*/) {
+    vm.frame_alloc_ctx.release();
+}
+
+void js_reset_vm_state() {
+    if (vm.J) {
+        js_freestate(vm.J);
+        vm.J = NULL;
+    }
+
+    vm.files2load.clear();
+    vm.queued_files.clear();
+    vm.loaded_files.clear();
+    vm.have_error = 0;
+    vm.reset_requested = false;
+    vm.requeue_mods = true;
+    ++vm.generation;
+    vm.frame_alloc_ctx.release();
+
+    vm.J = js_newstate(js_alloc_wrapper, nullptr, JS_STRICT);
+    js_set_framealloc(vm.J, js_frame_alloc_wrapper, nullptr);
+    js_set_frame_arena_release(vm.J, js_vm_frame_arena_release, nullptr);
+    js_atpanic(vm.J, js_game_panic);
+    js_registerimport(vm.J, js_game_import);
+    js_registeremit(vm.J, js_game_emit);
+
+    js_register_vm_functions(vm.J);
+    js_register_debug_props_functions(vm.J);
+    js_register_game_functions(vm.J);
+    js_register_sound_object(vm.J);
+    js_register_mission_objects(vm.J);
+    js_register_empire_objects(vm.J);
+    js_register_city_objects(vm.J);
+    js_register_building(vm.J);
+    js_register_building_params(vm.J);
+    js_register_figure(vm.J);
+    js_register_figure_trade_proto(vm.J);
+    js_register_figure_transport_ship_proto(vm.J);
+    js_register_figure_warship_proto(vm.J);
+    js_register_figure_params(vm.J);
+    js_register_imperial_visible_request(vm.J);
+    js_register_house(vm.J);
+    js_register_enemy_army(vm.J);
+    js_register_temple_complex_building(vm.J);
+    js_register_storage_yard(vm.J);
+    js_register_dock(vm.J);
+    js_register_monument(vm.J);
+    js_register_ui_objects(vm.J);
+    //js_register_mouse_functions(vm.J);
+    //js_register_hotkey_functions(vm.J);
+    js_register_game_constants(vm.J);
+    js_register_game_handlers({});
+    js_register_menu(vm.J);
+
+    int ok = js_vm_load_file_and_exec(":modules.js");
+    // integral_test.js calls __test_* natives, which exist only under --integraltests;
+    // MuJS rejects calls to unregistered __ functions at compile time.
+    if (g_args.is_integral_tests()) {
+        js_game_import(vm.J, "integral_test");
+    }
+    if (ok) {
+        int stack_top = vm.J->gettop();
+        if (stack_top > 0) {
+            js_pop(vm.J, stack_top);
+        }
+    }
+    logs::info( "STACK state %d", vm.J->gettop());
+
+    // After a VM reset the js_State pointer changes — always re-register the hook.
+    // The hook itself is a no-op when the debugger server is not running.
+    g_mujs_debugger.update_state(vm.J);
+    js_setdebughook(vm.J, [](js_State *J, const char *file, int line, void *) {
+        g_mujs_debugger.on_line(J, file, line);
+    }, nullptr);
+
+    mujs_run_self_tests(vm.J);
+}
+
+void js_vm_frame_begin() {
+    if (!vm.J || vm.J->frame_zone_depth == 0) {
+        vm.frame_alloc_ctx.release();
+    }
+    if (vm.J && vm.J->gccounter > JS_GCLIMIT * 10) {
+        vm.J->gccounter = 0;
+        vm.J->gc(0);
+    }
+}
+
+void js_vm_frame_end() {
+    mission_id_t missionid(g_scenario.campaign_scenario_id);
+    if (js_vm_sync(missionid.value())) {
+        game.reload_objects();
+    }
+}
+
+void js_vm_add_scripts_folder(vfs::path folder) {
+    vm.scripts_folders.push_back(folder);
+}
+
+vfs::path js_vm_get_absolute_path(vfs::path path) {
+#if defined(GAME_PLATFORM_WIN)
+    bool is_absolute_path = path.data()[1] == ':' && path.len() > 2;
+#else
+    bool is_absolute_path = path.data()[0] == '/' && path.len() > 1;
+#endif
+    if (is_absolute_path) {
+        return path;
+    }
+
+    vfs::path buffer;
+    for (const auto &folder : vm.scripts_folders) {
+        if (!!folder) {
+            vfs::path conpath(folder, "/", path);
+            if (g_args.is_logjsfiles()) {
+                logs::info("js:get_absolute_path %s", conpath.c_str());
+            }
+
+#if defined(GAME_PLATFORM_WIN)
+            pstr p = _fullpath(buffer, conpath, buffer.capacity);
+#elif defined(GAME_PLATFORM_LINUX) || defined(GAME_PLATFORM_MACOSX)
+            char resolved[PATH_MAX];
+            if (!realpath(conpath, resolved)) {
+                continue;
+            }
+            buffer = resolved;
+#elif defined(GAME_PLATFORM_ANDROID)
+            buffer = conpath;
+#endif
+            buffer.replace('\\', '/');
+
+            if (!vfs::file_exists(buffer.c_str())) {
+                continue;
+            }
+
+            return buffer;
+        }
+    }
+
+    buffer = vfs::content_path(path);
+    if (vfs::file_exists(buffer.c_str())) {
+        return buffer;
+    }
+
+    return path;
+}
+
+void js_vm_setup() {
+    vm.J = nullptr;
+    if (!vm.frame_alloc_buffer) {
+        vm.frame_alloc_buffer = (char*)malloc(vm.FRAME_ALLOC_BUFFER_SIZE);
+    }
+    vm.frame_alloc_ctx.~monotonic_buffer_resource();
+    new (&vm.frame_alloc_ctx)std::pmr::monotonic_buffer_resource( vm.frame_alloc_buffer,  vm.FRAME_ALLOC_BUFFER_SIZE, std::pmr::get_default_resource());
+    js_reset_vm_state();
+
+    vfs::path abspath = js_vm_get_absolute_path("");
+#if defined(GAME_PLATFORM_ANDROID)
+    logs::info("JS: skipping script directory watcher on Android for %s", abspath.c_str());
+#else
+    vfs::path modules_file(abspath, "/modules.js");
+    bool scripts_folder_exists = vfs::file_exists(modules_file.c_str());
+    if (scripts_folder_exists) {
+        js_vm_notifier_watch_directory_init(abspath);
+    }
+#endif
+}

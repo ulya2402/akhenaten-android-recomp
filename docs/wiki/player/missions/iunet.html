@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iunet — The Defense of Egypt — Akhenaten Wiki</title>
+  <link rel="stylesheet" href="../../../style.css" />
+  <style>
+    .mission-header-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; align-items: start; margin-bottom: 2rem; }
+    .mission-infobox { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0.9rem 1.1rem; }
+    .mission-infobox dl { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; margin: 0; }
+    .mission-infobox dt { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; padding-top: 0.1rem; }
+    .mission-infobox dd { margin: 0; font-size: 0.85rem; color: var(--text); }
+    .mission-infobox .funds-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .mission-infobox .funds-row span { font-size: 0.75rem; color: var(--text-muted); }
+    .mission-infobox .funds-row span strong { color: var(--text); }
+    .dev-section { margin-top: 2.5rem; }
+    .dev-section h2 { color: var(--text-muted); font-size: 1rem; letter-spacing: 0.04em; text-transform: uppercase; border-color: rgba(255,255,255,0.08); }
+    details { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.75rem; }
+    summary { padding: 0.7rem 1rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; color: var(--text); list-style: none; display: flex; align-items: center; gap: 0.6rem; user-select: none; }
+    summary::-webkit-details-marker { display: none; }
+    summary::before { content: "▶"; font-size: 0.6rem; color: var(--gold); transition: transform 0.15s; flex-shrink: 0; }
+    details[open] > summary::before { transform: rotate(90deg); }
+    details[open] > summary { border-bottom: 1px solid var(--border); }
+    .details-body { padding: 1rem 1.1rem; font-size: 0.85rem; line-height: 1.6; }
+    .details-body pre { background: #0a0905; border: 1px solid var(--border); border-radius: 3px; padding: 0.75rem 1rem; overflow-x: auto; font-size: 0.78rem; line-height: 1.55; margin: 0.6rem 0; }
+    .details-body pre code { color: #c8c0a8; }
+    .details-body .kw  { color: #c9a84c; }
+    .details-body .num { color: #9ecbff; }
+    .details-body .str { color: #7ec87e; }
+    .details-body .cmt { color: #5a5650; font-style: italic; }
+    .file-ref { display: inline-block; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.78rem; background: rgba(201,168,76,0.07); border: 1px solid rgba(201,168,76,0.2); border-radius: 2px; padding: 0.05rem 0.45rem; color: var(--gold); margin: 0 0.1rem; }
+    .msg-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+    .msg-table th, .msg-table td { padding: 0.3rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
+    .msg-table th { color: var(--text-muted); font-weight: normal; }
+    .msg-table code { font-size: 0.75rem; }
+    .event-list { list-style: none; padding: 0; margin: 0; }
+    .event-list li { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem 1rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); align-items: baseline; }
+    .event-list li:last-child { border-bottom: none; }
+    .event-list .ev-name { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.78rem; color: #d0a0e0; }
+    .event-list .ev-fn   { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.75rem; color: #8aabdc; }
+    .event-list .ev-desc { grid-column: 1 / -1; color: var(--text-muted); font-size: 0.8rem; padding-bottom: 0.2rem; }
+    .mission-nav { display: flex; justify-content: space-between; margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; }
+    .mission-nav a { color: var(--gold); }
+    .mission-nav .nav-prev::before { content: "← "; }
+    .mission-nav .nav-next::after  { content: " →"; }
+    .tutorial-step { display: flex; flex-direction: column; align-items: flex-start; gap: 0.3rem; margin-bottom: 1rem; }
+    .tutorial-step .step-tag { flex-shrink: 0; font-size: 0.7rem; font-family: 'Consolas', 'Courier New', monospace; background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.25); color: var(--gold); border-radius: 2px; padding: 0.1rem 0.4rem; white-space: nowrap; }
+    .game-quote { background: var(--surface); border-left: 3px solid var(--gold); padding: 0.9rem 1.1rem; margin: 1rem 0; font-style: italic; color: var(--text-muted); font-size: 0.9rem; line-height: 1.7; border-radius: 0 3px 3px 0; }
+    .game-quote p { margin: 0 0 0.6rem; }
+    .game-quote p:last-child { margin-bottom: 0; }
+    .objectives-list { list-style: none; padding: 0; margin: 0.75rem 0; }
+    .objectives-list li { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.3rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .objectives-list li:last-child { border-bottom: none; }
+    .obj-label { font-weight: 600; color: var(--text); min-width: 8rem; }
+    .obj-value { color: var(--text-muted); }
+    .deviation-note { background: rgba(201,120,76,0.08); border: 1px solid rgba(201,120,76,0.3); border-radius: 4px; padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--text-muted); margin: 0.75rem 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="../../../index.html" class="nav-logo">Akhenaten</a>
+      <ul>
+        <li><a href="../../../about.html">About</a></li>
+        <li><a href="../../../devblog.html">Devblog</a></li>
+        <li><a href="../../index.html" class="active">Wiki</a></li>
+        <li><a href="../../../screenshots.html">Screenshots</a></li>
+        <li><a href="../../../downloads.html">Downloads</a></li>
+        <li><a href="../../../contributors.html">Contributors</a></li>
+        <li><a href="../../../contact.html">Join us</a></li>
+        <li><a href="../../../reportbug.html">Report Bug</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="wiki-layout">
+    <aside class="wiki-sidebar">
+      <div class="wiki-sidebar-section">
+        <div class="wiki-sidebar-title"><a href="index.html">← All Missions</a></div>
+      </div>
+      <div class="wiki-sidebar-section">
+        <div class="wiki-sidebar-title">Old Kingdom — Khufu</div>
+        <ul>
+          <li><a href="iunet.html" class="active">16 · Iunet</a></li>
+          <li><a href="on.html">17 · On</a></li>
+          <li><a href="rostja.html">18 · Rostja</a></li>
+        </ul>
+      </div>
+      <div class="wiki-sidebar-section">
+        <div class="wiki-sidebar-title">On this page</div>
+        <ul>
+          <li><a href="#briefing">Briefing</a></li>
+          <li><a href="#objectives">Objectives</a></li>
+          <li><a href="#events">Scripted events</a></li>
+          <li><a href="#strategy">Strategy</a></li>
+          <li><a href="#buildings">Available buildings</a></li>
+          <li><a href="#dev">Developer reference</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <div class="wiki-content">
+      <div class="wiki-breadcrumb">
+        <a href="../../index.html">Wiki</a> /
+        <a href="../index.html">Player Guide</a> /
+        <a href="index.html">Missions</a> /
+        Iunet
+      </div>
+
+      <h1>Iunet <span style="color:var(--text-muted);font-weight:normal;font-size:0.65em">— The Defense of Egypt</span></h1>
+
+      <div class="mission-header-grid">
+        <div class="mission-infobox">
+          <dl>
+            <dt>Mission</dt>
+            <dd>16 of 38 — choice A of the Iunet / On pair</dd>
+            <dt>Era</dt>
+            <dd>Old Kingdom · Dynasty 4 · Pharaoh Khufu</dd>
+            <dt>Classical name</dt>
+            <dd>Dendera (Tentyris) — briefing popup uses "Dendera"</dd>
+            <dt>Starting funds</dt>
+            <dd>
+              <div class="funds-row">
+                <span><strong>Very Easy</strong> 20 000 Db</span>
+                <span><strong>Easy</strong> 13 300 Db</span>
+                <span><strong>Normal</strong> 10 000 Db (pak)</span>
+                <span><strong>Hard</strong> 6 700 Db</span>
+                <span><strong>Very Hard</strong> 5 300 Db</span>
+              </div>
+            </dd>
+            <dt>Debt interest</dt>
+            <dd>
+              <div class="funds-row">
+                <span><strong>Normal</strong> 8% (pak)</span>
+                <span><strong>Hard</strong> 10%</span>
+                <span><strong>Very Hard</strong> 12%</span>
+              </div>
+            </dd>
+            <dt>Deities</dt>
+            <dd>Ra · Seth · Bast (pak)</dd>
+            <dt>Trade</dt>
+            <dd>Buhen (land 480) · Selima (land 820) · Kerma (sea 870) · Dahshur (sea 620) · Byblos (sea 1400) — closed; Men-nefer unlock on fish ok; Abu unlock on meat ok</dd>
+            <dt>Previous mission</dt>
+            <dd><a href="north-dahshur.html">North Dahshur</a></dd>
+            <dt>Next mission</dt>
+            <dd>Rostja (18) — Iunet / On converge there</dd>
+            <dt>Status</dt>
+            <dd><span class="mission-badge badge-choice">Choice A</span> <span class="mission-badge badge-impl">Implemented</span></dd>
+          </dl>
+        </div>
+      </div>
+
+      <h2 id="briefing">Briefing</h2>
+      <p>History panel (<code>message_history_iunet</code>) and briefing popup (<code>message_mission_dendera</code>):</p>
+      <div class="game-quote">
+        <p>Pharaoh Khufu has taken the throne, and, as foretold by the seers of Horus and Ra, our people have already begun to suffer under his oppression. Khufu has ordered that a Royal Governor be dispatched at once to Iunet, to defend our land against Kushite invaders.</p>
+        <p>Iunet can support a small fishing industry. If the Kushites invade by water, the river may become unsafe for fishing boats, and shore areas may be better used to support a fleet of warships. If food becomes scarce, cattle may be raised for meat, though the herds require much straw for fodder — straw you will also need to make bricks for your mastaba.</p>
+        <p>The finest ivory may be obtained via Byblos, trading with Assyria and Ur. And Pharaoh has ordered countless quarries dug at On — it is rumored he plans a colossal building project on the plateau outside Rostja.</p>
+      </div>
+      <div class="deviation-note">
+        <strong>Pak vs briefing:</strong> scenario enemy is <strong>Hittite</strong> (<code>ENEMY_4_HITTITE</code>), not Kushite. Briefing text still mentions Kushites.
+      </div>
+
+      <h2 id="objectives">Objectives</h2>
+      <p>Goals match original campaign scenario 16.</p>
+      <ul class="objectives-list">
+        <li><span class="obj-label">Population</span><span class="obj-value">4 000 citizens</span></li>
+        <li><span class="obj-label">Culture rating</span><span class="obj-value">30</span></li>
+        <li><span class="obj-label">Prosperity rating</span><span class="obj-value">30</span></li>
+        <li><span class="obj-label">Monument rating</span><span class="obj-value">9 — one small mastaba (granite burial)</span></li>
+        <li><span class="obj-label">Kingdom rating</span><span class="obj-value">65</span></li>
+        <li><span class="obj-label">Housing level</span><span class="obj-value">16</span></li>
+      </ul>
+
+      <h2 id="events">Scripted events</h2>
+      <p>Full empire redefine verified against original campaign scenario 16 (2026-07-26). Empire id <strong>1</strong>. Enemy <strong>Hittite</strong>. Favour Pharaoh <strong>15→45→30→30</strong>.</p>
+      <div class="tutorial-step"><span class="step-tag">Year 1</span><span>Pharaoh <strong>fish ×4</strong> / 12 months → ok opens <strong>Men-nefer</strong> trade; refuse/late KR−10.</span></div>
+      <div class="tutorial-step"><span class="step-tag">Year 3 · month 2</span><span><strong>Meat ×2</strong> / 12 months → ok KR+10 then opens <strong>Abu</strong> trade; refuse −10; late −5 then Hittite×10 (if not already fired).</span></div>
+      <div class="tutorial-step"><span class="step-tag">Year 4</span><span>Hittite raid size <strong>10</strong>; clay flood (7% of pits).</span></div>
+      <div class="tutorial-step"><span class="step-tag">Year 5 · month 2</span><span><strong>Pottery ×15</strong> / 12 months.</span></div>
+      <div class="tutorial-step"><span class="step-tag">Year 5 · month 10</span><span>Hittite size <strong>20</strong>.</span></div>
+      <div class="tutorial-step"><span class="step-tag">Year 8</span><span>Hittite size <strong>32</strong>.</span></div>
+      <div class="tutorial-step"><span class="step-tag">Year 10 · month 5</span><span><strong>Limestone ×15</strong> → ok meat gift ×15; refuse KR−40 then <strong>Egyptian army ×24</strong>.</span></div>
+      <div class="tutorial-step"><span class="step-tag">Year 16 · month 10</span><span>Hittite size <strong>48</strong> → wipe KR+10 / flee KR−10.</span></div>
+      <div class="tutorial-step"><span class="step-tag">Favour collapse</span><span>At rating 0: Pharaoh army 15, then 45 → 30 → 30 with it.</span></div>
+
+      <h2 id="strategy">Strategy</h2>
+      <p>Population 4 000, housing 16, and escalating Hittite pressure around a single mastaba. Open Dahshur for straw; Byblos for luxury/timber.</p>
+      <h3>Phase 1 — Food</h3>
+      <p>Fishing for the year-1 fish ask; cattle for meat ×2. Import straw from Dahshur.</p>
+      <h3>Phase 2 — Mastaba and exports</h3>
+      <p>Granite quarry + gold mines; small mastaba rating 9. Pottery industry before y5.</p>
+      <h3>Phase 3 — Defense</h3>
+      <p>Hittite waves at y4 / y5m10 / y8 / y16. Keep walls, academy, and companies. Every Hittite wave comes by river from sea point <code>[79,49]</code> with warships; a lone warship sails in at y2m7.</p>
+      <h3>Tips</h3>
+      <ul>
+        <li>Do not let kingdom rating hit zero — favour chain is four waves.</li>
+        <li>Stock limestone before y10.</li>
+        <li>Bast temples are available (pak gods Ra/Seth/Bast only).</li>
+      </ul>
+
+      <h2 id="buildings">Available buildings</h2>
+      <p>All buildings are available from mission start. Religion: Ra, Seth, Bast (no Osiris/Ptah).</p>
+
+      <div class="dev-section">
+        <h2 id="dev">Developer reference</h2>
+        <p style="color:var(--text-muted);font-size:0.85rem">Paths relative to repository root.</p>
+        <details>
+          <summary>Mission script — <code>src/scripts/mission/m_016_iunet.js</code></summary>
+          <div class="details-body">
+            <pre><code><span class="kw">mission16</span> {
+  <span class="kw">player_rank</span> : <span class="num">6</span>
+  <span class="kw">next_mission</span> : <span class="num">18</span>
+  <span class="cmt">// funds Normal 10000 / loan 2500 / debt 8%</span>
+  <span class="cmt">// pop 4000, culture 30, prosperity 30, monuments 9, kingdom 65, housing 16</span>
+}</code></pre>
+            <p>Empire id <strong>1</strong> via <code>empire.set_id(1)</code>. Enemy <code>ENEMY_4_HITTITE</code>.</p>
+            <p>Raids: <code>mission16_raid_list</code> runs through <code>mission_raids_month</code> (<span class="file-ref">src/scripts/missions.js</span>) on the OG invasion cycle: the OG warnings with the invader&rsquo;s phrases from the event&rsquo;s month, the attack <code>months_initial</code> months later, the point rolled from the event&rsquo;s <code>location_fields</code>, its <code>on_completed</code> chain as it attacks; a recurring raid comes back its year plus the years since start later. i=3 ×0 with 1 warships announced y2m7 &rarr; attacks y3m4 · i=8 ×10 with 2 warships announced y4m0 &rarr; attacks y4m9 · i=12 ×20 with 4 warships announced y5m10 &rarr; attacks y6m7 · i=13 ×32 with 5 warships announced y8m0 &rarr; attacks y9m0 · i=17 ×48 with 8 warships announced y16m10 &rarr; attacks y18m4.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Event handlers — <code>m_016_iunet.js</code></summary>
+          <div class="details-body">
+            <ul class="event-list">
+              <li><span class="ev-name">event_mission_start</span><span class="ev-desc"><code>empire.set_id(1)</code>; Hittite; wire KR leaves.</span><span class="ev-fn">mission16_on_start</span></li>
+              <li><span class="ev-name">Requests</span><span class="ev-desc">fish×4 y1; meat×2 y3m2 (late→hittite×10); pottery×15 y5m2; limestone×15 y10m5.</span><span class="ev-fn">mission16_event_i0/i4/i10/i14_*</span></li>
+              <li><span class="ev-name">Request cleared</span><span class="ev-desc">limestone refuse→egypt×24; meat/pottery late→hittite×10 (<code>event_request_cleared</code>).</span><span class="ev-fn">mission16_on_request_cleared</span></li>
+              <li><span class="ev-name">Hittite + clay + favour</span><span class="ev-desc">size 10/20/32/48 (×48 bind KR±10); clay 7% y4m1; favour 15→45→30→30.</span><span class="ev-fn">mission16_event_i8/i12/i13/i17 / events[] favour</span></li>
+            </ul>
+          </div>
+        </details>
+
+        <details>
+          <summary>Game messages</summary>
+          <div class="details-body">
+            <table class="msg-table">
+              <thead><tr><th>Key</th><th>ID</th><th>When shown</th></tr></thead>
+              <tbody>
+                <tr><td><code>message_history_iunet</code></td><td>216</td><td>History briefing</td></tr>
+                <tr><td><code>message_mission_dendera</code></td><td>416</td><td><code>start_message</code> popup</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details>
+          <summary>Known deviations from the original (tracked)</summary>
+          <div class="details-body">
+            <ul>
+              <li><strong>Briefing “Kushite”</strong> vs pak <strong>Hittite</strong> enemy — pak wins.</li>
+              <li><strong>NEW_TRADE i=1/6</strong> — pak city=Iunet + ok=999/99 junk; remapped to Men-nefer (fish ok) / Abu (meat ok) with filled sells/buys.</li>
+              <li><strong>Invasion i=3 amount=0</strong> is OG&rsquo;s warship-only raid: 1 Hittite warship at y2m7, no soldiers (<code>mission16_event_i3_warships</code>).</li>
+              <li><strong>Egypt×24 on limestone refuse</strong> / <strong>Hittite×10 on meat|pottery late</strong> — JS via <code>event_request_cleared</code>; <code>EVENT_TYPE_INVASION</code> chain child still no-op. Smoke: <code>tests/170_iunet_request_outcomes.js</code> (B13a).</li>
+              <li><strong>Shared leaf 1011</strong> (pottery ok KR+10 ≡ Hittite×48 wipe) re-fires — engine clone-on-fire (B14). Smoke: <code>tests/177_shared_leaf_refire.js</code>.</li>
+              <li><strong>Orphan route 15</strong> / empty map_obj idx=9 skipped; Saqqara/Nekhen route 5/8 have no polyline.</li>
+              <li><strong>Sea invasions</strong> &mdash; OG sends a pak invasion with loc 9+ by sea from sea point loc&nbsp;&minus;&nbsp;9, with the event&rsquo;s <code>phrase_var</code> warships; the JS raid passes them as <code>via_sea</code> / <code>sea_point</code> / <code>warships</code>: Hittite i=3 ×0 / 1 warship, i=8 ×10 / 2, i=12 ×20 / 4, i=13 ×32 / 5, i=17 ×48 / 8 (loc 9 &rarr; sea[0]); Egypt i=16 ×24 / 6 (loc 10 &rarr; sea[1]).</li>
+              <li><strong>Favour</strong> — Kingdom army: at Kingdom rating 0 the engine sends the <code>EVENT_TRIGGER_BY_FAVOUR</code> invasion from <code>events[]</code> (<code>update_kingdom_favour</code>, <code>src/scenario/scenario_event_manager.cpp</code>): warnings for its <code>months_initial</code>, then the attack; its <code>on_completed_action</code> chain joins at the attack. Called off if the rating reaches 15 before it attacks; it can come again 12 months later. Chain pak i=19→20→21→22 (15 → 45 → 30 → 30); the three follow-up armies land when the first attacks.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+
+      <div class="mission-nav">
+        <a href="north-dahshur.html" class="nav-prev">15 · North Dahshur — The True Pyramid</a>
+        <a href="on.html" class="nav-next">17 · On — Ivory from the East</a>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>Akhenaten is an open-source, non-commercial project. All rights to Pharaoh, its mechanics and setting belong to their respective copyright owners.</p>
+    <p><a href="https://github.com/dalerank/Akhenaten" target="_blank">github.com/dalerank/Akhenaten</a></p>
+  </footer>
+  <script src="../../../lightbox.js"></script>
+</body>
+</html>

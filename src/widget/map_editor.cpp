@@ -1,0 +1,343 @@
+#include "map_editor.h"
+
+#include "editor/tool.h"
+#include "widget/widget_city.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/elements/menu.h"
+#include "graphics/view/view.h"
+#include "graphics/window.h"
+#include "grid/figure.h"
+#include "grid/grid.h"
+#include "grid/image.h"
+#include "grid/point.h"
+#include "grid/property.h"
+#include "input/scroll.h"
+#include "game/game_config.h"
+#include "game/game_events.h"
+#include "platform/renderer.h"
+#include "sound/sound_city.h"
+#include "sound/sound.h"
+#include "widget/city/tile_draw.h"
+#include "city/city_figures.h"
+#include "widget/map_editor_tool.h"
+#include "game/game.h"
+
+struct map_editor_data_t {
+    tile2i current_tile;
+    int selected_grid_offset;
+    int new_start_grid_offset;
+    int capture_input;
+};
+
+map_editor_data_t g_map_editor_data;
+
+static void draw_flags(vec2i pixel, tile2i point) {
+    painter ctx = game.painter();
+    int figure_id = map_figure_id_get(point);
+    while (figure_id) {
+        figure* f = figure_get(figure_id);
+        f->draw(ctx, 0);
+
+        if (figure_id != f->next_figure) {
+            figure_id = f->next_figure;
+        } else {
+            figure_id = 0;
+        }
+    }
+}
+
+// static void set_city_clip_rectangle(void) {
+//     int x, y, width, height;
+//     city_view_get_viewport(&x, &y, &width, &height);
+//     graphics_set_clip_rectangle(x, y, width, height);
+// }
+
+static void update_zoom_level() {
+    vec2i offset = g_camera.camera_position;
+    if (g_zoom.update_value(&offset)) {
+        g_camera.refresh_viewport();
+        g_camera.go_to_pixel(offset, true);
+        sound_city_decay_views();
+    }
+}
+
+void widget_map_editor_draw() {
+    painter ctx = game.painter();
+    auto &data = g_map_editor_data;
+    update_zoom_level();
+    set_render_scale(ctx, g_zoom.get_scale());
+    set_city_clip_rectangle(ctx);
+
+    g_screen_city.render_ctx.init();
+    map_render_clear();
+    ImageDraw::clear_render_commands();
+
+    g_camera.foreach_valid_map_tile(ctx,
+        [] (vec2i pixel, tile2i tile, painter &ctx) { g_screen_city.draw_isometric_flat(pixel, tile, ctx); }
+    );
+    g_screen_city.apply_water_frames();
+    g_camera.foreach_valid_map_tile(ctx,
+        [] (vec2i pixel, tile2i tile, painter &ctx) { g_screen_city.draw_isometric_terrain_height(pixel, tile, ctx); }
+    );
+    ImageDraw::apply_render_commands(ctx, "editor_draw_flat");
+
+    g_camera.foreach_valid_map_tile(ctx,
+        [] (vec2i pixel, tile2i tile, painter &ctx) { g_screen_city.draw_isometric_nonterrain_height(pixel, tile, ctx); }
+    );
+    ImageDraw::apply_render_commands(ctx, "editor_draw_height");
+
+    map_editor_tool_draw(ctx, data.current_tile);
+
+    graphics_reset_clip_rectangle();
+    set_render_scale(ctx, 1.0f);
+}
+
+static void update_city_view_coords(int x, int y, tile2i* tile) {
+    screen_tile screen = g_camera.pixel_to_screentile({x, y});
+    if (screen.x != -1 && screen.y != -1) {
+        *tile = g_camera.screen_to_tile(screen);
+        g_camera.set_selected_view_tile(screen);
+    } else {
+        *tile = tile2i::invalid;
+    }
+}
+
+static void scroll_map(const mouse* m) {
+    vec2i delta = g_scroll.get_delta(m, scroll_t::type::city);
+    if (delta.x || delta.y) {
+        g_camera.scroll(delta.x, delta.y);
+        sound_city_decay_views();
+    }
+}
+
+static int input_coords_in_map(int x, int y) {
+    vec2i view_pos, view_size;
+    view_pos = g_camera.offset;
+    view_size = g_camera.size_pixels;
+
+    x -= view_pos.x;
+    y -= view_pos.y;
+
+    return (x >= 0 && x < view_size.x && y >= 0 && y < view_size.y);
+}
+
+static void handle_touch_scroll(const touch_t * t) {
+    auto &data = g_map_editor_data;
+    if (editor_tool_is_active()) {
+        if (t->has_started) {
+            vec2i view_pos, view_size;
+            view_pos = g_camera.offset;
+            view_size = g_camera.size_pixels;
+            g_scroll.set_custom_margins(view_pos, view_size);
+        }
+        if (t->has_ended)
+            g_scroll.restore_margins();
+
+        return;
+    }
+    g_scroll.restore_margins();
+
+    if (!data.capture_input)
+        return;
+
+    int was_click = g_touch.latest()->was_click();
+    if (t->has_started || was_click) {
+        g_scroll.drag_start(scroll_t::drag_source::touch);
+        return;
+    }
+
+    if (!t->not_click())
+        return;
+
+    if (t->has_ended)
+        g_scroll.drag_end();
+}
+
+static void handle_touch_zoom(const touch_t * first, const touch_t * last) {
+    if (first->not_click())
+        g_zoom.handle_touch(first, last, g_zoom.get_percentage());
+
+    if (first->has_ended || last->has_ended)
+        g_zoom.end_touch();
+}
+
+static void handle_last_touch(void) {
+    const touch_t* last = g_touch.latest();
+    if (!last->in_use)
+        return;
+    if (last->was_click()) {
+        editor_tool_deactivate();
+        return;
+    }
+    if (last->not_click())
+        handle_touch_zoom(g_touch.earliest(), last);
+}
+
+static bool handle_cancel_construction_button(const touch_t * t) {
+    if (!editor_tool_is_active())
+        return false;
+
+    vec2i view_pos, view_size;
+    view_pos = g_camera.offset;
+    view_size = g_camera.size_pixels;
+
+    int box_size = 5 * 16;
+    view_size.x -= box_size;
+
+    if (t->current_point.x < view_size.x || t->current_point.x >= view_size.x + box_size || t->current_point.y < 24
+        || t->current_point.y >= 40 + box_size) {
+        return false;
+    }
+    editor_tool_deactivate();
+    return true;
+}
+
+static void handle_first_touch(tile2i tile) {
+    auto &data = g_map_editor_data;
+    const touch_t* first = g_touch.earliest();
+
+    if (first->was_click()) {
+        if (handle_cancel_construction_button(first))
+            return;
+    }
+
+    handle_touch_scroll(first);
+
+    if (!input_coords_in_map(first->current_point.x, first->current_point.y))
+        return;
+
+    if (editor_tool_is_updatable()) {
+        if (!editor_tool_is_in_use()) {
+            if (first->has_started) {
+                editor_tool_start_use(tile);
+                data.new_start_grid_offset = 0;
+            }
+        } else {
+            if (first->has_started) {
+                if (data.selected_grid_offset != tile.grid_offset())
+                    data.new_start_grid_offset = tile.grid_offset();
+            }
+            if (first->not_click() && data.new_start_grid_offset) {
+                data.new_start_grid_offset = 0;
+                data.selected_grid_offset = 0;
+                editor_tool_deactivate();
+                editor_tool_start_use(tile);
+            }
+            editor_tool_update_use(tile);
+            if (data.selected_grid_offset != tile.grid_offset())
+                data.selected_grid_offset = 0;
+
+            if (first->has_ended) {
+                if (data.selected_grid_offset == tile.grid_offset()) {
+                    editor_tool_end_use(tile);
+                    widget_map_editor_clear_current_tile();
+                    data.new_start_grid_offset = 0;
+                } else {
+                    data.selected_grid_offset = tile.grid_offset();
+                }
+            }
+        }
+        return;
+    }
+
+    if (editor_tool_is_brush()) {
+        if (first->has_started)
+            editor_tool_start_use(tile);
+
+        editor_tool_update_use(tile);
+        if (first->has_ended)
+            editor_tool_end_use(tile);
+
+        return;
+    }
+
+    if (
+      first->was_click() && first->has_ended && data.capture_input && data.selected_grid_offset == tile.grid_offset()) {
+        editor_tool_start_use(tile);
+        editor_tool_update_use(tile);
+        editor_tool_end_use(tile);
+        widget_map_editor_clear_current_tile();
+    } else if (first->has_ended)
+        data.selected_grid_offset = tile.grid_offset();
+}
+
+static void handle_touch(void) {
+    auto &data = g_map_editor_data;
+    const touch_t* first = g_touch.earliest();
+    if (!first->in_use) {
+        g_scroll.restore_margins();
+        return;
+    }
+
+    if (!editor_tool_is_in_use() || input_coords_in_map(first->current_point.x, first->current_point.y))
+        update_city_view_coords(first->current_point.x, first->current_point.y, &data.current_tile);
+
+    if (first->has_started && input_coords_in_map(first->current_point.x, first->current_point.y)) {
+        data.capture_input = true;
+        g_scroll.restore_margins();
+    }
+
+    handle_last_touch();
+    handle_first_touch(data.current_tile);
+
+    if (first->has_ended)
+        data.capture_input = false;
+}
+
+void widget_map_editor_handle_input(const mouse* m, const hotkeys* h) {
+    auto &data = g_map_editor_data;
+    scroll_map(m);
+
+    if (m->is_touch) {
+        g_zoom.handle_mouse(m);
+        handle_touch();
+    } else {
+        if (m->right.went_down && input_coords_in_map(m->x, m->y) && !editor_tool_is_active())
+            g_scroll.drag_start(scroll_t::drag_source::mouse);
+
+        if (m->right.went_up) {
+            if (!editor_tool_is_active()) {
+                int has_scrolled = g_scroll.drag_end();
+                if (!has_scrolled)
+                    editor_tool_deactivate();
+
+            } else {
+                editor_tool_deactivate();
+            }
+        }
+    }
+
+    if (h->escape_pressed) {
+        if (editor_tool_is_active())
+            editor_tool_deactivate();
+        else {
+            events::emit(event_exit_to_menu_requested{ 0 });
+        }
+        return;
+    }
+
+    update_city_view_coords(m->x, m->y, &data.current_tile);
+
+    if (!data.current_tile.grid_offset())
+        return;
+
+    if (m->left.went_down) {
+        if (!editor_tool_is_in_use())
+            editor_tool_start_use(data.current_tile);
+
+        editor_tool_update_use(data.current_tile);
+    } else if (m->left.is_down || editor_tool_is_in_use())
+        editor_tool_update_use(data.current_tile);
+
+    if (m->left.went_up) {
+        editor_tool_end_use(data.current_tile);
+        g_sound.play_effect(SOUND_EFFECT_BUILD);
+    }
+}
+
+void widget_map_editor_clear_current_tile(void) {
+    auto &data = g_map_editor_data;
+    data.selected_grid_offset = 0;
+    data.current_tile.set(0);
+}

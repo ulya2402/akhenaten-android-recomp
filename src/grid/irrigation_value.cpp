@@ -1,0 +1,227 @@
+#include "irrigation_value.h"
+#include "grid/irrigation_value_chunks.h"
+
+#include "building/building.h"
+#include "building/building_water_lift.h"
+#include "building/building_irrigation_ditch.h"
+#include "core/calc.h"
+#include "core/profiler.h"
+#include "game/game_config.h"
+#include "grid/basin.h"
+#include "grid/grid.h"
+#include "grid/ring.h"
+#include "grid/terrain.h"
+#include "grid/canals.h"
+#include "io/io_buffer.h"
+#include "scenario/map.h"
+#include "city/city.h"
+
+
+irrigation_value_t g_irrigation_value;
+
+namespace {
+
+bool irrigation_value_accepts_tile(uint16_t src_basin_id, int grid_offset) {
+    if (!game_features::gameplay_enhanced_flood_basins.to_bool()) {
+        return true;
+    }
+    return map_basin_id_at(grid_offset) == src_basin_id;
+}
+
+} // namespace
+
+void irrigation_value_t::add_irrigation_at_distance(tile2i tile, int size, int distance, int value) {
+    add_irrigation_at_distance(tile, size, distance, value, map_basin_id_at(tile));
+}
+
+void irrigation_value_t::add_irrigation_at_distance(tile2i tile, int size, int distance, int value, uint16_t src_basin_id) {
+    int partially_outside_map = 0;
+    int x = tile.x();
+    int y = tile.y();
+    if (x - distance < -1 || x + distance + size - 1 > scenario_map_data()->width) {
+        partially_outside_map = 1;
+    }
+
+    if (y - distance < -1 || y + distance + size - 1 > scenario_map_data()->height) {
+        partially_outside_map = 1;
+    }
+
+    int base_offset = MAP_OFFSET(x, y);
+    int start = map_ring_start(size, distance);
+    int end = map_ring_end(size, distance);
+
+    if (partially_outside_map) {
+        for (int i = start; i < end; i++) {
+            const ring_tile* ring_t = map_ring_tile(i);
+            if (map_ring_is_inside_map(x + ring_t->x, y + ring_t->y)) {
+                int grid_offset = base_offset + ring_t->grid_offset;
+                if (!irrigation_value_accepts_tile(src_basin_id, grid_offset)) {
+                    continue;
+                }
+                int current = map_grid_get(irrigation_value_grid_chunk::grid, grid_offset);
+                int new_value = std::max(current, value);
+                map_grid_set(irrigation_value_grid_chunk::grid, grid_offset, new_value);
+            }
+        }
+    } else {
+        for (int i = start; i < end; i++) {
+            const ring_tile* ring_t = map_ring_tile(i);
+            int grid_offset = base_offset + ring_t->grid_offset;
+            if (!irrigation_value_accepts_tile(src_basin_id, grid_offset)) {
+                continue;
+            }
+            int current = map_grid_get(irrigation_value_grid_chunk::grid, grid_offset);
+            int new_value = std::max(current, value);
+            map_grid_set(irrigation_value_grid_chunk::grid, grid_offset, new_value);
+        }
+    }
+}
+
+void irrigation_value_t::add_irrigation(tile2i tile, int size, int base_value, int range) {
+    if (size <= 0 || base_value <= 0) {
+        return;
+    }
+
+    const uint16_t src_basin_id = map_basin_id_at(tile);
+    range = std::min(range, 20); // reasonable max range
+    int distance = 1;
+    int current_value = base_value;
+    
+    // Add value at distance 0 (the building/canal itself)
+    for (int dy = 0; dy < size; dy++) {
+        for (int dx = 0; dx < size; dx++) {
+            tile2i t = tile.shifted(dx, dy);
+            if (map_ring_is_inside_map(t.x(), t.y())) {
+                int grid_offset = t.grid_offset();
+                if (!irrigation_value_accepts_tile(src_basin_id, grid_offset)) {
+                    continue;
+                }
+                int current = map_grid_get(irrigation_value_grid_chunk::grid, grid_offset);
+                int new_value = std::max(current, base_value);
+                map_grid_set(irrigation_value_grid_chunk::grid, grid_offset, new_value);
+            }
+        }
+    }
+    
+    // Spread to surrounding tiles, decreasing by 2 each distance
+    while (range > 0 && current_value > 0) {
+        add_irrigation_at_distance(tile, size, distance, current_value, src_basin_id);
+        distance++;
+        range--;
+        current_value -= 2;
+        if (current_value < 0) {
+            current_value = 0;
+        }
+    }
+}
+
+void irrigation_value_t::update_water_lifts() {
+    buildings_valid_do<building_water_lift>([this] (building_water_lift *water_lift) {
+        // Check if has workers and water access
+        if (water_lift->num_workers() <= 0) {
+            return;
+        }
+        
+        if (!water_lift->base.has_water_access) {
+            return;
+        }
+        
+        // Get base irrigation value from config
+        const auto &params = water_lift->current_params();
+        int base_value = params.base_irrigation_value;
+        if (base_value == 0) {
+            base_value = 20; // default value
+        }
+        
+        int range = params.irrigation_radius;
+        if (range == 0) {
+            range = 2; // default range
+        }
+        
+        add_irrigation(water_lift->tile(), params.building_size, base_value, range);
+    });
+}
+
+void irrigation_value_t::update_canals() {
+    // Get multiplier from irrigation_ditch config
+    const auto &ditch_params = building_static_params::get(BUILDING_IRRIGATION_DITCH);
+    int multiplier = 2; // default
+    // Cast to static_params (safe because we know it's irrigation_ditch)
+    const auto &ditch_static = static_cast<const building_irrigation_ditch::static_params&>(ditch_params);
+    multiplier = ditch_static.canal_irrigation_value_multiplier;
+    if (multiplier == 0) {
+        multiplier = 2; // default
+    }
+    
+    int grid_offset = scenario_map_data()->start_offset;
+    for (int y = 0; y < scenario_map_data()->height; y++, grid_offset += scenario_map_data()->border_size) {
+        for (int x = 0; x < scenario_map_data()->width; x++, grid_offset++) {
+            if (!map_terrain_is(grid_offset, TERRAIN_CANAL)) {
+                continue;
+            }
+
+            if (map_canal_at(grid_offset) <= 0) {
+                continue;
+            }
+
+            // Canals carry no water level (OG: wet or dry); a wet one spreads like a lift, over the OG radius 2.
+            constexpr int wet_canal_level = 16;
+            constexpr int range = 2;
+            const int base_value = wet_canal_level * multiplier;
+
+            tile2i tile(grid_offset);
+            add_irrigation(tile, 1, base_value, range);
+        }
+    }
+}
+
+void irrigation_value_t::clear_map() {
+    map_grid_clear(irrigation_value_grid_chunk::grid);
+}
+
+void irrigation_value_t::update() {
+    OZZY_PROFILER_FUNCTION();
+    clear_map();
+    update_water_lifts();
+    update_canals();
+}
+
+int irrigation_value_t::get(int grid_offset) {
+    return map_grid_get(irrigation_value_grid_chunk::grid, grid_offset);
+}
+
+int irrigation_value_t::get_max(tile2i tile, int size) {
+    if (size == 1) {
+        return map_grid_get(irrigation_value_grid_chunk::grid, tile.grid_offset());
+    }
+
+    int max = 0;
+    for (int dy = 0; dy < size; dy++) {
+        for (int dx = 0; dx < size; dx++) {
+            tile2i t = tile.shifted(dx, dy);
+            int value = map_grid_get(irrigation_value_grid_chunk::grid, t.grid_offset());
+            max = std::max(value, max);
+        }
+    }
+    return max;
+}
+
+int irrigation_value_t::get_avg(tile2i tile, int size) {
+    if (size == 1) {
+        return map_grid_get(irrigation_value_grid_chunk::grid, tile.grid_offset());
+    }
+    
+    grid_area area = map_grid_get_area(tile, size, size);
+
+    int summ = 0;
+    int count = 0;
+    for (int y = area.tmin_y, endy = area.tmax_y; y <= endy; y++) {
+        for (int x = area.tmin_x, endx = area.tmax_x; x <= endx; x++) {
+            int grid_offset = MAP_OFFSET(x, y);
+            summ += map_grid_get(irrigation_value_grid_chunk::grid, grid_offset);
+            count++;
+        }
+    }
+
+    return count > 0 ? summ / count : 0;
+}

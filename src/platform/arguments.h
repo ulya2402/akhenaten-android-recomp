@@ -1,0 +1,184 @@
+#pragma once
+
+#include "content/vfs.h"
+#include "core/core.h"
+#include "core/hvector.h"
+#include "core/variant.h"
+#include "city/constants.h"
+#include <optional>
+
+class Arguments;
+
+namespace arguments {
+    struct argument_result {
+        xstring name;
+        bvariant value;
+        int consumed_args;
+
+        argument_result() : consumed_args(1) {}
+        argument_result(const xstring& n, const bvariant& v, int consumed = 1)
+            : name(n), value(v), consumed_args(consumed) {}
+    };
+
+    struct argument_info {
+        xstring arg_name;
+        xstring description;
+
+        argument_info(const xstring& name, const xstring& desc)
+            : arg_name(name), description(desc) {}
+    };
+
+    using argument_handler_cb = std::optional<argument_result>(int argc, char** argv, int current_index);
+    struct ArgumentHandlerTag {};
+    using ArgumentHandler = FuncLinkedList<argument_handler_cb*, ArgumentHandlerTag>;
+    using ArgumentInfo = FuncLinkedList<argument_info*, ArgumentHandlerTag>;
+
+    /// Load configuration from the file (if exists)
+    /// @return true if configuration fil was found and loaded, false otherwise
+    bool load(Arguments &arguments);
+
+    /// Store configuration to the file system
+    void store(Arguments const &arguments);
+
+    /// Get all registered argument descriptions
+    /// @return vector of pairs (argument_name, description)
+    std::vector<std::pair<xstring, xstring>> get_argument_descriptions();
+}
+
+class Arguments {
+public:
+    static char const* usage();
+
+    [[nodiscard]] bool is_fullscreen() const { return !is("window", false); }
+    void set_fullscreen() { args_["window"] = bvariant(false); }
+
+    [[nodiscard]] bool use_sound() const { return is("sound", true); }
+    void set_use_sound(bool flag = true) { args_["sound"] = bvariant(flag); }
+
+    [[nodiscard]] bool is_window_mode() const { return is("window", false); }
+    void set_window_mode(bool flag = true) { args_["window"] = flag; }
+
+    [[nodiscard]] bool is_logjsfiles() const { return is("logjsfiles", false); }
+    [[nodiscard]] bool is_log_js_handlers() const { return is("log_js_handlers", false); }
+    [[nodiscard]] bool is_log_resources() const { return is("log_resources", false); }
+    [[nodiscard]] bool is_log_sound() const { return is("log_sound", false); }
+    [[nodiscard]] bool is_log_sound_events() const { return is("log_sound_events", false); }
+    [[nodiscard]] bool is_discord_log() const { return is("discord_log", false); }
+
+    [[nodiscard]] int get_display_scale_percentage() const;
+    void set_display_scale_percentage(int value);
+
+    [[nodiscard]] int get_cursor_scale_percentage() const;
+    void set_cursor_scale_percentage(int value);
+
+    [[nodiscard]] const xstring &get_renderer() const { return get_str("renderer"); }
+    void set_renderer(pcstr value);
+
+    [[nodiscard]] const xstring &get_data_directory() const { return get_str("data_directory"); }
+    void set_data_directory(pcstr value);
+
+    [[nodiscard]] vec2i get_window_size() const;
+    void set_window_size(vec2i value);
+
+    [[nodiscard]] vec2i get_window_pos() const { return get_arg("window_pos").as_vec2i(); }
+    [[nodiscard]] bool has_window_pos() const { return has_arg("window_pos"); }
+
+    [[nodiscard]] bool use_crashdlg() const { return is("crashdlg", true); }
+    [[nodiscard]] bool create_fulldmp() const { return is("fulldmp", false); }
+    [[nodiscard]] bool should_show_config_window() const { return is("config", false); }
+    [[nodiscard]] bool should_skip_config_window() const { return is("noconfig_window", false); }
+    [[nodiscard]] bool should_show_startup_config_window() const;
+    [[nodiscard]] bool config_file_exists() const { return is("config_file_exists", false); }
+    [[nodiscard]] bool features_og() const { return is("features_og", false); }
+    [[nodiscard]] bool features_enhanced() const { return is("features_enhanced", false); }
+    [[nodiscard]] e_features_profile features_profile() const;
+    [[nodiscard]] bool should_unpack_scripts() const { return is("unpack_scripts", false); }
+    [[nodiscard]] bool is_integral_tests() const { return is("integral_tests", false); }
+    void set_integral_tests(bool flag = true) { args_["integral_tests"] = bvariant(flag); }
+    [[nodiscard]] bool integraltest_keep() const { return is("integraltest_keep", false); }
+    void set_integraltest_keep(bool flag = true) { args_["integraltest_keep"] = bvariant(flag); }
+    [[nodiscard]] bool is_editor() const { return is("editor", false); }
+    [[nodiscard]] bool no_logo() const { return is("no_logo", false); }
+    void set_no_logo(bool flag = true) { args_["no_logo"] = bvariant(flag); }
+    [[nodiscard]] bool no_intro() const { return is("nointro", false); }
+    [[nodiscard]] bool no_mouse() const { return is("nomouse", false); }
+    [[nodiscard]] bool no_resource() const { return is("no_resource", false); }
+    void set_no_resource(bool flag = true) { args_["no_resource"] = bvariant(flag); }
+    [[nodiscard]] bool no_data_check() const { return is("no_data_check", false); }
+
+    [[nodiscard]] const xstring& get_language() const { return get_str("language"); }
+    [[nodiscard]] const xstring& get_scripts_directory() const { return get_str("scripts_directory"); }
+    [[nodiscard]] const xstring& get_mods_directory() const { return get_str("mods_directory"); }
+    [[nodiscard]] const xstring& get_custom_font() const { return get_str("custom_font"); }
+    [[nodiscard]] const xstring& get_load_map() const { return get_str("load_map"); }
+    [[nodiscard]] const xstring& get_integraltest_only() const { return get_str("integraltest_only"); }
+    void set_integraltest_only(pcstr value);
+    [[nodiscard]] const xstring& get_extract_installer() const { return get_str("extract_installer"); }
+    [[nodiscard]] const xstring& get_extract_dir() const { return get_str("extract_dir"); }
+    [[nodiscard]] const xstring& get_screenshot_dir() const { return get_str("screenshot_dir"); }
+
+    void set_custom_font(pcstr value);
+
+    /// Thread count for mt/mtrpc pools. 0 = use hardware_concurrency().
+    [[nodiscard]] unsigned int get_thread_count() const;
+
+    void parse(int argc, char **argv);
+
+    bool is(const xstring &name, bool def) const;
+
+    /// Get a custom argument value by name
+    /// @return optional bvariant if the argument was set, empty optional otherwise
+    [[nodiscard]] const bvariant& get_arg(const xstring& name) const;
+
+    [[nodiscard]] const xstring& get_str(const xstring &name) const;
+
+    /// Check if a custom argument exists
+    [[nodiscard]] bool has_arg(const xstring& name) const;
+
+    void add_game_config_cli_override(xstring name, xstring value);
+    [[nodiscard]] const hvector<std::pair<xstring, xstring>, 32>& get_game_config_cli_overrides() const {
+        return game_config_cli_overrides_;
+    }
+
+private:
+    bvariant_map args_;
+    hvector<std::pair<xstring, xstring>, 32> game_config_cli_overrides_;
+
+    /// apply parameters from command line
+    void parse_cli_(int argc, char** argv);
+};
+
+extern Arguments g_args;
+
+#define ANK_REGISTER_ARGUMENT_HANDLER(func) \
+    namespace arguments {int ANK_CONFIG_PULL_VAR_NAME(func) = 1;} \
+    static arguments::ArgumentHandler ANK_CONFIG_CC1(arg_handler, __LINE__)(func); \
+    std::optional<arguments::argument_result> func(int argc, char** argv, int current_index)
+
+#define ANK_REGISTER_ARGUMENT_HANDLER_WITH_DESC(func, arg_name, description) \
+    namespace arguments {int ANK_CONFIG_PULL_VAR_NAME(func) = 1;} \
+    static arguments::ArgumentHandler ANK_CONFIG_CC1(arg_handler, __LINE__)(func); \
+    static arguments::argument_info ANK_CONFIG_CC1(arg_info_obj, __LINE__)(arg_name, description); \
+    static arguments::ArgumentInfo ANK_CONFIG_CC1(arg_info_list, __LINE__)(&ANK_CONFIG_CC1(arg_info_obj, __LINE__)); \
+    std::optional<arguments::argument_result> func(int argc, char** argv, int current_index)
+
+#define ANK_REGISTER_BOOL_ARGUMENT_HANDLER(arg_name, storage_name, value, description) \
+    std::optional<arguments::argument_result> ANK_CONFIG_CC1(handle_, __LINE__)(int argc, char **argv, int current_index) { \
+        if (strcmp(argv[current_index], arg_name) == 0) { \
+            return arguments::argument_result(storage_name, bvariant(value), 1); \
+        } \
+        return std::nullopt; \
+    } \
+    ANK_REGISTER_ARGUMENT_HANDLER_WITH_DESC(ANK_CONFIG_CC1(handle_, __LINE__), arg_name, description)
+
+#define ANK_REGISTER_STRING_ARGUMENT_HANDLER(arg_name, storage_name, error_message, arg_format, description) \
+    std::optional<arguments::argument_result> ANK_CONFIG_CC1(handle_, __LINE__)(int argc, char **argv, int current_index) { \
+        if (SDL_strcmp(argv[current_index], arg_name) == 0) { \
+            if (current_index + 1 < argc) { \
+                return arguments::argument_result(storage_name, bvariant(xstring(argv[current_index + 1])), 2); \
+            } else { \
+                app_terminate(error_message); \
+            } \
+        } \
+        return std::nullopt; \
+    } ANK_REGISTER_ARGUMENT_HANDLER_WITH_DESC(ANK_CONFIG_CC1(handle_, __LINE__), arg_format, description)
