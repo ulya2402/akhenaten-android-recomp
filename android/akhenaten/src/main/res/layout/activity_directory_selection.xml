@@ -1,83 +1,143 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#120E09"
-    android:fillViewport="true"
+    android:orientation="vertical"
+    android:paddingHorizontal="20dp"
+    android:paddingVertical="14dp"
     tools:context=".DirectorySelectionActivity">
 
+    <!-- Top Header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-        <!-- Header -->
+        <ImageView
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginEnd="12dp"
+            android:contentDescription="App Icon"
+            android:src="@mipmap/akhenaten" />
+
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:letterSpacing="0.12"
-                    android:text="AKHENATEN"
-                    android:textColor="#D4AF37"
-                    android:textSize="24sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Pharaoh + Cleopatra • Native ARM64 Engine"
-                    android:textColor="#B8A37E"
-                    android:textSize="13sp" />
-            </LinearLayout>
+            android:layout_weight="1"
+            android:orientation="vertical">
 
             <TextView
-                android:id="@+id/status_badge"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="#261D12"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="6dp"
-                android:text="NEEDS GAME DATA"
+                android:letterSpacing="0.14"
+                android:text="AKHENATEN"
                 android:textColor="#D4AF37"
-                android:textSize="12sp"
+                android:textSize="20sp"
                 android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/header_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pharaoh + Cleopatra • Native ARM64"
+                android:textColor="#B8A37E"
+                android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- Main Two-Column Content for Landscape -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:baselineAligned="false"
-            android:orientation="horizontal">
+        <Button
+            android:id="@+id/btn_language"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginEnd="10dp"
+            android:backgroundTint="#261D12"
+            android:text="ID / EN"
+            android:textColor="#D4AF37"
+            android:textSize="11sp" />
 
-            <!-- Left Card: Pharaoh Data & Launch -->
+        <TextView
+            android:id="@+id/status_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#261D12"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:text="NEEDS DATA"
+            android:textColor="#D4AF37"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Tab Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="#1A140C"
+        android:orientation="horizontal"
+        android:padding="4dp">
+
+        <Button
+            android:id="@+id/tab_play"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:backgroundTint="#D4AF37"
+            android:text="Main &amp; Data"
+            android:textColor="#120E09"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/tab_graphics"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_marginHorizontal="4dp"
+            android:layout_weight="1"
+            android:backgroundTint="#261D12"
+            android:text="Grafis &amp; Layar"
+            android:textColor="#E8D5B5"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/tab_controls"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:backgroundTint="#261D12"
+            android:text="Kontrol &amp; Hotkey"
+            android:textColor="#E8D5B5"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- Tab Content Container -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="10dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- TAB 1: PLAY & DATA -->
             <LinearLayout
-                android:layout_width="0dp"
+                android:id="@+id/panel_play"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:layout_weight="1.15"
                 android:background="#1E1710"
                 android:orientation="vertical"
                 android:padding="16dp">
 
                 <TextView
+                    android:id="@+id/play_card_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Pharaoh Game Data (SAF)"
+                    android:text="Data Game Pharaoh (Android SAF)"
                     android:textColor="#F3E5AB"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -87,7 +147,6 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="@string/directory_selector_instructions"
                     android:textColor="#C9B99A"
                     android:textSize="13sp" />
 
@@ -101,10 +160,10 @@
                         android:id="@+id/directory_selector_button"
                         android:layout_width="0dp"
                         android:layout_height="48dp"
-                        android:layout_marginEnd="8dp"
+                        android:layout_marginEnd="10dp"
                         android:layout_weight="1"
                         android:backgroundTint="#332719"
-                        android:text="Select Folder"
+                        android:text="Pilih Folder"
                         android:textColor="#E8D5B5"
                         android:textSize="13sp" />
 
@@ -112,29 +171,30 @@
                         android:id="@+id/play_game_button"
                         android:layout_width="0dp"
                         android:layout_height="48dp"
-                        android:layout_weight="1"
+                        android:layout_weight="1.2"
                         android:backgroundTint="#D4AF37"
-                        android:text="PLAY PHARAOH"
+                        android:text="MAIN SEKARANG"
                         android:textColor="#120E09"
                         android:textSize="14sp"
                         android:textStyle="bold" />
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Right Card: Native Settings -->
+            <!-- TAB 2: GRAPHICS & DISPLAY -->
             <LinearLayout
-                android:layout_width="0dp"
+                android:id="@+id/panel_graphics"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="0.85"
                 android:background="#1E1710"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="16dp"
+                android:visibility="gone">
 
                 <TextView
+                    android:id="@+id/gfx_card_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Display &amp; Runtime Settings"
+                    android:text="Pengaturan Grafis &amp; Layar Penuh"
                     android:textColor="#F3E5AB"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -144,7 +204,16 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="Immersive Fullscreen (Hide Bars)"
+                    android:text="Fullscreen Immersive (Sembunyikan Notch &amp; Bar)"
+                    android:textColor="#E8D5B5"
+                    android:textSize="13sp" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switch_show_fps"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Tampilkan Info Performa (FPS)"
                     android:textColor="#E8D5B5"
                     android:textSize="13sp" />
 
@@ -153,7 +222,64 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:text="Show Debug Log Overlay"
+                    android:text="Tampilkan Log Debug (Untuk Troubleshooting)"
+                    android:textColor="#E8D5B5"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btn_screen_fit"
+                        android:layout_width="0dp"
+                        android:layout_height="42dp"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1"
+                        android:backgroundTint="#2B2114"
+                        android:text="Layar: Fullscreen Fit"
+                        android:textColor="#D4AF37"
+                        android:textSize="12sp" />
+
+                    <Button
+                        android:id="@+id/btn_ui_scale"
+                        android:layout_width="0dp"
+                        android:layout_height="42dp"
+                        android:layout_weight="1"
+                        android:backgroundTint="#2B2114"
+                        android:text="Skala UI: Auto"
+                        android:textColor="#D4AF37"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- TAB 3: CONTROLS & HOTKEYS -->
+            <LinearLayout
+                android:id="@+id/panel_controls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#1E1710"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/ctrl_card_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Kontrol Sentuh, Hotkeys &amp; Panduan"
+                    android:textColor="#F3E5AB"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switch_side_bar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Bar Quick-Action &amp; Hotkey di Samping Layar"
                     android:textColor="#E8D5B5"
                     android:textSize="13sp" />
 
@@ -162,37 +288,30 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:text="Auto-Launch Game on Start"
-                    android:textColor="#E8D5B5"
-                    android:textSize="13sp" />
-
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/switch_side_bar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="Minimalist Side Scroll &amp; Cancel Bar"
+                    android:text="Langsung Masuk Game Saat Aplikasi Dibuka"
                     android:textColor="#E8D5B5"
                     android:textSize="13sp" />
 
                 <Button
                     android:id="@+id/btn_touch_mode"
                     android:layout_width="match_parent"
-                    android:layout_height="40dp"
+                    android:layout_height="42dp"
                     android:layout_marginTop="10dp"
                     android:backgroundTint="#2B2114"
-                    android:text="Touch: City-Builder (Original)"
+                    android:text="Mode Sentuh: City-Builder"
                     android:textColor="#D4AF37"
                     android:textSize="12sp" />
 
                 <TextView
+                    android:id="@+id/controls_guide_text"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="Pinch 2 fingers to zoom • Drag to pan • 2-finger scroll"
-                    android:textColor="#8D7B5E"
-                    android:textSize="11sp" />
+                    android:layout_marginTop="10dp"
+                    android:background="#15100A"
+                    android:padding="10dp"
+                    android:textColor="#C9B99A"
+                    android:textSize="12sp" />
             </LinearLayout>
-        </LinearLayout>
-    </LinearLayout>
-</ScrollView>
+        </FrameLayout>
+    </ScrollView>
+</LinearLayout>

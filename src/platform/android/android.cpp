@@ -307,3 +307,31 @@ extern "C" JNIEXPORT void JNICALL Java_com_github_dalerank_akhenaten_AkhenatenMa
     g_touch.set_mode(static_cast<e_touch_mode>(clamped));
 }
 
+extern "C" JNIEXPORT void JNICALL Java_com_github_dalerank_akhenaten_AkhenatenMainActivity_nativeInjectKey(JNIEnv *, jobject, jint sdlKeycode)
+{
+    SDL_Event down{};
+    down.type = SDL_KEYDOWN;
+    down.key.state = SDL_PRESSED;
+    down.key.keysym.sym = static_cast<SDL_Keycode>(sdlKeycode);
+    down.key.keysym.scancode = SDL_GetScancodeFromKey(down.key.keysym.sym);
+    SDL_PushEvent(&down);
+
+    SDL_Event up{};
+    up.type = SDL_KEYUP;
+    up.key.state = SDL_RELEASED;
+    up.key.keysym.sym = static_cast<SDL_Keycode>(sdlKeycode);
+    up.key.keysym.scancode = down.key.keysym.scancode;
+    SDL_PushEvent(&up);
+}
+
+void android_notify_game_ready()
+{
+    jni_function_handler handler;
+    if (!jni_get_method_handler("hideLoadingOverlay", "()V", &handler)) {
+        jni_destroy_function_handler(&handler);
+        return;
+    }
+    handler.env->CallVoidMethod(handler.activity, handler.method);
+    jni_destroy_function_handler(&handler);
+}
+

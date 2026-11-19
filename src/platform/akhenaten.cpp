@@ -70,6 +70,7 @@ namespace {
 
 static int init_sdl() {
     logs::info("Initializing SDL");
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
     Uint32 SDL_flags = SDL_INIT_VIDEO;
     SDL_flags |= platform.sdl_init_flags();
 
@@ -649,6 +650,10 @@ static void handle_event(CoreEvent* event, bool& active, bool& quit) {
     }
 }
 
+#ifdef __ANDROID__
+extern void android_notify_game_ready();
+#endif
+
 void application_t::pump_one_frame() {
     platform.per_frame_callback();
     /* Process event queue */
@@ -672,6 +677,13 @@ void application_t::pump_one_frame() {
     // clicks never reach the UI) and SDL_WaitEvent() could block the run.
     if (active || g_args.is_integral_tests()) {
         run_and_draw();
+#ifdef __ANDROID__
+        static bool notified_ready = false;
+        if (!notified_ready) {
+            notified_ready = true;
+            android_notify_game_ready();
+        }
+#endif
     } else {
         SDL_WaitEvent(NULL);
     }
